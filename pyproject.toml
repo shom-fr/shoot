@@ -8,9 +8,7 @@ version = "0.0.0"
 description = "SHom Ocean Objects Tracker"
 requires-python = ">=3.10"
 dependencies = [
-    "cartopy",
     "jax",
-    "scipy",
     "xoa"
 ]
 authors = [

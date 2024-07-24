@@ -48,9 +48,9 @@ def _get_lnam_(uu, vv, wx, dx2dy, lnam):
                     lnam[j, i] -= jl * uu[j + jl, i + il] * dx2dy
                     denom1 += il * uu[j + jl, i + il]
                     denom1 += jl * vv[j + jl, i + il] * dx2dy
-                    denom2 += math.sqrt(uu[j + jl, i + il] ** 2 + vv[j + jl, i + il] ** 2) * math.sqrt(
-                        il**2 + (jl * dx2dy) ** 2
-                    )
+                    denom2 += math.sqrt(
+                        uu[j + jl, i + il] ** 2 + vv[j + jl, i + il] ** 2
+                    ) * math.sqrt(il**2 + (jl * dx2dy) ** 2)
                     # count += 1.0
             if (denom1 + denom2) > 1e-6:
                 # print(lnam[j, i], denom1, denom2)
@@ -81,12 +81,7 @@ def get_lnam(u, v, window, dx=None, dy=None):
     dy: None, xarray.Dataset
         Resolution along Y in m
     """
-    if dx is None or dy is None:
-        dxdy = sgrid.get_dx_dy(u)
-        if dx is None:
-            dx = dxdy[0]
-        if dy is None:
-            dy = dxdy[1]
+    dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     dxm = np.nanmean(dx)
     dym = np.nanmean(dy)
     wx = (int(np.ceil(window * 1e3 / dxm)) // 2) * 2 + 1
@@ -101,8 +96,33 @@ def get_lnam(u, v, window, dx=None, dy=None):
         output_core_dims=[[ydim, xdim]],
         dask="parallelized",
         kwargs={"wx": wx, "dx2dy": float(dym / dxm)},
+        vectorize=True,
     )
     return lnam.transpose(*u.dims)
+
+
+def get_okuboweiss(u, v, dx=None, dy=None):
+    dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
+    xdim = xcoords.get_xdim(u)
+    ydim = xcoords.get_ydim(u)
+    input_core_dims = [[ydim, xdim], [ydim, xdim]]
+    if np.shape(dx) == 0:
+        input_core_dims.extend([[], []])
+    else:
+        input_core_dims.extend([[ydim, xdim], [ydim, xdim]])
+    ow = xr.apply_ufunc(
+        _get_okuboweiss_,
+        u,
+        v,
+        dx,
+        dy,
+        join="override",
+        input_core_dims=input_core_dims,
+        output_core_dims=[[ydim, xdim]],
+        dask="parallelized",
+    )
+    ow = ow.transpose(*u.dims)
+    return ow
 
 
 def _get_okuboweiss_(u, v, dx, dy):
@@ -114,29 +134,98 @@ def _get_okuboweiss_(u, v, dx, dy):
     return ow
 
 
-def get_okuboweiss(u, v, dx=None, dy=None):
-    if dx is None or dy is None:
-        dxdy = sgrid.get_dx_dy(u)
-        if dx is None:
-            dx = dxdy[0]
-        if dy is None:
-            dy = dxdy[1]
+def get_relvort(u, v, dx=None, dy=None):
+    """Get the relative vorticity"""
+    dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(u)
     ydim = xcoords.get_ydim(u)
-
-    ow = xr.apply_ufunc(
-        _get_okuboweiss_,
+    input_core_dims = [[ydim, xdim], [ydim, xdim]]
+    if np.shape(dx) == 0:
+        input_core_dims.extend([[], []])
+    else:
+        input_core_dims.extend([[ydim, xdim], [ydim, xdim]])
+    rv = xr.apply_ufunc(
+        _get_relvort_,
         u,
         v,
         dx,
         dy,
-        join="override",
-        input_core_dims=[[ydim, xdim], [ydim, xdim], [ydim, xdim], [ydim, xdim]],
+        input_core_dims=input_core_dims,
         output_core_dims=[[ydim, xdim]],
+        join="inner",
         dask="parallelized",
+        dask_gufunc_kwargs={"allow_rechunk": True},
     )
-    ow = ow.transpose(*u.dims)
-    return ow
+    rv = rv.transpose(*u.dims)
+    return rv
+
+
+def _get_relvort_(u, v, dx, dy):
+    rv = np.gradient(v, axis=-1) / dx
+    rv -= np.gradient(u, axis=-2) / dy
+    rv[np.isnan(u) | np.isnan(v)] = np.nan
+    return rv
+
+
+def get_coriolis(lat):
+    """Get the coriolis parameter of a dataarray"""
+    return 2 * OMEGA * np.sin(np.radians(lat))
+
+
+def get_geos_old(ssh, dx=None, dy=None):
+    """Get the geostrophic current from SSH"""
+    dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
+    dims = list(ssh.dims)
+    xaxis = dims.index(xcoords.get_xdim(ssh))
+    yaxis = dims.index(xcoords.get_ydim(ssh))
+    dhdx = np.gradient(ssh.values, axis=xaxis) / dx
+    dhdy = np.gradient(ssh.values, axis=yaxis) / dy
+    # dhdx, dhdy = deriv2d(ssh)
+    corio = get_coriolis(xcoords.get_lat(ssh))
+    u = xr.DataArray(-GRAVITY * dhdy, dims=ssh.dims, coords=ssh.coords) / corio
+    v = xr.DataArray(GRAVITY * dhdx, dims=ssh.dims, coords=ssh.coords) / corio
+    return u, v
+
+
+def get_geos(ssh, dx=None, dy=None):
+    """Get the geostrophic current from SSH"""
+    dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
+    xdim = xcoords.get_xdim(ssh)
+    ydim = xcoords.get_ydim(ssh)
+    corio = get_coriolis(xcoords.get_lat(ssh))
+    input_core_dims = [[ydim, xdim]]
+    if np.shape(dx) == 0:
+        input_core_dims.extend([[], []])
+    else:
+        input_core_dims.extend([[ydim, xdim], [ydim, xdim]])
+    if corio.ndim == 1:
+        input_core_dims.append([ydim])
+    else:
+        input_core_dims.append([ydim, xdim])
+    ugeos, vgeos = xr.apply_ufunc(
+        _get_geos_,
+        ssh,
+        dx,
+        dy,
+        corio,
+        input_core_dims=input_core_dims,
+        output_core_dims=[[ydim, xdim], [ydim, xdim]],
+        join="inner",
+        dask="parallelized",
+        dask_gufunc_kwargs={"allow_rechunk": True},
+    )
+    return ugeos.transpose(*ssh.dims), vgeos.transpose(*ssh.dims)
+
+
+def _get_geos_(ssh, dx, dy, corio):
+    if corio.ndim == 1:
+        corio = corio.reshape(corio.shape[0], 1)
+    dhdx = np.gradient(ssh, axis=-1) / (dx * corio)
+    dhdy = np.gradient(ssh, axis=-2) / (dy * corio)
+    bad = np.isnan(ssh)
+    dhdx[bad] = np.nan
+    dhdy[bad] = np.nan
+    return -dhdy * GRAVITY, dhdx * GRAVITY
 
 
 # @numba.njit
@@ -187,26 +276,3 @@ def get_okuboweiss(u, v, dx=None, dy=None):
 #                     dv[j, i] = num / denom
 
 #     return du, dv
-
-
-def get_coriolis(lat):
-    """Get the coriolis parameter of a dataarray"""
-    return 2 * OMEGA * np.sin(np.radians(lat))
-
-
-def get_geos(ssh, dx=None, dy=None):
-    """Get the geostrophic current from SSH"""
-    dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
-    dims = list(ssh.dims)
-    xaxis = dims.index(xcoords.get_xdim(ssh))
-    yaxis = dims.index(xcoords.get_ydim(ssh))
-    dhdx = np.gradient(ssh.values, axis=xaxis) / dx
-    dhdy = np.gradient(ssh.values, axis=yaxis) / dy
-    # dhdx, dhdy = deriv2d(ssh)
-    corio = get_coriolis(xcoords.get_lat(ssh))
-    u = xr.DataArray(-GRAVITY * dhdy, dims=ssh.dims, coords=ssh.coords) / corio
-    v = xr.DataArray(GRAVITY * dhdx, dims=ssh.dims, coords=ssh.coords) / corio
-    return u, v
-
-
-# def _get_geos_(ssh, dx, dy):

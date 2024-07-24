@@ -1,0 +1,9 @@
+name: shoot
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - jax
+  - xoa
