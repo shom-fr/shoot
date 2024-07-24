@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Dynamics
+"""
+import math
+import numpy as np
+import numba
+import xarray as xr
+
+import xoa.coords as xcoords
+
+from . import grid as sgrid
+
+GRAVITY = 9.81
+OMEGA = 2 * np.pi / 86400
+
+
+@numba.guvectorize(
+    [(numba.float64[:, :], numba.float64[:, :], numba.int64, numba.float64, numba.float64[:, :])],
+    "(ny,nx),(ny,nx),(),()->(ny,nx)",
+)
+def _get_lnam_(uu, vv, wx, dx2dy, lnam):
+    ny, nx = uu.shape
+    mask = np.isnan(uu) | np.isnan(vv)
+    wx2 = wx // 2
+    wy = (int(np.ceil(wx / dx2dy)) // 2) * 2 + 1
+    wy2 = wy // 2
+    lnam[:, :] = np.nan
+    for j in numba.prange(wy2, ny - wy2 - 1):
+        for i in range(wx2, nx - wx2 - 1):
+            if mask[j - wy2 : j + wy2 + 1, i - wx2 : i + wx2 + 1].any():
+                continue
+            # if mask[j, i]:
+            #     continue
+            # xc = xx[j, i]
+            # yc = yy[j, i]
+            # print(j, i)
+            denom1 = 0.0
+            denom2 = 0.0
+            # count = 0.0
+            lnam[j, i] = 0.0
+            for jl in range(-wy2, wy2 + 1):
+                for il in range(-wx2, wx2 + 1):
+                    # if mask[j + jl, i + il]:
+                    #     continue
+                    lnam[j, i] += il * vv[j + jl, i + il]
+                    lnam[j, i] -= jl * uu[j + jl, i + il] * dx2dy
+                    denom1 += il * uu[j + jl, i + il]
+                    denom1 += jl * vv[j + jl, i + il] * dx2dy
+                    denom2 += math.sqrt(uu[j + jl, i + il] ** 2 + vv[j + jl, i + il] ** 2) * math.sqrt(
+                        il**2 + (jl * dx2dy) ** 2
+                    )
+                    # count += 1.0
+            if (denom1 + denom2) > 1e-6:
+                # print(lnam[j, i], denom1, denom2)
+                lnam[j, i] /= denom1 + denom2
+
+
+def _get_lnam_wrapper_(uu, vv, wx, dx2dy):
+    uu = uu.astype("d")
+    vv = vv.astype("d")
+    wx = int(wx)
+    dx2dy = float(dx2dy)
+    return _get_lnam_(uu, vv, wx, dx2dy)
+
+
+def get_lnam(u, v, window, dx=None, dy=None):
+    """Get the local normalized angular momentum
+
+    Parameters
+    ----------
+    u: xarray.Dataset
+        Velocity along X
+    v: xarray.Dataset
+        Velocity along X
+    window: float
+        Window in km
+    dx: None, xarray.Dataset
+        Resolution along X in m
+    dy: None, xarray.Dataset
+        Resolution along Y in m
+    """
+    if dx is None or dy is None:
+        dxdy = sgrid.get_dx_dy(u)
+        if dx is None:
+            dx = dxdy[0]
+        if dy is None:
+            dy = dxdy[1]
+    dxm = np.nanmean(dx)
+    dym = np.nanmean(dy)
+    wx = (int(np.ceil(window * 1e3 / dxm)) // 2) * 2 + 1
+    xdim = xcoords.get_xdim(u)
+    ydim = xcoords.get_ydim(u)
+
+    lnam = xr.apply_ufunc(
+        _get_lnam_wrapper_,
+        u,
+        v,
+        input_core_dims=[[ydim, xdim], [ydim, xdim]],
+        output_core_dims=[[ydim, xdim]],
+        dask="parallelized",
+        kwargs={"wx": wx, "dx2dy": float(dym / dxm)},
+    )
+    return lnam.transpose(*u.dims)
+
+
+def _get_okuboweiss_(u, v, dx, dy):
+    sn = np.gradient(u, axis=-1) / dx - np.gradient(v, axis=-2) / dy
+    ss = np.gradient(v, axis=-1) / dx + np.gradient(u, axis=-2) / dy
+    om = np.gradient(v, axis=-1) / dx - np.gradient(u, axis=-2) / dy
+    ow = sn**2 + ss**2 - om**2
+    ow[np.isnan(u) | np.isnan(v)] = np.nan
+    return ow
+
+
+def get_okuboweiss(u, v, dx=None, dy=None):
+    if dx is None or dy is None:
+        dxdy = sgrid.get_dx_dy(u)
+        if dx is None:
+            dx = dxdy[0]
+        if dy is None:
+            dy = dxdy[1]
+    xdim = xcoords.get_xdim(u)
+    ydim = xcoords.get_ydim(u)
+
+    ow = xr.apply_ufunc(
+        _get_okuboweiss_,
+        u,
+        v,
+        dx,
+        dy,
+        join="override",
+        input_core_dims=[[ydim, xdim], [ydim, xdim], [ydim, xdim], [ydim, xdim]],
+        output_core_dims=[[ydim, xdim]],
+        dask="parallelized",
+    )
+    ow = ow.transpose(*u.dims)
+    return ow
+
+
+# @numba.njit
+# def deriv2d(data):
+#     ny, nx = data.shape
+#     mask = np.isnan(data)
+#     du = np.full((ny, nx), np.nan)
+#     dv = np.full((ny, nx), np.nan)
+#     for j in numba.prange(ny):
+#         for i in range(nx):
+#             if mask[j, i]:
+#                 continue
+
+#             if i == 0:
+#                 if not mask[j, i + 1]:
+#                     du[j, i] = data[j, i + 1] - data[j, i]
+#             elif i == nx - 1:
+#                 if not mask[j, i - 1]:
+#                     du[j, i] = data[j, i] - data[j, i - 1]
+#             else:
+#                 denom = 0.0
+#                 num = 0.0
+#                 if not mask[j, i - 1]:
+#                     num += data[j, i] - data[j, i - 1]
+#                     denom += 1.0
+#                 if not mask[j, i + 1]:
+#                     num += data[j, i + 1] - data[j, i]
+#                     denom += 1.0
+#                 if denom != 0.0:
+#                     du[j, i] = num / denom
+
+#             if j == 0:
+#                 if not mask[j + 1, i]:
+#                     dv[j, i] = data[j + 1, i] - data[j, i]
+#             elif j == ny - 1:
+#                 if not mask[j - 1, i]:
+#                     dv[j, i] = data[j, i] - data[j - 1, i]
+#             else:
+#                 denom = 0.0
+#                 num = 0.0
+#                 if not mask[j - 1, i]:
+#                     num += data[j, i] - data[j - 1, i]
+#                     denom += 1.0
+#                 if not mask[j + 1, i]:
+#                     num += data[j + 1, i] - data[j, i]
+#                     denom += 1.0
+#                 if denom != 0.0:
+#                     dv[j, i] = num / denom
+
+#     return du, dv
+
+
+def get_coriolis(lat):
+    """Get the coriolis parameter of a dataarray"""
+    return 2 * OMEGA * np.sin(np.radians(lat))
+
+
+def get_geos(ssh, dx=None, dy=None):
+    """Get the geostrophic current from SSH"""
+    dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
+    dims = list(ssh.dims)
+    xaxis = dims.index(xcoords.get_xdim(ssh))
+    yaxis = dims.index(xcoords.get_ydim(ssh))
+    dhdx = np.gradient(ssh.values, axis=xaxis) / dx
+    dhdy = np.gradient(ssh.values, axis=yaxis) / dy
+    # dhdx, dhdy = deriv2d(ssh)
+    corio = get_coriolis(xcoords.get_lat(ssh))
+    u = xr.DataArray(-GRAVITY * dhdy, dims=ssh.dims, coords=ssh.coords) / corio
+    v = xr.DataArray(GRAVITY * dhdx, dims=ssh.dims, coords=ssh.coords) / corio
+    return u, v
+
+
+# def _get_geos_(ssh, dx, dy):

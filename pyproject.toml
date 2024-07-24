@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ascit"
+version = "0.0.0"
+description = "SHom Ocean Objects Tracker"
+requires-python = ">=3.10"
+dependencies = [
+    "cartopy",
+    "jax",
+    "scipy",
+    "xoa"
+]
+authors = [
+  {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"},
+]
+maintainers = [
+  {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"}
+]
+
+[tool.setuptools]
+packages = ["shoot"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+skip-string-normalization = true
