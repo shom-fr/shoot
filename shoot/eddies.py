@@ -58,7 +58,7 @@ def find_eddy_centers(u, v, window, dx=None, dy=None):
 
     # Find local peaks
     wx, wy = sgrid.get_wx_wy(window, dxm, dym)
-    minima, maxima = snum.find_peaks_2d(lnam.values, wx, wy)
+    minima, maxima = snum.find_signed_peaks_2d(lnam.values, wx, wy)
     extrema = np.vstack((minima, maxima))
     ii = extrema[:, 0]
     jj = extrema[:, 1]
@@ -180,7 +180,9 @@ class RawEddy2D:
     def ssh(self):
         if self._ssh is not None:
             return self._ssh
-        return sfit.fit_ssh_from_uv(self.u, self.v, dx=self._dx, dy=self._dy, uv_error=self.uv_error)
+        return sfit.fit_ssh_from_uv(
+            self.u, self.v, dx=self._dx, dy=self._dy, uv_error=self.uv_error
+        )
 
     @functools.cached_property
     def _uvgeos(self):
@@ -290,13 +292,17 @@ class RawEddy2D:
         kw = dict(color=color, **kwargs)
         out = {"center": ax.scatter(self.lon, self.lat, **kw)}
         if self.ncontours:
-            out["boundary"] = ax.plot(self.boundary_contour.lon, self.boundary_contour.lat, lw=lw, **kw)
+            out["boundary"] = ax.plot(
+                self.boundary_contour.lon, self.boundary_contour.lat, lw=lw, **kw
+            )
             out["ellipse"] = self.boundary_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
         return out
 
 
-def detect_eddies(u, v, window_center, window_fit=None, dx=None, dy=None, min_radius=None, **kwargs):
+def detect_eddies(
+    u, v, window_center, window_fit=None, ssh=None, dx=None, dy=None, min_radius=None, **kwargs
+):
     if window_fit is None:
         window_fit = 1.5 * window_center
 
@@ -326,14 +332,9 @@ def detect_eddies(u, v, window_center, window_fit=None, dx=None, dy=None, min_ra
     ny = u.sizes[ydim]
 
     # Loop on detected centers
-    # cyclones = []
-    # anticyclones = []
-    # for eddy_type, eddies, centers in [
-    #     ("cyclone", cyclones, ccenters),
-    #     ("anticyclone", anticyclones, acenters),
-    # ]:
     eddies = []
     for ic in range(centers.lon.shape[0]):
+
         # Local selection
         i = int(centers.gi[ic])
         j = int(centers.gj[ic])
@@ -344,6 +345,7 @@ def detect_eddies(u, v, window_center, window_fit=None, dx=None, dy=None, min_ra
         isel = {xdim: slice(imin, imax), ydim: slice(jmin, jmax)}
         ul = u[isel]
         vl = v[isel]
+        sshl = ssh[isel] if ssh is not None else None
         if isinstance(dx, xr.DataArray):
             dxl = dx[isel]
             dyl = dy[isel]
@@ -351,7 +353,7 @@ def detect_eddies(u, v, window_center, window_fit=None, dx=None, dy=None, min_ra
             dxl, dyl = dx, dy
 
         # Init eddy
-        eddy = RawEddy2D(i - imin, j - jmin, ul, vl, dx=dxl, dy=dyl, **kwargs)
+        eddy = RawEddy2D(i - imin, j - jmin, ul, vl, ssh=sshl, dx=dxl, dy=dyl, **kwargs)
 
         # Checks
         if not eddy.ncontours:

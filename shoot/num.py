@@ -24,7 +24,7 @@ import numpy as np
 
 
 @numba.njit
-def find_peaks_2d(data, wx, wy):
+def find_signed_peaks_2d(data, wx, wy):
     ny, nx = data.shape
     mask = np.isnan(data)
     maxima = np.empty((0, 2), dtype=np.int64)
@@ -33,18 +33,20 @@ def find_peaks_2d(data, wx, wy):
     wy2 = wy // 2
     for j in numba.prange(1, ny - 1):
         for i in range(1, nx - 1):
+            if mask[j, i]:
+                continue
             i0 = max(0, i - wx2)
             i1 = min(nx, i + wx2 + 1)
             j0 = max(0, j - wy2)
             j1 = min(ny, j + wy2 + 1)
-            if mask[j - 1 : j + 2, i - 1 : i + 2].any():
+            if mask[j - 1 : j + 2, i - 1 : i + 2].all():
                 continue
             imax = -1
             jmax = -1
             imin = -1
             jmin = -1
-            vmax = -np.inf
-            vmin = np.inf
+            vmax = 0.0
+            vmin = 0.0
             for jl in range(j0, j1):
                 for il in range(i0, i1):
                     if mask[jl, il]:
