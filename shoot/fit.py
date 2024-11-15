@@ -84,7 +84,28 @@ def _ngrad_ssh_from_uv_(*args, **kwargs):
 
 
 def fit_ssh_from_uv(u, v, uv_error=0.01, f0=1.0, f1=1.0, f2=1.0, dx=None, dy=None):
-    """Get geostrophic ssh from u and v"""
+    """Fit an SSH to geostrophic currents
+
+    Parameters
+    ----------
+    u: xarray.DataArray
+        Current along X in m/s
+    v: xarray.DataArray
+        Current along Y
+    uv_error: float
+        Quadratic velocity error in m2/s2
+    f0: float
+        Field penalisation factor
+    f1: float
+        Gradients penalisation factor
+    f2: float
+        Second derivative penalisation factor
+
+    Return
+    ------
+    xarray.DataArray
+        SSH array
+    """
     invalid = np.isnan(u.values)
     valid = ~invalid
     fmask = valid.astype("d")

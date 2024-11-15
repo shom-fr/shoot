@@ -80,6 +80,11 @@ def get_lnam(u, v, window, dx=None, dy=None):
         Resolution along X in m
     dy: None, xarray.Dataset
         Resolution along Y in m
+
+    Return
+    ------
+    xarray.DataArray
+        Local normalized angular momentum
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     dxm = np.nanmean(dx)
@@ -102,6 +107,24 @@ def get_lnam(u, v, window, dx=None, dy=None):
 
 
 def get_okuboweiss(u, v, dx=None, dy=None):
+    """Get the Okubo-Weiss parameter
+
+    Parameters
+    ----------
+    u: xarray.Dataset
+        Velocity along X
+    v: xarray.Dataset
+        Velocity along X
+    dx: None, xarray.Dataset
+        Resolution along X in m
+    dy: None, xarray.Dataset
+        Resolution along Y in m
+
+    Return
+    ------
+    xarray.DataArray
+        Okubo-Weiss parameters
+    """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(u)
     ydim = xcoords.get_ydim(u)
@@ -135,7 +158,24 @@ def _get_okuboweiss_(u, v, dx, dy):
 
 
 def get_relvort(u, v, dx=None, dy=None):
-    """Get the relative vorticity"""
+    """Get the relative vorticity
+
+    Parameters
+    ----------
+    u: xarray.Dataset
+        Velocity along X
+    v: xarray.Dataset
+        Velocity along X
+    dx: None, xarray.Dataset
+        Resolution along X in m
+    dy: None, xarray.Dataset
+        Resolution along Y in m
+
+    Return
+    ------
+    xarray.DataArray
+        Relative vorticity
+    """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(u)
     ydim = xcoords.get_ydim(u)
@@ -173,7 +213,7 @@ def get_coriolis(lat):
 
 
 def get_geos_old(ssh, dx=None, dy=None):
-    """Get the geostrophic current from SSH"""
+    """Get the geostrophic current from SSH (old version)"""
     dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
     dims = list(ssh.dims)
     xaxis = dims.index(xcoords.get_xdim(ssh))
@@ -188,7 +228,22 @@ def get_geos_old(ssh, dx=None, dy=None):
 
 
 def get_geos(ssh, dx=None, dy=None):
-    """Get the geostrophic current from SSH"""
+    """Get the geostrophic current from SSH
+
+    Parameters
+    ----------
+    ssh: xarray.Dataset
+        Sea surface height
+    dx: None, xarray.Dataset
+        Resolution along X in m
+    dy: None, xarray.Dataset
+        Resolution along Y in m
+
+    Return
+    ------
+    xarray.DataArray, xarray.DataArray: U, V
+        X and Y geostrophic velocities
+    """
     dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(ssh)
     ydim = xcoords.get_ydim(ssh)

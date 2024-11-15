@@ -23,8 +23,7 @@ COLORS = {"anticyclone": "tab:red", "cyclone": "tab:blue", "undefined": "0.5"}
 
 
 def find_eddy_centers(u, v, window, dx=None, dy=None):
-    """
-
+    """Find eddy centers in a velocity field
 
     Parameters
     ----------
@@ -145,6 +144,8 @@ class Ellipse:
 
 
 class RawEddy2D:
+    """A basic eddy attached to a grid point"""
+
     def __init__(
         self,
         i,
@@ -164,9 +165,9 @@ class RawEddy2D:
         lat = xcoords.get_lat(u)
         lon = xcoords.get_lon(u)
         if lon.ndim == 1:
-            self.lon, self.lat = float(lon[i]), float(lat[j])
+            self.glon, self.glat = float(lon[i]), float(lat[j])
         else:
-            self.lon, self.lat = float(lon[j, i]), float(lat[j, i])
+            self.glon, self.glat = float(lon[j, i]), float(lat[j, i])
         self.u, self.v = u, v
         self._ssh = ssh
         self._dx, self._dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
@@ -200,7 +201,7 @@ class RawEddy2D:
     def contours(self):
         # Closed contours
         dss = scontours.get_closed_contours(
-            self.lon, self.lat, self.ssh, nlevels=self.nlevels, robust=self.robust
+            self.glon, self.glat, self.ssh, nlevels=self.nlevels, robust=self.robust
         )
 
         # Fit ellipses, add currents and filter
@@ -229,11 +230,40 @@ class RawEddy2D:
                 dsb = ds
         return dsb
 
+    @property
+    def ellipse(self):
+        """Ellipse fited from :attr:`boundary_contour` or None"""
+        if self.ncontours:
+            return self.boundary_contour.ellipse
+
     @functools.cached_property
     def radius(self):
+        """Radius deduced from :attr:`ellipse` or 0"""
         if not self.ncontours:
             return 0.0
-        return self.boundary_contour.ellipse.radius
+        return self.ellipse.radius
+
+    @functools.cached_property
+    def elon(self):
+        """Longitude of :attr:`ellipse` or None"""
+        if self.ellipse:
+            return self.ellipse.lon
+
+    @functools.cached_property
+    def elat(self):
+        """Latitude of :attr:`ellipse` or None"""
+        if self.ellipse:
+            return self.ellipse.lat
+
+    @functools.cached_property
+    def lon(self):
+        """Longitude of center either from grid or :attr:`ellipse`"""
+        return self.ellipse.lon if self.ellipse else self.glon
+
+    @functools.cached_property
+    def lat(self):
+        """Latitude of center either from grid or :attr:`ellipse`"""
+        return self.ellipse.lat if self.ellipse else self.glat
 
     @functools.cached_property
     def vmax_contour(self):
@@ -284,7 +314,8 @@ class RawEddy2D:
             valid = snum.points_in_polygon(points, self.boundary_contour)
         return xr.DataArray(valid, dims=da.dims, coords=da.coords)
 
-    def plot(self, ax=None, lw=2, color=None, **kwargs):
+    def plot(self, ax=None, lw=1, color=None, **kwargs):
+        """Quickly plot the eddy"""
         if ax is None:
             ax = plt.gca()
         if color is None:
@@ -303,6 +334,7 @@ class RawEddy2D:
 def detect_eddies(
     u, v, window_center, window_fit=None, ssh=None, dx=None, dy=None, min_radius=None, **kwargs
 ):
+    """Detect all eddies in a velocity field"""
     if window_fit is None:
         window_fit = 1.5 * window_center
 

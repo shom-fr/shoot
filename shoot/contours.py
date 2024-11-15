@@ -15,7 +15,7 @@ from . import fit as sfit
 
 
 def get_closed_contours(lon_center, lat_center, ssh, nlevels=100, robust=0.03):
-    """Closed contours around a center
+    """Get closed contours around a center
 
     Parameters
     ----------
@@ -54,7 +54,11 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=100, robust=0.03):
                                 "lon": ("npts", xx, {"long_name": "Longitude"}),
                                 "lat": ("npts", yy, {"long_name": "Latitude"}),
                             },
-                            attrs={"ssh": level, "lon_center": lon_center, "lat_center": lat_center},
+                            attrs={
+                                "ssh": level,
+                                "lon_center": lon_center,
+                                "lat_center": lat_center,
+                            },
                         )
                     )
     return dss
@@ -84,6 +88,7 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=100, robust=0.03):
 
 
 def interp_to_line(data, line):
+    """Interpolate a 2D field to series of relative coordinates"""
     coords = line.T[::-1]
     mask = np.isnan(data).astype("d")
     dataf = np.nan_to_num(data)
@@ -95,6 +100,7 @@ def interp_to_line(data, line):
 
 
 def add_contour_uv(ds, u, v):
+    """Interpolate and add u and v along contours"""
     if "u" not in ds:
         uc = interp_to_line(u, ds.line.values)
         vc = interp_to_line(v, ds.line.values)
@@ -110,6 +116,7 @@ def add_contour_uv(ds, u, v):
 
 
 def add_contour_dx_dy(ds):
+    """Add x and y metrics to contours"""
     if "dx" not in ds:
         dx = xgeo.deg2m(np.gradient(ds.lon.values), ds.lat.values.mean())
         dy = xgeo.deg2m(np.gradient(ds.lat.values))
