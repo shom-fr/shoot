@@ -23,7 +23,7 @@ shoot requires ``python>3`` and depends on the following packages:
    * - `xarray <http://xarray.pydata.org/en/stable/>`_
      - xarray is an open source project and Python package that makes working
        with labelled multi-dimensional arrays simple, efficient, and fun!
-   * - `xoa <https://xoa.readthedocs.io/en/develop/>`
+   * - `xoa <https://xoa.readthedocs.io/en/develop/>`_
      - xoa helps analyzing ocean fields
 
 

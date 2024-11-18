@@ -55,12 +55,6 @@ coverage.xml
 *.mo
 *.pot
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
 # Flask stuff:
 instance/
 .webassets-cache
@@ -69,8 +63,8 @@ instance/
 .scrapy
 
 # Sphinx documentation
-doc/_build/
-doc/accessors/
+docs/_build/
+docs/api/
 
 # PyBuilder
 target/
@@ -130,7 +124,9 @@ dmypy.json
 .pyre/
 
 # Sphinx
-doc/api/
+docs/_build/
+docs/api/
+docs/examples/
 my/
 
 # misc
