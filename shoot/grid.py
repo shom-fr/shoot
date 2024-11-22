@@ -15,8 +15,8 @@ def get_dx_dy(da, dx=None, dy=None):
     if dx is not None and dy is not None:
         return dx, dy
 
-    lon = xcoords.get_lon(da)
-    lat = xcoords.get_lat(da)
+    lon = xcoords.get_lon(da, errors="raise")
+    lat = xcoords.get_lat(da, errors="raise")
 
     lat2d, lon2d = xr.broadcast(lat, lon)
     dlonx = np.gradient(lon2d.values, axis=-1)

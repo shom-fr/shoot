@@ -3,10 +3,15 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
+import sys
+import os
 import shoot
 import sphinx_autosummary_accessors
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
+
+sys.path.insert(0, os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ext'))
+
 
 # %% Project information
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -29,6 +34,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx_gallery.gen_gallery",
+    'genlogos',
 ]
 
 templates_path = ['_templates', sphinx_autosummary_accessors.templates_path]

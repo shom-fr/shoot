@@ -90,8 +90,8 @@ def get_lnam(u, v, window, dx=None, dy=None):
     dxm = np.nanmean(dx)
     dym = np.nanmean(dy)
     wx = (int(np.ceil(window * 1e3 / dxm)) // 2) * 2 + 1
-    xdim = xcoords.get_xdim(u)
-    ydim = xcoords.get_ydim(u)
+    xdim = xcoords.get_xdim(u, errors="raise")
+    ydim = xcoords.get_ydim(u, errors="raise")
 
     lnam = xr.apply_ufunc(
         _get_lnam_wrapper_,
@@ -101,7 +101,7 @@ def get_lnam(u, v, window, dx=None, dy=None):
         output_core_dims=[[ydim, xdim]],
         dask="parallelized",
         kwargs={"wx": wx, "dx2dy": float(dym / dxm)},
-        vectorize=True,
+        vectorize=False,
     )
     return lnam.transpose(*u.dims)
 
@@ -126,8 +126,8 @@ def get_okuboweiss(u, v, dx=None, dy=None):
         Okubo-Weiss parameters
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
-    xdim = xcoords.get_xdim(u)
-    ydim = xcoords.get_ydim(u)
+    xdim = xcoords.get_xdim(u, errors="raise")
+    ydim = xcoords.get_ydim(u, errors="raise")
     input_core_dims = [[ydim, xdim], [ydim, xdim]]
     if np.shape(dx) == 0:
         input_core_dims.extend([[], []])
@@ -177,8 +177,8 @@ def get_relvort(u, v, dx=None, dy=None):
         Relative vorticity
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
-    xdim = xcoords.get_xdim(u)
-    ydim = xcoords.get_ydim(u)
+    xdim = xcoords.get_xdim(u, errors="raise")
+    ydim = xcoords.get_ydim(u, errors="raise")
     input_core_dims = [[ydim, xdim], [ydim, xdim]]
     if np.shape(dx) == 0:
         input_core_dims.extend([[], []])
@@ -216,8 +216,8 @@ def get_geos_old(ssh, dx=None, dy=None):
     """Get the geostrophic current from SSH (old version)"""
     dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
     dims = list(ssh.dims)
-    xaxis = dims.index(xcoords.get_xdim(ssh))
-    yaxis = dims.index(xcoords.get_ydim(ssh))
+    xaxis = dims.index(xcoords.get_xdim(ssh, errors="raise"))
+    yaxis = dims.index(xcoords.get_ydim(ssh, errors="raise"))
     dhdx = np.gradient(ssh.values, axis=xaxis) / dx
     dhdy = np.gradient(ssh.values, axis=yaxis) / dy
     # dhdx, dhdy = deriv2d(ssh)
@@ -245,8 +245,8 @@ def get_geos(ssh, dx=None, dy=None):
         X and Y geostrophic velocities
     """
     dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
-    xdim = xcoords.get_xdim(ssh)
-    ydim = xcoords.get_ydim(ssh)
+    xdim = xcoords.get_xdim(ssh, errors="raise")
+    ydim = xcoords.get_ydim(ssh, errors="raise")
     corio = get_coriolis(xcoords.get_lat(ssh))
     input_core_dims = [[ydim, xdim]]
     if np.shape(dx) == 0:

@@ -15,11 +15,17 @@ In this example, eddies are detected from CROCO model currents interpolated to 1
 import cmocean
 import matplotlib.pyplot as plt
 import xarray as xr
+import xoa.cf as xcf
+
 from shoot.eddies import detect_eddies
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
 
 xr.set_options(display_style="text")
+
+# %%
+# Load croco-specific naming conventions to find dims, coords and variables
+xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
