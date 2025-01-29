@@ -106,6 +106,7 @@ def fit_ssh_from_uv(u, v, uv_error=0.01, f0=1.0, f1=1.0, f2=1.0, dx=None, dy=Non
     xarray.DataArray
         SSH array
     """
+    
     invalid = np.isnan(u.values)
     valid = ~invalid
     fmask = valid.astype("d")

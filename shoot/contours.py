@@ -3,6 +3,7 @@
 """
 Contouring utilities
 """
+
 import numpy as np
 import contourpy as cpy
 import scipy.ndimage as scin
@@ -35,18 +36,17 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=100, robust=0.03):
     # lines = []
     # lons = []
     # lats = []
-    vmin, vmax = np.quantile(ssh, [robust, 1 - robust])
+    vmin, vmax = np.nanquantile(ssh, [robust, 1 - robust])
     point = np.array([lon_center, lat_center])
     dss = []
     for level in np.linspace(vmin, vmax, nlevels):
         for line in cont_gen.lines(level):
-            if (line[0] == line[-1]).all():
+            if (line[0] == line[-1]).all():  # chek if it is closed contour
                 xx = interp_to_line(lon2d.values, line)
                 yy = interp_to_line(lat2d.values, line)
-                if snum.points_in_polygon(point, np.array([xx, yy]).T):
-                    # lines.append(line)
-                    # lons.append(xx)
-                    # lats.append(yy)
+                if snum.points_in_polygon(
+                    point, np.array([xx, yy]).T
+                ):  # Check if it contains the center
                     dss.append(
                         xr.Dataset(
                             {"line": (("npts", "ncoords"), line)},
@@ -112,6 +112,7 @@ def add_contour_uv(ds, u, v):
         ds["am"] = ("npts", am, {"long_name": "Angular momentum", "units": "m2.s-2"})
         ds.attrs["mean_velocity"] = float(np.sqrt(ds.u**2 + ds.v**2).mean())
         ds.attrs["mean_angular_momentum"] = float(ds.am.mean())
+        ds.attrs["radius"] = float(np.mean(np.sqrt(xdist**2 + ydist**2)))
     return ds
 
 
@@ -133,3 +134,84 @@ class ContourMeanSpeedGetter:
     def __call__(self, ds):
         add_contour_uv(ds.line.values, self.u, self.v)
         return float(np.sqrt(ds.u**2 + ds.v**2).mean())
+
+
+def get_lnam_peaks(lnam, K=0.7):
+    # compute lines
+    lon = xcoords.get_lon(lnam)
+    lat = xcoords.get_lat(lnam)
+    lat2d, lon2d = xr.broadcast(lat, lon)
+
+    lon_name, lat_name = snum.get_coord_name(lnam)
+
+    cont_gen = cpy.contour_generator(z=abs(lnam))
+    lines = cont_gen.lines(K)
+    maxima = np.empty((0, 2), dtype=np.int64)
+    minima = np.empty((0, 2), dtype=np.int64)
+
+    Lines_coords = []
+    for i, line in enumerate(lines):
+        if not (line[0] == line[-1]).all():  # skip not closed contours
+            continue
+
+        xx = interp_to_line(lon2d.values, line)
+        yy = interp_to_line(lat2d.values, line)
+        Lines_coords.append([xx, yy])
+
+        # get extremun of the polygon
+        lon_min = xx.min()
+        lon_max = xx.max()
+        lat_min = yy.min()
+        lat_max = yy.max()
+
+        # get nearest x,y values
+        jmin = (abs(lat2d - lat_min) + abs(lon2d - lon_min)).argmin(lnam.dims)[
+            lnam.dims[0]
+        ].data - 1
+        imin = (abs(lat2d - lat_min) + abs(lon2d - lon_min)).argmin(lnam.dims)[
+            lnam.dims[1]
+        ].data - 1
+
+        jmax = (abs(lat2d - lat_max) + abs(lon2d - lon_max)).argmin(lnam.dims)[
+            lnam.dims[0]
+        ].data + 1
+        imax = (abs(lat2d - lat_max) + abs(lon2d - lon_max)).argmin(lnam.dims)[
+            lnam.dims[1]
+        ].data + 1
+
+        # compute max inside the polygon
+        # ijmax = abs(lnam).isel({lnam.dims[0]:slice(lat_min,lat_max), lnam.dims[1]:slice(lon_min,lon_max)}).argmax(lnam.dims)
+        ijmax = (
+            abs(lnam)
+            .isel({lnam.dims[0]: slice(jmin, jmax), lnam.dims[1]: slice(imin, imax)})
+            .argmax(lnam.dims)
+        )
+        jmax_in = ijmax[lnam.dims[0]].data  # lat
+        imax_in = ijmax[lnam.dims[1]].data  # lon
+
+        # lat_center = abs(lnam).sel({lnam.dims[0]:slice(lat_min,lat_max), lnam.dims[1]:slice(lon_min,lon_max)}).latitude[jmax_in]
+        # lon_center = abs(lnam).sel({lnam.dims[0]:slice(lat_min,lat_max), lnam.dims[1]:slice(lon_min,lon_max)}).longitude[imax_in]
+        lat_center = abs(lnam).isel(
+            {lnam.dims[0]: slice(jmin, jmax), lnam.dims[1]: slice(imin, imax)}
+        )[jmax_in, imax_in][lat_name]
+        lon_center = abs(lnam).isel(
+            {lnam.dims[0]: slice(jmin, jmax), lnam.dims[1]: slice(imin, imax)}
+        )[jmax_in, imax_in][lon_name]
+        # assert(snum.points_in_polygon([lon_center, lat_center], np.array([xx, yy]).T))
+
+        # jcenter = lnam.indexes[lat_name].get_loc(float(lat_center.data))
+        # icenter = lnam.indexes[lon_name].get_loc(float(lon_center.data))
+
+        jcenter = (
+            (abs(lat2d - lat_center) + abs(lon2d - lon_center)).argmin(lnam.dims)[lnam.dims[0]].data
+        )
+        icenter = (
+            (abs(lat2d - lat_center) + abs(lon2d - lon_center)).argmin(lnam.dims)[lnam.dims[1]].data
+        )
+
+        if lnam[jcenter, icenter] > 0:
+            maxima = np.append(maxima, np.array([[icenter, jcenter]]), axis=0)
+        else:
+            minima = np.append(minima, np.array([[icenter, jcenter]]), axis=0)
+
+    return minima, maxima, Lines_coords

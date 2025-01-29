@@ -106,6 +106,56 @@ def get_lnam(u, v, window, dx=None, dy=None):
     return lnam.transpose(*u.dims)
 
 
+def get_div(u, v, dx=None, dy=None): 
+    """Get the divergence of the flow
+
+    Parameters
+    ----------
+    u: xarray.Dataset
+        Velocity along X
+    v: xarray.Dataset
+        Velocity along X
+    dx: None, xarray.Dataset
+        Resolution along X in m
+    dy: None, xarray.Dataset
+        Resolution along Y in m
+
+    Return
+    ------
+    xarray.DataArray
+        divergence 
+    """
+    dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
+    xdim = xcoords.get_xdim(u, errors="raise")
+    ydim = xcoords.get_ydim(u, errors="raise")
+    input_core_dims = [[ydim, xdim], [ydim, xdim]]
+    if np.shape(dx) == 0:
+        input_core_dims.extend([[], []])
+    else:
+        input_core_dims.extend([[ydim, xdim], [ydim, xdim]])
+    div = xr.apply_ufunc(
+        _get_div_,
+        u,
+        v,
+        dx,
+        dy,
+        join="override",
+        input_core_dims=input_core_dims,
+        output_core_dims=[[ydim, xdim]],
+        dask="parallelized",
+    )
+    div = div.transpose(*u.dims)
+    return div
+
+
+def _get_div_(u, v, dx, dy):
+    sx = np.gradient(u, axis=-1) / dx 
+    sy = np.gradient(v, axis=-2) / dy 
+    div = sx + sy
+    div[np.isnan(u) | np.isnan(v)] = np.nan
+    return div
+
+
 def get_okuboweiss(u, v, dx=None, dy=None):
     """Get the Okubo-Weiss parameter
 
