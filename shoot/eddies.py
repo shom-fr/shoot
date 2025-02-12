@@ -182,7 +182,7 @@ class RawEddy2D:
         dx=None,
         dy=None,
         uv_error=0.01,
-        max_ellipse_error=0.1,  # 0.03,  # 0.01,
+        max_ellipse_error=0.1,  # 0.1,  # 0.03,  # 0.01,
         nlevels=100,
         robust=0.03,
         ssh_method='streamline',
@@ -203,8 +203,8 @@ class RawEddy2D:
         self.max_ellipse_error = max_ellipse_error
         self.nlevels = nlevels
         self.robust = robust
-        self.track_nb = None
-        self.parent = False
+        self.track_id = None
+        self.is_parent = False
         self.attrs = attrs
 
     def dictio(self):
@@ -237,10 +237,10 @@ class RawEddy2D:
     def ssh(self):
         if self._ssh is not None:
             return self._ssh
-        # Here we use a minimization method
-        if self._method == 'streamline':
+
+        if self._method == 'streamline':  # Here we use a integration method
             return strl.psi(self.u, self.v)
-        else:
+        else:  # Here we use a minimization method
             return sfit.fit_ssh_from_uv(
                 self.u, self.v, dx=self._dx, dy=self._dy, uv_error=self.uv_error
             )
@@ -284,6 +284,18 @@ class RawEddy2D:
     def ncontours(self):
         return len(self.contours)
 
+    def is_eddy(self, min_radius):  # a mettre dans RawEddy2D
+        # Checks if closed contour exists
+        if not self.ncontours:
+            return False
+        if min_radius and self.radius < min_radius:
+            return False
+        if np.isnan(self.vmax_contour.mean_velocity):
+            return False
+        if self.vmax_contour.ellipse.fit_error > self.max_ellipse_error / 2:
+            return False
+        return True
+
     @functools.cached_property
     def boundary_contour(self):
         if not self.ncontours:
@@ -293,10 +305,6 @@ class RawEddy2D:
             if ds.length > dsb.length:
                 dsb = ds
         # interpolation step using splrep
-
-        # try:
-        #     tck, u = splprep([dsb.lon, dsb.lat], s=0)
-        # except ValueError:
         ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 0)[0]
         ok = np.concatenate([ok, [len(dsb.lon) - 1]])
         tck, u = splprep([dsb.lon[ok], dsb.lat[ok]], s=0)  # avoid repeated values
@@ -310,6 +318,7 @@ class RawEddy2D:
         """Ellipse fited from :attr:`boundary_contour` or None"""
         if self.ncontours:
             return self.boundary_contour.ellipse
+            # return self.vmax_contour.ellipse
 
     @functools.cached_property
     def radius(self):  # differs from AMEDA which compute from the AREA
@@ -353,13 +362,9 @@ class RawEddy2D:
         dsv = self.contours[0]
         for ds in self.contours:
             if ds.mean_velocity > dsv.mean_velocity:
+                if Ellipse.from_coords(ds.lon, ds.lat).fit_error > self.max_ellipse_error / 10:
+                    continue
                 dsv = ds
-        # interpolation step using splrep
-        # try:
-        #     tck, u = splprep([dsv.lon, dsv.lat], s=0)
-        # except ValueError:
-        #     ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
-        #     tck, u = splprep([dsv.lon[ok], dsv.lat[ok]], s=0)  # avoid repeated values
         ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
         ok = np.concatenate([ok, [len(dsv.lon) - 1]])
         tck, u = splprep([dsv.lon[ok], dsv.lat[ok]], s=0)  # avoid repeated values
@@ -396,16 +401,12 @@ class RawEddy2D:
         points = np.array([lons, lats]).T
         return snum.points_in_polygon(points, self.boundary_contour)
 
-    def contains_da(self, da):
-        if not self.is_valid():
-            valid = np.zeros(da.shape, dtype="?")
-        else:
-            lon = xcoords.get_lon(da)
-            lat = xcoords.get_lat(da)
-            lats, lons = xr.broadcast(lat, lon)
-            points = np.array([lons.values, lats.values]).T
-            valid = snum.points_in_polygon(points, self.boundary_contour)
-        return xr.DataArray(valid, dims=da.dims, coords=da.coords)
+    def contains_eddy(self, eddy):
+        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
+        valid = snum.points_in_polygon(
+            points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T
+        )
+        return valid.all()
 
     def plot(self, ax=None, lw=1, color=None, **kwargs):
         """Quickly plot the eddy"""
@@ -424,6 +425,7 @@ class RawEddy2D:
                 self.boundary_contour.lon_int, self.boundary_contour.lat_int, lw=lw, **kw
             )
             out["ellipse"] = self.boundary_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
+            # out["ellipse"] = self.vmax_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
         return out
 
@@ -437,8 +439,8 @@ class Eddy:  ##This is a minimal class without computing capabilities
         j,
         ro,
         eddy_type,
-        track_nb,
-        parent,
+        track_id,
+        is_parent,
         radius,
         length,
         vmax_radius,
@@ -462,30 +464,30 @@ class Eddy:  ##This is a minimal class without computing capabilities
         self.vmax_radius = vmax_radius
         self.ellipse = Ellipse.reconstruct(elon, elat, a, b, angle)
         self.eddy_type = eddy_type
-        self.track_nb = track_nb
-        self.parent = parent
+        self.track_id = track_id
+        self.is_parent = is_parent
 
     @classmethod
-    def reconstruct(cls, data):
+    def reconstruct(cls, ds):
         return cls(
-            data['lon'],
-            data['lat'],
-            data['i'],
-            data['j'],
-            data['ro'],
-            data['eddy_type'],
-            data['track_nb'],
-            data['parent'],
-            data['radius'],
-            data['length'],
-            data['vmax_radius'],
-            data['vmax_length'],
-            data['vmax'],
-            data['elon'],
-            data['elat'],
-            data['a'],
-            data['b'],
-            data['angle'],
+            float(ds.x_cen.values),
+            float(ds.y_cen.values),
+            int(ds.i_cen.values),
+            int(ds.j_cen.values),
+            float(ds.Ro.values),
+            str(ds.eddy_type[int(ds.track_id.values)].values),
+            int(ds.track_id.values),
+            bool(ds.is_parent.values),
+            float(ds.eff_radius.values),
+            float(ds.eff_length.values),
+            float(ds.vmax_radius.values),
+            float(ds.vmax_length.values),
+            float(ds.vmax.values),
+            float(ds.x_ell.values),
+            float(ds.y_ell.values),
+            float(ds.a_ell.values),
+            float(ds.b_ell.values),
+            float(ds.angle_ell.values),
         )
 
 
@@ -500,15 +502,14 @@ class Eddies:
         self.min_radius = min_radius
 
     @classmethod
-    def reconstruct(cls, data):
+    def reconstruct(cls, ds):
+        window_center = float(ds.window_center[:-3])
+        window_fit = float(ds.window_fit[:-3])
+        min_radius = float(ds.min_radius[:-3])
+        time = ds.time[0]
         eddies = []
-        for index, row in data.iterrows():
-            if index == 0:
-                window_center = row['window_center']
-                window_fit = row['window_fit']
-                min_radius = row['min_radius']
-                time = np.datetime64(row['time'])
-            eddies.append(Eddy.reconstruct(row))
+        for i in range(len(ds.obs)):
+            eddies.append(Eddy.reconstruct(ds.isel(obs=i)))
         return cls(time, eddies, window_center, window_fit, min_radius)
 
     @classmethod
@@ -559,18 +560,14 @@ class Eddies:
         nx = u.sizes[xdim]
         ny = u.sizes[ydim]
 
-        # Loop on detected centers : C'est ça qui est le plus chronophage
-        # qu'il faut donc paralléliser
-        eddies = []
-        for ic in range(centers.lon.shape[0]):
-
+        def test_eddy(ic, wx2c, wy2c):
             # Local selection
             i = int(centers.gi[ic])
             j = int(centers.gj[ic])
-            imin = max(i - wx2, 0)
-            imax = min(i + wx2 + 1, nx)
-            jmin = max(j - wy2, 0)
-            jmax = min(j + wy2 + 1, ny)
+            imin = max(i - wx2c, 0)
+            imax = min(i + wx2c + 1, nx)
+            jmin = max(j - wy2c, 0)
+            jmax = min(j + wy2c + 1, ny)
             isel = {xdim: slice(imin, imax), ydim: slice(jmin, jmax)}
             ul = u[isel]
             vl = v[isel]
@@ -593,101 +590,59 @@ class Eddies:
                 ssh_method=ssh_method,
                 **kwargs,
             )
-            # Checks
-            if not eddy.ncontours:
-                continue
-            # if eddy.sign != np.sign(centers.lnam.values[ic]): ## modif suite à l'ajout du calcul de psi
-            #    warnings.warn("Eddy sign inconsistency. Skipped...")
-            #    raise ("Eddy sign inconsistency. Skipped...")
-            #    continue
-            if min_radius and eddy.radius < min_radius:
-                continue
-            if np.isnan(
-                eddy.vmax_contour.mean_velocity
-            ):  # avoid eddies at coast : to be conserved ?
-                continue
-            if len(eddy.contours):
-                eddies.append(eddy)
+            if eddy.is_eddy(min_radius):
+                # Ici on regarde si la taille du contour de Vmax égale celui Effectif
+                if len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line):
+                    if (eddy.vmax_contour.line == eddy.boundary_contour.line).all():
+                        if (wx2c + int(wx2c / 2) > min(u.shape[1], 2 * wx2)) or (
+                            wy2c + int(wy2c / 2) > min(u.shape[0], 2 * wy2)
+                        ):  # condition d'arrêt de la recursion
+                            return eddy
+                        else:
+                            eddy = test_eddy(ic, wx2c + int(wx2c / 2), wy2c + int(wy2c / 2))
+                return eddy
 
-            eddy.attrs.update(
-                lnam=float(centers.lnam[ic]),
-                coriolis=float(centers.coriolis[ic]),
-                window_center=window_center,
-                window_fit=window_fit,
-            )
+        eddies = []
+        # Loop on detected centers : C'est ça qui est le plus chronophage
+        # qu'il faut donc paralléliser
+        for ic in range(centers.lon.shape[0]):
+            eddy = test_eddy(ic, wx2, wy2)
+            if eddy:
+                eddies.append(eddy)
+                eddy.attrs.update(
+                    lnam=float(centers.lnam[ic]),
+                    coriolis=float(centers.coriolis[ic]),
+                    window_center=window_center,
+                    window_fit=window_fit,
+                )
+
+        ## Cheking inclusion step
+        ## This step can be modify to account for eddy-eddy interaction
+        contain = np.ones(len(eddies)) * True
+        for i in range(len(eddies)):
+            for j in range(len(eddies)):
+                if i == j:
+                    continue
+                if eddies[i].contains_eddy(eddies[j]):
+                    if eddies[i].vmax_contour.mean_velocity > eddies[j].vmax_contour.mean_velocity:
+                        contain[j] = False
+                    else:
+                        contain[i] = False
+
+        eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
         return cls(u.time.values, eddies, window_center, window_fit, min_radius)
 
     @property
-    def data(self):
-        data = pd.DataFrame(
-            [],
-            columns=[
-                # parametre generaux
-                'time',
-                'lon',
-                'lat',
-                'i',
-                'j',
-                'ro',
-                'eddy_type',
-                'track_nb',
-                'parent',
-                # shape contour
-                'radius',
-                'length',
-                # shape vmax contour
-                'vmax_radius',
-                'vmax_length',
-                'vmax',
-                # parametre de l'ellipse
-                'elon',
-                'elat',
-                'a',
-                'b',
-                'angle',
-                # parametre de l'algo
-                'window_center',
-                'window_fit',
-                'min_radius',
-            ],
-        )
-        for eddy in self.eddies:
-            data.loc[len(data)] = {
-                'time': self.time,
-                'lon': eddy.glon,
-                'lat': eddy.glat,
-                'i': eddy.i,
-                'j': eddy.j,
-                'ro': eddy.ro,
-                'eddy_type': eddy.eddy_type,
-                'track_nb': eddy.track_nb,
-                'parent': eddy.parent,
-                'radius': eddy.radius,
-                'length': eddy.boundary_contour.length,
-                'vmax_radius': eddy.vmax_contour.radius,
-                'vmax_length': eddy.vmax_contour.length,
-                'vmax': eddy.vmax_contour.mean_velocity,
-                'elon': eddy.ellipse.lon,
-                'elat': eddy.ellipse.lat,
-                'a': eddy.ellipse.a,
-                'b': eddy.ellipse.b,
-                'angle': eddy.ellipse.angle,
-                'window_center': self.window_center,
-                'window_fit': self.window_fit,
-                'min_radius': self.min_radius,
-            }
-        return data
-
-    def save_data(self, path_csv):
-        self.data.to_csv(path_csv, index=False)
-
-    def to_xarray(self):
+    def ds(self):
         return xr.Dataset(
             {
                 "time": (("obs"), np.repeat(self.time, len(self.eddies))),
+                "i_cen": (("obs"), [e.i for e in self.eddies]),
+                "j_cen": (("obs"), [e.j for e in self.eddies]),
                 "x_cen": (("obs"), [e.glon for e in self.eddies]),
                 "y_cen": (("obs"), [e.glat for e in self.eddies]),
-                "track_nb": (("obs"), [e.track_nb for e in self.eddies]),
+                "track_id": (("obs"), [e.track_id for e in self.eddies]),
+                "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
                 # "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
                 "eff_radius": (("obs"), [e.radius for e in self.eddies]),
                 "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
@@ -727,23 +682,9 @@ class Eddies:
             },
         )
 
-    def dictio(self):
-        obj = {
-            'time': np.datetime_as_string(self.time, unit='s'),
-            'window_center': self.window_center,
-            'window_fit': self.window_fit,
-            'min_radius': self.min_radius,
-        }
-        eddies = []
-        for i, eddy in enumerate(self.eddies):
-            # obj['e%i' % i] = eddy.dicti()
-            eddies.append(eddy.dictio())
-        obj['eddies'] = eddies
-        return obj
-
-    def save_eddies(self, path_json):
-        with open(path_json, 'w') as f:
-            f.write(json.dumps(self.dictio()))
+    def save(self, path_nc):
+        "this save at .nc format"
+        self.ds.to_netcdf(path_nc)
 
 
 class EvolEddies:
@@ -757,10 +698,11 @@ class EvolEddies:
             self.dt = None
 
     @classmethod
-    def reconstruct(cls, data):
+    def reconstruct(cls, ds):
+        "reconstructs an EvolEddies object from an xarray dataset"
         eddies = []
-        for t in data['time'].unique():
-            eddies.append(Eddies.reconstruct(data.loc[data['time'] == t].reset_index()))
+        for t in np.unique(ds.time):
+            eddies.append(Eddies.reconstruct(ds.where(ds.time == t, drop=True)))
         return cls(eddies)
 
     @classmethod
@@ -796,41 +738,18 @@ class EvolEddies:
         self.eddies.append(eddies)
 
     @property
-    def data(self):
-        data = None
+    def ds(self):
+        ds = None
         for eddies in self.eddies:
-            if data is None:
-                data = eddies.data
+            if ds is None:
+                ds = eddies.ds
             else:
-                data = pd.concat([data, eddies.data], ignore_index=True)
-        return data
-
-    def save_data(self, path):
-        return self.data.to_csv(path, index=False)
-
-    def to_xarray(self):
-        data = None
-        for eddies in self.eddies:
-            if data is None:
-                data = eddies.to_xarray()
-            else:
-                data = xr.concat([data, eddies.to_xarray()], dim='obs')
-
-        return data
+                ds = xr.concat([ds, eddies.ds], dim='obs')
+        return ds
 
     def save(self, path_nc):
         "this save at .nc format"
-        self.to_xarray().to_netcdf(path_nc)
-
-    def to_json(self, path_json):
-        """export Eddies class to json format"""
-        dictio = {}
-        for i, eddies in enumerate(self.eddies):
-            # dictio[str(eddies.time)] = eddies.dictio()
-            dictio['t%i' % i] = eddies.dictio()
-        print(dictio)
-        with open(path_json, 'w') as f:
-            f.write(json.dumps(dictio))
+        self.ds.to_netcdf(path_nc)
 
 
 def detect_eddies(
@@ -879,6 +798,96 @@ def detect_eddies(
 
     # Loop on detected centers : C'est ça qui est le plus chronophage
     # qu'il faut donc paralléliser
+    print("il y a %i centers" % (centers.lon.shape[0]))
+    import time
+
+    start = time.time()
+    eddies = []
+    for ic in range(centers.lon.shape[0]):
+
+        # Local selection
+        i = int(centers.gi[ic])
+        j = int(centers.gj[ic])
+        imin = max(i - wx2, 0)
+        imax = min(i + wx2 + 1, nx)
+        jmin = max(j - wy2, 0)
+        jmax = min(j + wy2 + 1, ny)
+        isel = {xdim: slice(imin, imax), ydim: slice(jmin, jmax)}
+        ul = u[isel]
+        vl = v[isel]
+        sshl = ssh[isel] if ssh is not None else None
+        if isinstance(dx, xr.DataArray):
+            dxl = dx[isel]
+            dyl = dy[isel]
+        else:
+            dxl, dyl = dx, dy
+
+        # Init eddy
+        eddy = RawEddy2D(
+            i - imin, j - jmin, ul, vl, ssh=sshl, dx=dxl, dy=dyl, ssh_method=ssh_method, **kwargs
+        )
+
+        if eddy.is_eddy(min_radius):
+            eddies.append(eddy)
+            eddy.attrs.update(
+                lnam=float(centers.lnam[ic]),
+                coriolis=float(centers.coriolis[ic]),
+                window_center=window_center,
+                window_fit=window_fit,
+            )
+    end = time.time()
+    print('temps de la boucle non parallelisée %.3f' % (end - start))
+
+    return eddies, centers, lnam, ow, extrema
+
+
+def detect_eddies_save(
+    u,
+    v,
+    window_center,
+    window_fit=None,
+    ssh=None,
+    dx=None,
+    dy=None,
+    min_radius=None,
+    ssh_method='streamline',
+    paral=False,
+    **kwargs,
+):
+    """Detect all eddies in a velocity field"""
+    if window_fit is None:
+        window_fit = 1.5 * window_center
+
+    if dx is None or dy is None:
+        dxdy = sgrid.get_dx_dy(u)
+        if dx is None:
+            dx = dxdy[0]
+        if dy is None:
+            dy = dxdy[1]
+    dxm = np.nanmean(dx)
+    dym = np.nanmean(dy)
+
+    lat = xcoords.get_lat(u)
+    lon = xcoords.get_lon(u)
+    lat2d, lon2d = xr.broadcast(lat, lon)
+
+    # Find center of cyclones and anticyclones
+    centers, lnam, ow, extrema = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=paral)
+
+    # Fit window
+    wx, wy = sgrid.get_wx_wy(
+        window_fit, dxm, dym
+    )  # window on which we look for streamlines closed contours
+    wx2 = wx // 2
+    wy2 = wy // 2
+    xdim = xcoords.get_xdim(u)
+    ydim = xcoords.get_ydim(u)
+    nx = u.sizes[xdim]
+    ny = u.sizes[ydim]
+
+    # Loop on detected centers : C'est ça qui est le plus chronophage
+    # qu'il faut donc paralléliser
+    print("il y a %i centers" % (centers.lon.shape[0]))
     import time
 
     start = time.time()
@@ -921,8 +930,6 @@ def detect_eddies(
         #    raise ("Eddy sign inconsistency. Skipped...")
         #    continue
         if min_radius and eddy.radius < min_radius:
-            continue
-        if np.isnan(eddy.vmax_contour.mean_velocity):  # avoid eddies at coast : to be conserved ?
             continue
         if len(eddy.contours):
             eddies.append(eddy)

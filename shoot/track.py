@@ -27,58 +27,58 @@ from . import eddies as seddies
 
 
 class Associate:
-    def __init__(self, track_eddies, eddies1, eddies2, Dt, Tc, C=6.5 * 1e3 / 86400):
-        self.eddies1 = eddies1  # reference eddies
-        self.eddies2 = eddies2  # next time eddies
+    def __init__(self, track_eddies, parent_eddies, new_eddies, Dt, Tc, C=6.5 * 1e3 / 86400):
+        self.parent_eddies = parent_eddies  # reference eddies
+        self.new_eddies = new_eddies  # next time eddies
         self.track_eddies = track_eddies
         self._Dt = Dt  # actual time step between eddies 1 and eddies 2
         self._Tc = Tc
         self._C = C
 
     def search_dist(self, eddyj, eddyi):
-        istart = max(0, len(self.track_eddies[eddyj.track_nb].eddies) - 5)
+        istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         Ravg = 0
-        for i in range(istart, len(self.track_eddies[eddyj.track_nb].eddies)):
-            Ravg += self.track_eddies[eddyj.track_nb].eddies[i].vmax_contour.radius
+        for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
+            Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_contour.radius
             n += 1
         # print('Dij components', self._C*(1+self._Dt)/2, Ravg/n/1e3 , eddyi.vmax_contour.radius/1e3, eddyi.radius)
         Dij = self._C * (1 + self._Dt) / 2 + Ravg / n + eddyi.vmax_contour.radius
         return Dij
 
     def ro_avg(self, eddyj):
-        istart = max(0, len(self.track_eddies[eddyj.track_nb].eddies) - 5)
+        istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         ro = 0
-        for i in range(istart, len(self.track_eddies[eddyj.track_nb].eddies)):
-            ro += self.track_eddies[eddyj.track_nb].eddies[i].ro
+        for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
+            ro += self.track_eddies[eddyj.track_id].eddies[i].ro
             n += 1
         return ro / n
 
     def rad_avg(self, eddyj):
-        istart = max(0, len(self.track_eddies[eddyj.track_nb].eddies) - 5)
+        istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         radius = 0
-        for i in range(istart, len(self.track_eddies[eddyj.track_nb].eddies)):
-            radius += self.track_eddies[eddyj.track_nb].eddies[i].radius
+        for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
+            radius += self.track_eddies[eddyj.track_id].eddies[i].radius
             n += 1
         return radius / n
 
     @functools.cached_property
     def cost(self):
         """ "cost function between each eddy pairs"""
-        M = np.zeros((len(self.eddies2), len(self.eddies1)))
-        for i in range(len(self.eddies2)):
-            for j in range(len(self.eddies1)):
-                # print('eddy 1 ', self.eddies1[j].glon, self.eddies1[j].glat, self.eddies1[j].eddy_type)
-                # print('eddy 2 ', self.eddies2[i].glon, self.eddies2[i].glat, self.eddies2[i].eddy_type)
+        M = np.zeros((len(self.new_eddies), len(self.parent_eddies)))
+        for i in range(len(self.new_eddies)):
+            for j in range(len(self.parent_eddies)):
+                # print('eddy 1 ', self.parent_eddies[j].glon, self.parent_eddies[j].glat, self.parent_eddies[j].eddy_type)
+                # print('eddy 2 ', self.new_eddies[i].glon, self.new_eddies[i].glat, self.new_eddies[i].eddy_type)
                 # print('Mij %.2f before'%M[i,j])
-                dlat = self.eddies1[j].glat - self.eddies2[i].glat
-                dlon = self.eddies1[j].glon - self.eddies2[i].glon
-                x = xgeo.deg2m(dlon, self.eddies1[j].glat)
+                dlat = self.parent_eddies[j].glat - self.new_eddies[i].glat
+                dlon = self.parent_eddies[j].glon - self.new_eddies[i].glon
+                x = xgeo.deg2m(dlon, self.parent_eddies[j].glat)
                 y = xgeo.deg2m(dlat)
 
-                D_ij = self.search_dist(self.eddies1[j], self.eddies2[i])
+                D_ij = self.search_dist(self.parent_eddies[j], self.new_eddies[i])
 
                 # print('Dij %.2f (km)'%(D_ij/1e3))
                 # Distance term
@@ -90,13 +90,15 @@ class Associate:
                 # print('Mij %.2f disatnce'%M[i,j])
 
                 # dynamical similarity
-                roj = self.ro_avg(self.eddies1[j])
-                rj = self.rad_avg(self.eddies1[j])
+                roj = self.ro_avg(self.parent_eddies[j])
+                rj = self.rad_avg(self.parent_eddies[j])
 
-                DR = (self.eddies1[j].radius - self.eddies2[i].radius) / (
-                    rj + self.eddies2[i].radius
+                DR = (self.parent_eddies[j].radius - self.new_eddies[i].radius) / (
+                    rj + self.new_eddies[i].radius
                 )
-                DR0 = (self.eddies1[j].ro - self.eddies2[i].ro) / (roj + self.eddies2[i].ro)
+                DR0 = (self.parent_eddies[j].ro - self.new_eddies[i].ro) / (
+                    roj + self.new_eddies[i].ro
+                )
 
                 # print('DR %.2f (km)'%(DR/1e3))
                 # print('DR0 %2f (km)'%(DR0/1e3))
@@ -104,7 +106,7 @@ class Associate:
                 # Warning avoid couple cyclone with anticylone
                 M[i, j] += (
                     DR**2 + DR0**2
-                    if self.eddies1[j].eddy_type == self.eddies2[i].eddy_type
+                    if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type
                     else 1e6
                 )
                 # print('Mij %.2f dynamcis'%M[i,j])
@@ -125,37 +127,36 @@ class Associate:
                 idel.append(i)
         Mclean = np.delete(M, idel, axis=0)  # delete impossible solutions
         raw, col = linear_sum_assignment(Mclean)
-        # print(Mclean)
         for i, j in zip(raw, col):
-            np.delete(self.eddies2, idel)[i].track_nb = self.eddies1[j].track_nb
+            np.delete(self.new_eddies, idel)[i].track_id = self.parent_eddies[j].track_id
 
 
 class AssociateMulti:
     def __init__(
         self,
         track_eddies,
-        eddies1,  ## list of backward eddies
-        eddies2,
+        parent_eddies,  ## list of backward eddies
+        new_eddies,
         Dt,  ##list of dt
         Tc,
         C=6.5 * 1e3 / 86400,
     ):
-        self.eddies1 = eddies1  # reference backward eddies
-        self.eddies2 = eddies2  # next time eddies
+        self.parent_eddies = parent_eddies  # reference backward eddies
+        self.new_eddies = new_eddies  # next time eddies
         self.track_eddies = track_eddies
         self._Dt = Dt  # time steps
         self._Tc = Tc
         self._C = C
 
     def search_dist(self, eddyj, eddyi, dt):
-        istart = max(0, len(self.track_eddies[eddyj.track_nb].eddies) - 5)
+        istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         Ravg = 0
-        for i in range(istart, len(self.track_eddies[eddyj.track_nb].eddies)):
+        for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
             try:
-                Ravg += self.track_eddies[eddyj.track_nb].eddies[i].vmax_contour.radius
+                Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_contour.radius
             except AttributeError:
-                Ravg += self.track_eddies[eddyj.track_nb].eddies[i].vmax_radius
+                Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_radius
             n += 1
         try:
             Dij = self._C * (1 + dt) / 2 + Ravg / n + eddyi.vmax_contour.radius
@@ -164,41 +165,43 @@ class AssociateMulti:
         return Dij
 
     def ro_avg(self, eddyj):
-        istart = max(0, len(self.track_eddies[eddyj.track_nb].eddies) - 5)
+        istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         ro = 0
-        for i in range(istart, len(self.track_eddies[eddyj.track_nb].eddies)):
-            ro += self.track_eddies[eddyj.track_nb].eddies[i].ro
+        for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
+            ro += self.track_eddies[eddyj.track_id].eddies[i].ro
             n += 1
         return ro / n
 
     def rad_avg(self, eddyj):
-        istart = max(0, len(self.track_eddies[eddyj.track_nb].eddies) - 5)
+        istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         radius = 0
-        for i in range(istart, len(self.track_eddies[eddyj.track_nb].eddies)):
-            radius += self.track_eddies[eddyj.track_nb].eddies[i].radius
+        for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
+            radius += self.track_eddies[eddyj.track_id].eddies[i].radius
             n += 1
         return radius / n
 
     @functools.cached_property
     def cost(self):
         """ "cost function between each eddy pairs"""
-        nj = np.sum([len(self.eddies1[k]) for k in range(len(self.eddies1))])
-        M = np.zeros((len(self.eddies2), nj))
-        for i in range(len(self.eddies2)):
+        nj = np.sum([len(self.parent_eddies[k]) for k in range(len(self.parent_eddies))])
+        M = np.zeros((len(self.new_eddies), nj))
+        for i in range(len(self.new_eddies)):
             cmp = 0
-            for k in range(len(self.eddies1)):
-                for j in range(len(self.eddies1[k])):
-                    # print('eddy 1 ', self.eddies1[j].glon, self.eddies1[j].glat, self.eddies1[j].eddy_type)
-                    # print('eddy 2 ', self.eddies2[i].glon, self.eddies2[i].glat, self.eddies2[i].eddy_type)
+            for k in range(len(self.parent_eddies)):
+                for j in range(len(self.parent_eddies[k])):
+                    # print('eddy 1 ', self.parent_eddies[j].glon, self.parent_eddies[j].glat, self.parent_eddies[j].eddy_type)
+                    # print('eddy 2 ', self.new_eddies[i].glon, self.new_eddies[i].glat, self.new_eddies[i].eddy_type)
                     # print('Mij %.2f before'%M[i,j])
-                    dlat = self.eddies1[k][j].glat - self.eddies2[i].glat
-                    dlon = self.eddies1[k][j].glon - self.eddies2[i].glon
-                    x = xgeo.deg2m(dlon, self.eddies1[k][j].glat)
+                    dlat = self.parent_eddies[k][j].glat - self.new_eddies[i].glat
+                    dlon = self.parent_eddies[k][j].glon - self.new_eddies[i].glon
+                    x = xgeo.deg2m(dlon, self.parent_eddies[k][j].glat)
                     y = xgeo.deg2m(dlat)
 
-                    D_ij = self.search_dist(self.eddies1[k][j], self.eddies2[i], self._Dt[k])
+                    D_ij = self.search_dist(
+                        self.parent_eddies[k][j], self.new_eddies[i], self._Dt[k]
+                    )
 
                     # print('Dij %.2f (km)'%(D_ij/1e3))
                     # Distance term
@@ -210,13 +213,15 @@ class AssociateMulti:
                     # print('Mij %.2f disatnce'%M[i,j])
 
                     # dynamical similarity
-                    roj = self.ro_avg(self.eddies1[k][j])
-                    rj = self.rad_avg(self.eddies1[k][j])
+                    roj = self.ro_avg(self.parent_eddies[k][j])
+                    rj = self.rad_avg(self.parent_eddies[k][j])
 
-                    DR = (self.eddies1[k][j].radius - self.eddies2[i].radius) / (
-                        rj + self.eddies2[i].radius
+                    DR = (self.parent_eddies[k][j].radius - self.new_eddies[i].radius) / (
+                        rj + self.new_eddies[i].radius
                     )
-                    DR0 = (self.eddies1[k][j].ro - self.eddies2[i].ro) / (roj + self.eddies2[i].ro)
+                    DR0 = (self.parent_eddies[k][j].ro - self.new_eddies[i].ro) / (
+                        roj + self.new_eddies[i].ro
+                    )
 
                     # print('DR %.2f (km)'%(DR/1e3))
                     # print('DR0 %2f (km)'%(DR0/1e3))
@@ -224,7 +229,7 @@ class AssociateMulti:
                     # Warning avoid couple cyclone with anticylone
                     M[i, cmp] += (
                         DR**2 + DR0**2
-                        if self.eddies1[k][j].eddy_type == self.eddies2[i].eddy_type
+                        if self.parent_eddies[k][j].eddy_type == self.new_eddies[i].eddy_type
                         else 1e6
                     )
                     # print('Mij %.2f dynamcis'%M[i,j])
@@ -239,8 +244,8 @@ class AssociateMulti:
     def indexmatching(self):
         index = {}
         cmp = 0
-        for k in range(len(self.eddies1)):
-            for kj in range(len(self.eddies1[k])):
+        for k in range(len(self.parent_eddies)):
+            for kj in range(len(self.parent_eddies[k])):
                 index[cmp] = (k, kj)
                 cmp += 1
         return index
@@ -253,7 +258,7 @@ class AssociateMulti:
 
         jdel = []  # eliminate already parent eddies that can't be assigned again
         for j in range(M.shape[1]):
-            if self.eddies1[index[j][0]][index[j][1]].parent:
+            if self.parent_eddies[index[j][0]][index[j][1]].is_parent:
                 jdel.append(j)
                 del index[j]
         Mclean = np.delete(M, jdel, axis=1)
@@ -268,11 +273,13 @@ class AssociateMulti:
         # Connect raws with column with Hugarian algorithm
         raw, col = linear_sum_assignment(Mclean)
 
-        for i, j in zip(raw, col):  ##reprendre ici
+        for i, j in zip(raw, col):
             k = index[j][0]
             kj = index[j][1]
-            np.delete(self.eddies2, idel)[i].track_nb = self.eddies1[k][kj].track_nb
-            self.eddies1[k][kj].parent = True
+            if Mclean[i, j] > 1000:
+                continue
+            np.delete(self.new_eddies, idel)[i].track_id = self.parent_eddies[k][kj].track_id
+            self.parent_eddies[k][kj].is_parent = True
 
 
 class Track:
@@ -301,7 +308,8 @@ class Track:
         self.eddies.append(eddy)
         self.times.append(time)
 
-    def to_xarray(self):
+    @property
+    def ds(self):
         return xr.Dataset(
             {
                 "date_first_detection": (("eddies"), [self.times[0]]),
@@ -343,20 +351,19 @@ class Tracks:
         self.track_eddies = {}  # list of tracks
 
     @classmethod
-    def reconstruct(cls, data, nback):
+    def reconstruct(cls, ds, nback):
         """reconstruct the trackings from panda dataframe of eddies"""
         ##reconstruction des eddies
-        eddies = seddies.EvolEddies.reconstruct(data)
+        eddies = seddies.EvolEddies.reconstruct(ds)
         ##reconstruction des traces
-        assert 'track_nb' in data.keys()
         track_eddies = {}  # dictionnary of tracks
-        for i in data['track_nb'].unique():
-            tmp = data.loc[data['track_nb'] == i]  # selectionne les eddies de la trace  i
-            trace_times = [np.datetime64(t) for t in tmp['time'].values]
-            trace_number = tmp['track_nb'].values[0]
+        for i in np.unique(ds.track_id):
+            tmp = ds.where(ds.track_id == i, drop=True)  # selectionne les eddies de la trace  i
+            trace_times = tmp.time.values
+            trace_number = i
             trace_eddies = []
-            for index, row in tmp.iterrows():
-                trace_eddies.append(seddies.Eddy.reconstruct(row))
+            for j in range(len(tmp.obs)):
+                trace_eddies.append(seddies.Eddy.reconstruct(tmp.isel(obs=j)))
             track_eddies[i] = Track.reconstruct(
                 trace_eddies, trace_times, trace_number, eddies.dt, eddies.dt * nback
             )
@@ -364,20 +371,21 @@ class Tracks:
         my_tracks.track_eddies = track_eddies
         return my_tracks
 
-    def to_xarray(self):
-        data = None
+    @property
+    def ds(self):
+        ds = None
         for nb_track in self.track_eddies:
             track = self.track_eddies[nb_track]
-            if data is None:
-                data = track.to_xarray()
+            if ds is None:
+                ds = track.ds
             else:
-                data = xr.concat([data, track.to_xarray()], dim='eddies')
-        data_eddies = self.eddies.to_xarray()
-        return xr.merge([data_eddies, data])
+                ds = xr.concat([ds, track.ds], dim='eddies')
+        ds_eddies = self.eddies.ds
+        return xr.merge([ds_eddies, ds])
 
     def save(self, path_nc):
         "this save at .nc format"
-        self.to_xarray().to_netcdf(path_nc)
+        self.ds.to_netcdf(path_nc)
 
     def track_init(self):
         print("initialization")
@@ -385,33 +393,32 @@ class Tracks:
             self.eddies.eddies[0].eddies
         ):  # initialized with the the first detected eddies
             self.track_eddies[i] = Track(eddy, self.times[0], i, self._dt, self._Tc)
-            eddy.track_nb = i  # actualise eddy track number
+            eddy.track_id = i  # actualise eddy track number
             self.nb_tracks += 1
-            print(eddy.track_nb)
 
     def track_steps(self):
         print("tracking steps")
         for i in range(1, len(self.times)):  # compute tracking on all following time steps
             t = self.times[i]
-            print(t, i)
-            # eddies1 = self.eddies[i-1]
-            eddies2 = self.eddies.eddies[i].eddies
-            # self.update(eddies1,eddies2,self._dt) #modifier pour passer les dernières valeurs
+            print(t)
+            # parent_eddies = self.eddies[i-1]
+            new_eddies = self.eddies.eddies[i].eddies
+            # self.update(parent_eddies,new_eddies,self._dt) #modifier pour passer les dernières valeurs
             self.update_multi(
                 [self.eddies.eddies[i - k].eddies for k in range(1, min(i, self.nback) + 1)],
-                eddies2,
+                new_eddies,
                 [self._dt * k for k in range(1, min(i, self.nback) + 1)],
             )
-            for eddy in eddies2:
-                if eddy.track_nb is None:  # Create a new track
+            for eddy in new_eddies:
+                if eddy.track_id is None:  # Create a new track
                     self.track_eddies[self.nb_tracks] = Track(
                         eddy, t, self.nb_tracks, self._dt, self._Tc
                     )
-                    eddy.track_nb = self.nb_tracks  # actualise eddy track number
+                    eddy.track_id = self.nb_tracks  # actualise eddy track number
                     self.nb_tracks += 1
 
                 else:  ##æppend to existing track
-                    self.track_eddies[eddy.track_nb].update(eddy, t)
+                    self.track_eddies[eddy.track_id].update(eddy, t)
 
     def track_step(self):
         """track only for the last eddies
@@ -420,22 +427,22 @@ class Tracks:
         """
         i = len(self.times) - 1
         t = self.times[i]
-        eddies2 = self.eddies.eddies[i].eddies
+        new_eddies = self.eddies.eddies[i].eddies
         self.update_multi(
             [self.eddies.eddies[i - k].eddies for k in range(1, min(i, self.nback) + 1)],
-            eddies2,
+            new_eddies,
             [self._dt * k for k in range(1, min(i, self.nback) + 1)],
         )
-        for eddy in eddies2:
-            if eddy.track_nb is None:  # Create a new track
+        for eddy in new_eddies:
+            if eddy.track_id is None:  # Create a new track
                 self.track_eddies[self.nb_tracks] = Track(
                     eddy, t, self.nb_tracks, self._dt, self._Tc
                 )
-                eddy.track_nb = self.nb_tracks  # actualise eddy track number
+                eddy.track_id = self.nb_tracks  # actualise eddy track number
                 self.nb_tracks += 1
 
             else:  ##æppend to existing track
-                self.track_eddies[eddy.track_nb].update(eddy, t)
+                self.track_eddies[eddy.track_id].update(eddy, t)
 
     def tracking(self):
         """compute the eddy tracking"""
@@ -443,16 +450,16 @@ class Tracks:
         self.track_steps()
         # return self.track_eddies
 
-    def update(self, eddies1, eddies2, Dt):
+    def update(self, parent_eddies, new_eddies, Dt):
         """update based on last detected eddies"""
-        Associate(self.track_eddies, eddies1, eddies2, Dt, self._Tc).order()
+        Associate(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc).order()
 
-    def update_multi(self, eddies1, eddies2, Dt):
+    def update_multi(self, parent_eddies, new_eddies, Dt):
         """update based on sevral precdeding time eddies"""
-        AssociateMulti(self.track_eddies, eddies1, eddies2, Dt, self._Tc).order()
+        AssociateMulti(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc).order()
 
     def refresh(self, new_eddies):
-        """refresh a track with a new Eddy object (next time)"""
+        """refresh a track with a new Eddies object (next time)"""
         self.eddies.add(new_eddies)
         self.times.append(new_eddies.time)
         self.track_step()
@@ -467,9 +474,9 @@ def track_eddies(eddies, nback):
     return tracks
 
 
-def update_tracks(data, new_eddies, nback):
-    """data is the csv with previous detections
-    eddies is an Eddies object
+def update_tracks(ds, new_eddies, nback):
+    """ds is the xarray with previous detections
+    new_eddies is an Eddies object
     """
-    tracks = Tracks.reconstruct(data, nback)
+    tracks = Tracks.reconstruct(ds, nback)
     return tracks.refresh(new_eddies)

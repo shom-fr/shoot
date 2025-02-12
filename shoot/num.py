@@ -261,8 +261,8 @@ def get_coord_name(data):
     lon_name = None
     lat_name = None
     for var in coords_name:
-        if var[:3] in ['LON', 'Lon', 'lon']:
+        if var[:3] in ['LON', 'Lon', 'lon', 'longitude', 'Longitude', 'lon_rho']:
             lon_name = var
-        if var[:3] in ['LAT', 'Lat', 'lat']:
+        if var[:3] in ['LAT', 'Lat', 'lat', 'latitude', 'Latitude', 'lat_rho']:
             lat_name = var
     return lon_name, lat_name

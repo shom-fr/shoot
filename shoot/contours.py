@@ -15,7 +15,7 @@ from . import num as snum
 from . import fit as sfit
 
 
-def get_closed_contours(lon_center, lat_center, ssh, nlevels=100, robust=0.03):
+def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     """Get closed contours around a center
 
     Parameters
@@ -39,7 +39,12 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=100, robust=0.03):
     vmin, vmax = np.nanquantile(ssh, [robust, 1 - robust])
     point = np.array([lon_center, lat_center])
     dss = []
-    for level in np.linspace(vmin, vmax, nlevels):
+    # for level in np.linspace(vmin, vmax, nlevels):
+    if len(np.arange(vmin, vmax + 0.005, 0.005)) < nlevels:
+        ran = np.arange(vmin, vmax + 0.005, 0.005)
+    else:
+        ran = np.linspace(vmin, vmax, nlevels)
+    for level in ran:  # parcoure tous les demi-centimètre
         for line in cont_gen.lines(level):
             if (line[0] == line[-1]).all():  # chek if it is closed contour
                 xx = interp_to_line(lon2d.values, line)
@@ -47,6 +52,16 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=100, robust=0.03):
                 if snum.points_in_polygon(
                     point, np.array([xx, yy]).T
                 ):  # Check if it contains the center
+                    if np.any(np.isnan(ssh)):  # Chek if it contains land points inside
+                        nan_indexes = np.where(np.isnan(ssh))
+                        nan_points = np.array(
+                            [
+                                [lon2d[i, j], lat2d[i, j]]
+                                for i, j in zip(nan_indexes[0], nan_indexes[1])
+                            ]
+                        )
+                        if np.any(snum.points_in_polygon(nan_points, np.array([xx, yy]).T)):
+                            continue
                     dss.append(
                         xr.Dataset(
                             {"line": (("npts", "ncoords"), line)},
@@ -215,3 +230,19 @@ def get_lnam_peaks(lnam, K=0.7):
             minima = np.append(minima, np.array([[icenter, jcenter]]), axis=0)
 
     return minima, maxima, Lines_coords
+
+
+def area(ds):
+    xdist = xgeo.deg2m(ds.lon - ds.lon_center, ds.lat_center).values
+    ydist = xgeo.deg2m(ds.lat - ds.lat_center).values
+
+    xydist = np.sqrt(xdist**2 + ydist**2)
+    xyavg = 0.5 * (xydist[:-1] + xydist[1:])
+
+    dx = np.sqrt(
+        xgeo.deg2m(ds.lon[:-1] - ds.lon[1:], ds.lat_center).values ** 2
+        + xgeo.deg2m(ds.lat[:1] - ds.lat[1:]).values ** 2
+    )
+
+    theta = np.arccos((-dx + xydist[1:] + xydist[:-1]) / (xydist[1:] + xydist[:-1]))
+    return np.sum(xyavg * theta)
