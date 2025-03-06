@@ -139,6 +139,10 @@ def add_contour_dx_dy(ds):
         ds["dx"] = ("npts", dx, {"units": "m"})
         ds["dy"] = ("npts", dy, {"units": "m"})
         ds.attrs["length"] = float(np.sqrt(dx**2 + dy**2).sum())
+        # radius based on the area
+        # a = area(ds)
+        # ds['area'] = a
+
     return ds
 
 
@@ -241,7 +245,7 @@ def area(ds):
 
     dx = np.sqrt(
         xgeo.deg2m(ds.lon[:-1] - ds.lon[1:], ds.lat_center).values ** 2
-        + xgeo.deg2m(ds.lat[:1] - ds.lat[1:]).values ** 2
+        + xgeo.deg2m(ds.lat[:-1] - ds.lat[1:]).values ** 2
     )
 
     theta = np.arccos((-dx + xydist[1:] + xydist[:-1]) / (xydist[1:] + xydist[:-1]))

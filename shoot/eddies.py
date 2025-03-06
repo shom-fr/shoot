@@ -6,7 +6,7 @@ Created on Wed Jul  3 15:39:51 2024 by sraynaud
 import functools
 import warnings
 import numpy as np
-from scipy.interpolate import splprep, splev
+from scipy.interpolate import splprep, make_interp_spline, splev
 import multiprocessing as mp
 import itertools
 import xarray as xr
@@ -305,9 +305,12 @@ class RawEddy2D:
             if ds.length > dsb.length:
                 dsb = ds
         # interpolation step using splrep
-        ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 0)[0]
+        ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
         ok = np.concatenate([ok, [len(dsb.lon) - 1]])
-        tck, u = splprep([dsb.lon[ok], dsb.lat[ok]], s=0)  # avoid repeated values
+        try:
+            tck, u = splprep([dsb.lon[ok], dsb.lat[ok]], s=0)  # avoid repeated values
+        except ValueError:
+            print("certainement un problème de redondance des points")
         xy_int = splev(np.linspace(0, 1, 50), tck)
         dsb['lon_int'] = xy_int[0]
         dsb['lat_int'] = xy_int[1]
@@ -325,7 +328,8 @@ class RawEddy2D:
         """Radius deduced from :attr:`ellipse` or 0"""
         if not self.ncontours:
             return 0.0
-        return self.ellipse.radius
+        # return self.ellipse.radius
+        return self.boundary_contour.radius / 1000  # in km
 
     @functools.cached_property
     def ro(self):
@@ -407,6 +411,13 @@ class RawEddy2D:
             points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T
         )
         return valid.all()
+
+    def intersects_eddy(self, eddy):
+        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
+        valid = snum.points_in_polygon(
+            points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T
+        )
+        return valid.any()
 
     def plot(self, ax=None, lw=1, color=None, **kwargs):
         """Quickly plot the eddy"""
@@ -545,9 +556,13 @@ class Eddies:
         lat2d, lon2d = xr.broadcast(lat, lon)
 
         # Find center of cyclones and anticyclones
+        # import time
+        # start_centers = time.time()
         centers, lnam, ow, extrema = find_eddy_centers(
             u, v, window_center, dx=dxm, dy=dym, paral=paral
         )
+        # end_centers = time.time()
+        # print("center research takes %.3fs" % (end_centers - start_centers))
 
         # Fit window
         wx, wy = sgrid.get_wx_wy(
@@ -602,6 +617,7 @@ class Eddies:
                             eddy = test_eddy(ic, wx2c + int(wx2c / 2), wy2c + int(wy2c / 2))
                 return eddy
 
+        # start_eddy = time.time()
         eddies = []
         # Loop on detected centers : C'est ça qui est le plus chronophage
         # qu'il faut donc paralléliser
@@ -615,6 +631,8 @@ class Eddies:
                     window_center=window_center,
                     window_fit=window_fit,
                 )
+        # end_eddy = time.time()
+        # print("eddy check takes %.3fs" % (end_eddy - start_eddy))
 
         ## Cheking inclusion step
         ## This step can be modify to account for eddy-eddy interaction
@@ -623,13 +641,15 @@ class Eddies:
             for j in range(len(eddies)):
                 if i == j:
                     continue
-                if eddies[i].contains_eddy(eddies[j]):
+                # if eddies[i].contains_eddy(eddies[j]): #avoid full inclusion
+                if eddies[i].intersects_eddy(eddies[j]):  # avoid intersection
                     if eddies[i].vmax_contour.mean_velocity > eddies[j].vmax_contour.mean_velocity:
                         contain[j] = False
                     else:
                         contain[i] = False
 
         eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
+
         return cls(u.time.values, eddies, window_center, window_fit, min_radius)
 
     @property
@@ -710,6 +730,7 @@ class EvolEddies:
         "ds is a temporal dataframe"
         eddies = []
         for i in range(len(ds.time)):
+            print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel(time=i)
             if not ssh is None:
                 eddies_ssh = Eddies.detect_eddies(
@@ -951,6 +972,11 @@ def contour(eddy):
         return eddy
 
 
+def is_eddy(eddy, min_radius):
+    if eddy.is_eddies(min_radius):
+        return eddy
+
+
 ### TO CONTINUE ###
 # la boucle se parallelise bien mais pour autant la structure du code est trop complexe
 # pour etre vraiment efficace
@@ -1037,12 +1063,17 @@ def detect_eddies_paral(
     end = time.time()
     print('temps de création des eddies %.2f s' % (end - start))
     start = time.time()
+    print("j'ai %i CPUs" % mp.cpu_count())
+
     with mp.Pool(mp.cpu_count()) as p:
         # eddies = p.map(contour, zip(eddies, itertools.repeat(min_radius)))
         eddies = p.map(contour, eddies)
         p.close()
-    eddies = [e for e in eddies if e is not None and min_radius and eddy.radius < min_radius]
     end = time.time()
-
     print('temps de la boucle parallelisée %.3f' % (end - start))
+    start = time.time()
+    eddies = [e for e in eddies if e is not None and min_radius and eddy.radius < min_radius]
+    # eddies = [e for e in eddies if e is not None and e.is_eddies(min_radius)]
+    # eddies = [e for e in eddies if e is not None]
+    print('temps de la boucle complémentaire %.3f' % (end - start))
     return eddies, centers, lnam, ow, extrema
