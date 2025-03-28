@@ -8,14 +8,28 @@ version = "0.0.0"
 description = "SHom Ocean Objects Tracker"
 requires-python = ">=3.10"
 dependencies = [
+    "contourpy",
     "jax",
     "xoa"
 ]
 authors = [
   {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"},
+  {name = "Jean-Baptiste Roustan", email = "jean.baptiste.roustan@shom.fr"},
 ]
 maintainers = [
   {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"}
+]
+
+[project.optional-dependencies]
+docs = [
+  "cartopy",
+  "matplotlib",
+  "owslib",
+  "sphinx",
+  "sphinx-argparse",
+  "sphinx-book-theme",
+  "sphinx-gallery",
+  "sphinxcontrib-programoutput",
 ]
 
 [tool.setuptools]
