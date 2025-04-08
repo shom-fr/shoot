@@ -70,7 +70,7 @@ eddies = Eddies.detect_eddies(
     window_center,
     window_fit=window_fit,
     min_radius=min_radius,
-    paral=True,
+    paral=False,
 )
 end = time.time()
 print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - start))

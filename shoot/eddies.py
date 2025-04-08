@@ -287,13 +287,18 @@ class RawEddy2D:
     def is_eddy(self, min_radius):  # a mettre dans RawEddy2D
         # Checks if closed contour exists
         if not self.ncontours:
+            # print(self.glon, self.glat, "no contour")
             return False
         if min_radius and self.radius < min_radius:
+            # print(self.glon, self.glat, "small radius")
             return False
         if np.isnan(self.vmax_contour.mean_velocity):
+            # print(self.glon, self.glat, "nan velocity")
             return False
         if self.vmax_contour.ellipse.fit_error > self.max_ellipse_error / 2:
+            # print(self.glon, self.glat, "ellipse error")
             return False
+        # print(self.glon, self.glat, "is eddy")
         return True
 
     @functools.cached_property
@@ -320,8 +325,8 @@ class RawEddy2D:
     def ellipse(self):
         """Ellipse fited from :attr:`boundary_contour` or None"""
         if self.ncontours:
-            return self.boundary_contour.ellipse
-            # return self.vmax_contour.ellipse
+            # return self.boundary_contour.ellipse
+            return self.vmax_contour.ellipse
 
     @functools.cached_property
     def radius(self):  # differs from AMEDA which compute from the AREA
@@ -435,8 +440,9 @@ class RawEddy2D:
             out["boundary"] = ax.plot(
                 self.boundary_contour.lon_int, self.boundary_contour.lat_int, lw=lw, **kw
             )
-            out["ellipse"] = self.boundary_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
+            # out["ellipse"] = self.boundary_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             # out["ellipse"] = self.vmax_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
+            out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
         return out
 
@@ -561,6 +567,7 @@ class Eddies:
         centers, lnam, ow, extrema = find_eddy_centers(
             u, v, window_center, dx=dxm, dy=dym, paral=paral
         )
+        print("Il y a %i centres possibles" % centers.lon.shape[0])
         # end_centers = time.time()
         # print("center research takes %.3fs" % (end_centers - start_centers))
 
@@ -730,7 +737,7 @@ class EvolEddies:
         "ds is a temporal dataframe"
         eddies = []
         for i in range(len(ds.time)):
-            print(np.datetime_as_string(ds.time[i], unit='D'))
+            # print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel(time=i)
             if not ssh is None:
                 eddies_ssh = Eddies.detect_eddies(
@@ -761,7 +768,7 @@ class EvolEddies:
     @property
     def ds(self):
         ds = None
-        for eddies in self.eddies:
+        for eddies in self.eddies:  # warning ifno eddies have been detected it crashes
             if ds is None:
                 ds = eddies.ds
             else:
@@ -994,6 +1001,8 @@ def detect_eddies_paral(
     **kwargs,
 ):
     """Detect all eddies in a velocity field"""
+    import time
+
     if window_fit is None:
         window_fit = 1.5 * window_center
 
@@ -1011,7 +1020,7 @@ def detect_eddies_paral(
     lat2d, lon2d = xr.broadcast(lat, lon)
 
     # Find center of cyclones and anticyclones
-    centers, lnam, ow, extrema = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=paral)
+    centers, lnam, ow, extrema = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym)
 
     # Fit window
     wx, wy = sgrid.get_wx_wy(
@@ -1026,7 +1035,6 @@ def detect_eddies_paral(
 
     # Loop on detected centers : C'est ça qui est le plus chronophage
     # qu'il faut donc paralléliser
-    import time
 
     start = time.time()
     eddies = []
@@ -1076,4 +1084,5 @@ def detect_eddies_paral(
     # eddies = [e for e in eddies if e is not None and e.is_eddies(min_radius)]
     # eddies = [e for e in eddies if e is not None]
     print('temps de la boucle complémentaire %.3f' % (end - start))
+
     return eddies, centers, lnam, ow, extrema

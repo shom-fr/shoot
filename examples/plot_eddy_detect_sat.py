@@ -91,7 +91,7 @@ eddies = Eddies.detect_eddies(
     window_fit=window_fit,
     ssh=ds.adt,
     min_radius=min_radius,
-    paral=True,
+    paral=False,
 )
 end = time.time()
 print('it takes %.1f s' % (end - start))

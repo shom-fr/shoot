@@ -73,11 +73,16 @@ def create_map_ax(
 # In[3]:
 
 root_path = './data'
+root_path = '/local/tmp/jbroust/DATA/DUACS_INDIEN'
+
 
 # In[4]:
 
-ds = xr.open_dataset(os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc'))
-tracks = xr.open_dataset(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
+# ds = xr.open_dataset(os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc'))
+# tracks = xr.open_dataset(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
+
+ds = xr.open_dataset(os.path.join(root_path, 'INDIEN_2025.nc'))
+tracks = xr.open_dataset(os.path.join(root_path, 'track_Indien_2025.nc'))
 tracks
 
 
@@ -85,7 +90,7 @@ tracks
 # #### Plot tracking
 
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-n = 100  # 297
+n = 78  # 297
 
 colors = {"cyclone": "b", "anticyclone": "r"}
 
@@ -101,7 +106,7 @@ dss.adt.plot(
     # levels=np.linspace(-0.7, 0.6, 50),
 )
 
-nj = 5
+nj = 2
 plt.quiver(
     dss.longitude[::nj].values,
     dss.latitude[::nj].values,
@@ -131,6 +136,14 @@ for i in range(len(track_day.obs)):
         c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
         transform=pcarr,
     )
+
+    plt.plot(
+        tmp.x_eff_contour,
+        tmp.y_eff_contour,
+        c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+        transform=pcarr,
+    )
+
     ## eddy track
     # track = tracks.isel(obs=np.where(tracks.track_id == tmp.track_id)[0])
     # plt.plot(track.x_cen, track.y_cen, c='gray', transform=pcarr)
@@ -149,7 +162,7 @@ img = []  # some array of images
 frames = []  # for storing the generated images
 # fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
 
-fig = plt.figure(figsize=(8, 5))
+fig = plt.figure(figsize=(7, 5))
 ax = plt.subplot(111)
 colors = {"cyclone": "b", "anticyclone": "r"}
 
@@ -157,9 +170,28 @@ colors = {"cyclone": "b", "anticyclone": "r"}
 def animate(i):
     plt.cla()
     dss = ds.sel(time=i)
-    dss.zeta.plot(
-        x="lon_rho",
-        y="lat_rho",
+    # dss.zeta.plot(
+    #     x="lon_rho",
+    #     y="lat_rho",
+    #     cmap="nipy_spectral",
+    #     ax=ax,
+    #     add_colorbar=False,
+    #     # transform=pcarr,
+    #     # levels=np.linspace(-0.7, 0.6, 50),
+    # )
+
+    # nj = 20
+    # plt.quiver(
+    #     dss.lon_rho[::nj, ::nj].values,
+    #     dss.lat_rho[::nj, ::nj].values,
+    #     dss.u[::nj, ::nj].values,
+    #     dss.v[::nj, ::nj].values,
+    #     # transform=pcarr,
+    # )
+
+    dss.adt.plot(
+        x="longitude",
+        y="latitude",
         cmap="nipy_spectral",
         ax=ax,
         add_colorbar=False,
@@ -167,21 +199,49 @@ def animate(i):
         # levels=np.linspace(-0.7, 0.6, 50),
     )
 
-    nj = 20
+    nj = 2
     plt.quiver(
-        dss.lon_rho[::nj, ::nj].values,
-        dss.lat_rho[::nj, ::nj].values,
-        dss.u[::nj, ::nj].values,
-        dss.v[::nj, ::nj].values,
+        dss.longitude[::nj].values,
+        dss.latitude[::nj].values,
+        dss.ugos[::nj, ::nj].values,
+        dss.vgos[::nj, ::nj].values,
         # transform=pcarr,
     )
     plt.title(str(dss.time.values)[:10])
     plt.tight_layout()
 
+    day = np.where(tracks.time.values == dss.time.values)[0]
+    track_day = tracks.isel(obs=day)
+
+    for i in range(len(track_day.obs)):
+        tmp = track_day.isel(obs=i)
+        plt.scatter(
+            tmp.x_cen,
+            tmp.y_cen,
+            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+            s=10,
+            # transform=pcarr,
+        )
+
+        plt.plot(
+            tmp.x_vmax_contour,
+            tmp.y_vmax_contour,
+            '--',
+            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+            # transform=pcarr,
+        )
+
+        plt.plot(
+            tmp.x_eff_contour,
+            tmp.y_eff_contour,
+            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+            # transform=pcarr,
+        )
+
 
 ani = animation.FuncAnimation(fig, animate, frames=np.unique(tracks.time), interval=1000)
 
-# ani.save(os.path.join(root_path, 'tracking_ionian_2023_2024.gif'))
+ani.save(os.path.join(root_path, 'tracking_ionian_2023_2024.gif'))
 plt.show()
 
 

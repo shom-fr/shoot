@@ -12,7 +12,6 @@ import xoa.coords as xcoords
 import xoa.geo as xgeo
 
 from . import num as snum
-from . import fit as sfit
 
 
 def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):

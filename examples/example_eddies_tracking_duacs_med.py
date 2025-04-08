@@ -73,7 +73,7 @@ window_fit = 120  # 100  # 120
 
 # with Rossby
 if rossby_param:
-    window_fit = 10 * ro
+    window_fit = min(10 * ro, 300)
 
 print(window_fit)
 # %%
@@ -81,10 +81,15 @@ print(window_fit)
 min_radius = 20
 
 # %%
+eddies = Eddies.detect_eddies(ds.isel(time=0).ugos, ds.isel(time=0).vgos, window_center)
+
+# %%
 # Detection
 # ~~~~~~~~~
 
-eddies = EvolEddies.detect_eddies(ds, window_center, window_fit, min_radius, ssh='adt')
+eddies = EvolEddies.detect_eddies(
+    ds, window_center, window_fit, min_radius, ssh='adt', u='ugos', v='vgos'
+)
 
 # %%
 # Tracking
