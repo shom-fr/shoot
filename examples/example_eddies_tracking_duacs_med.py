@@ -19,7 +19,7 @@ import xarray as xr
 import numpy as np
 
 
-from shoot.eddies import detect_eddies, Eddies, EvolEddies
+from shoot.eddies import Eddies, EvolEddies
 from shoot.track import track_eddies, update_tracks, Tracks
 from shoot.plot import create_map, pcarr
 from shoot.contours import get_lnam_peaks
@@ -81,16 +81,22 @@ print(window_fit)
 min_radius = 20
 
 # %%
-eddies = Eddies.detect_eddies(ds.isel(time=0).ugos, ds.isel(time=0).vgos, window_center)
+import time
 
+dss = ds.isel(time=0)
+start = time.time()
+eddies = Eddies.detect_eddies(dss.ugos, dss.vgos, window_center, ssh=dss.adt)
+end = time.time()
+print("Temps de calcul pour un pas de temps : %.2f s" % (end - start))
 # %%
 # Detection
 # ~~~~~~~~~
-
+start = time.time()
 eddies = EvolEddies.detect_eddies(
     ds, window_center, window_fit, min_radius, ssh='adt', u='ugos', v='vgos'
 )
-
+end = time.time()
+print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - start))
 # %%
 # Tracking
 # ~~~~~ $

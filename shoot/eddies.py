@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -9,6 +11,7 @@ import numpy as np
 from scipy.interpolate import splprep, make_interp_spline, splev
 import multiprocessing as mp
 import itertools
+from itertools import repeat
 import xarray as xr
 import matplotlib.pyplot as plt
 import json
@@ -101,8 +104,7 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
 class Ellipse:
     def __init__(self, lon, lat, a, b, angle, sign=0, fit=None):
         self.lon, self.lat, self.a, self.b, self.angle, self.sign = lon, lat, a, b, angle, sign
-        self.fit = fit
-        self.fit_error = fit.fun if fit is not None else None
+        self.fit_error = fit
         self.radius = np.sqrt(self.a**2 + self.b**2)
 
     @classmethod
@@ -134,19 +136,6 @@ class Ellipse:
             'eddy_type': self.eddy_type,
         }
         return json.dumps(obj)
-
-    # @staticmethod
-    # def get_discretization_error(npts):
-    #     """https://www.wolframalpha.com/input?i=integrate+%281+-+%28cos+y%29+%2F+%28cos+x%29%29%5E2+dx"""
-    #     alpha = np.pi / npts
-    #     a2 = alpha / 2
-    #     c2 = np.cos(a2)
-    #     s2 = np.sin(a2)
-    #     out = np.sin(alpha) * np.cos(alpha)
-    #     out += 2 * np.cos(alpha) * (np.log(c2 - s2) - np.log(s2 + c2))
-    #     out += alpha
-    #     out /= alpha
-    #     return out
 
     @property
     def eddy_type(self):
@@ -185,7 +174,6 @@ class RawEddy2D:
         max_ellipse_error=0.1,  # 0.1,  # 0.03,  # 0.01,
         nlevels=100,
         robust=0.03,
-        ssh_method='streamline',
         **attrs,
     ):
         self.i, self.j = i, j
@@ -197,7 +185,6 @@ class RawEddy2D:
             self.glon, self.glat = float(lon[j, i]), float(lat[j, i])
         self.u, self.v = u, v
         self._ssh = ssh
-        self._method = ssh_method
         self._dx, self._dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
         self.uv_error = uv_error
         self.max_ellipse_error = max_ellipse_error
@@ -237,13 +224,7 @@ class RawEddy2D:
     def ssh(self):
         if self._ssh is not None:
             return self._ssh
-
-        if self._method == 'streamline':  # Here we use a integration method
-            return strl.psi(self.u, self.v)
-        else:  # Here we use a minimization method
-            return sfit.fit_ssh_from_uv(
-                self.u, self.v, dx=self._dx, dy=self._dy, uv_error=self.uv_error
-            )
+        return strl.psi(self.u, self.v)
 
     @functools.cached_property
     def _uvgeos(self):
@@ -273,6 +254,7 @@ class RawEddy2D:
             ):
                 continue
             if ellipse.fit_error < self.max_ellipse_error:
+                # if True:
                 ds.attrs["ellipse"] = ellipse
                 scontours.add_contour_uv(ds, self.ugeos.values, self.vgeos.values)
                 scontours.add_contour_dx_dy(ds)
@@ -295,9 +277,9 @@ class RawEddy2D:
         if np.isnan(self.vmax_contour.mean_velocity):
             # print(self.glon, self.glat, "nan velocity")
             return False
-        if self.vmax_contour.ellipse.fit_error > self.max_ellipse_error / 2:
-            # print(self.glon, self.glat, "ellipse error")
-            return False
+        # if self.vmax_contour.ellipse.fit_error > self.max_ellipse_error / 2: #ce test est inutile
+        #     # print(self.glon, self.glat, "ellipse error")
+        #     return False
         # print(self.glon, self.glat, "is eddy")
         return True
 
@@ -529,6 +511,10 @@ class Eddies:
             eddies.append(Eddy.reconstruct(ds.isel(obs=i)))
         return cls(time, eddies, window_center, window_fit, min_radius)
 
+    def test_eddy(eddy, min_radius):
+        if eddy.is_eddy(min_radius):
+            return eddy
+
     @classmethod
     def detect_eddies(
         cls,
@@ -540,8 +526,6 @@ class Eddies:
         dx=None,
         dy=None,
         min_radius=None,
-        ssh_method='streamline',
-        paral=False,
         **kwargs,
     ):
         """Detect all eddies in a velocity field"""
@@ -565,9 +549,8 @@ class Eddies:
         # import time
         # start_centers = time.time()
         centers, lnam, ow, extrema = find_eddy_centers(
-            u, v, window_center, dx=dxm, dy=dym, paral=paral
+            u, v, window_center, dx=dxm, dy=dym, paral=False
         )
-        print("Il y a %i centres possibles" % centers.lon.shape[0])
         # end_centers = time.time()
         # print("center research takes %.3fs" % (end_centers - start_centers))
 
@@ -582,7 +565,7 @@ class Eddies:
         nx = u.sizes[xdim]
         ny = u.sizes[ydim]
 
-        def test_eddy(ic, wx2c, wy2c):
+        def def_eddy(ic, wx2c, wy2c):
             # Local selection
             i = int(centers.gi[ic])
             j = int(centers.gj[ic])
@@ -609,37 +592,47 @@ class Eddies:
                 ssh=sshl,
                 dx=dxl,
                 dy=dyl,
-                ssh_method=ssh_method,
                 **kwargs,
             )
-            if eddy.is_eddy(min_radius):
-                # Ici on regarde si la taille du contour de Vmax égale celui Effectif
-                if len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line):
-                    if (eddy.vmax_contour.line == eddy.boundary_contour.line).all():
-                        if (wx2c + int(wx2c / 2) > min(u.shape[1], 2 * wx2)) or (
-                            wy2c + int(wy2c / 2) > min(u.shape[0], 2 * wy2)
-                        ):  # condition d'arrêt de la recursion
-                            return eddy
-                        else:
-                            eddy = test_eddy(ic, wx2c + int(wx2c / 2), wy2c + int(wy2c / 2))
-                return eddy
+            eddy.attrs.update(
+                lnam=float(centers.lnam[ic]),
+                coriolis=float(centers.coriolis[ic]),
+                window_center=window_center,
+                window_fit=window_fit,
+            )
+            return eddy
 
         # start_eddy = time.time()
         eddies = []
-        # Loop on detected centers : C'est ça qui est le plus chronophage
-        # qu'il faut donc paralléliser
-        for ic in range(centers.lon.shape[0]):
-            eddy = test_eddy(ic, wx2, wy2)
-            if eddy:
-                eddies.append(eddy)
-                eddy.attrs.update(
-                    lnam=float(centers.lnam[ic]),
-                    coriolis=float(centers.coriolis[ic]),
-                    window_center=window_center,
-                    window_fit=window_fit,
-                )
-        # end_eddy = time.time()
-        # print("eddy check takes %.3fs" % (end_eddy - start_eddy))
+        wx2c = wx2
+        wy2c = wy2
+        print("On travaille sur %i cpus" % mp.cpu_count())
+        while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
+            eddies_tmp = []
+            for ic in range(centers.lon.shape[0]):
+                eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
+
+            with mp.Pool(mp.cpu_count()) as p:
+                eddies_tmp = p.starmap(Eddies.test_eddy, zip(eddies_tmp, repeat(min_radius)))
+                p.close()
+
+            ind_good = []
+            for i, eddy in enumerate(eddies_tmp):
+                if not eddy is None:
+                    if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
+                        eddies.append(eddy)
+                    else:
+                        if (
+                            len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line)
+                            and (eddy.vmax_contour.line == eddy.boundary_contour.line).all()
+                        ):
+                            ind_good.append(i)
+                        else:
+                            eddies.append(eddy)
+
+            centers = centers.isel(neddies=ind_good)
+            wx2c += int(wx2c / 2)
+            wy2c += int(wy2c / 2)
 
         ## Cheking inclusion step
         ## This step can be modify to account for eddy-eddy interaction
@@ -656,7 +649,6 @@ class Eddies:
                         contain[i] = False
 
         eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
-
         return cls(u.time.values, eddies, window_center, window_fit, min_radius)
 
     @property
@@ -778,311 +770,3 @@ class EvolEddies:
     def save(self, path_nc):
         "this save at .nc format"
         self.ds.to_netcdf(path_nc)
-
-
-def detect_eddies(
-    u,
-    v,
-    window_center,
-    window_fit=None,
-    ssh=None,
-    dx=None,
-    dy=None,
-    min_radius=None,
-    ssh_method='streamline',
-    paral=False,
-    **kwargs,
-):
-    """Detect all eddies in a velocity field"""
-    if window_fit is None:
-        window_fit = 1.5 * window_center
-
-    if dx is None or dy is None:
-        dxdy = sgrid.get_dx_dy(u)
-        if dx is None:
-            dx = dxdy[0]
-        if dy is None:
-            dy = dxdy[1]
-    dxm = np.nanmean(dx)
-    dym = np.nanmean(dy)
-
-    lat = xcoords.get_lat(u)
-    lon = xcoords.get_lon(u)
-    lat2d, lon2d = xr.broadcast(lat, lon)
-
-    # Find center of cyclones and anticyclones
-    centers, lnam, ow, extrema = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=paral)
-
-    # Fit window
-    wx, wy = sgrid.get_wx_wy(
-        window_fit, dxm, dym
-    )  # window on which we look for streamlines closed contours
-    wx2 = wx // 2
-    wy2 = wy // 2
-    xdim = xcoords.get_xdim(u)
-    ydim = xcoords.get_ydim(u)
-    nx = u.sizes[xdim]
-    ny = u.sizes[ydim]
-
-    # Loop on detected centers : C'est ça qui est le plus chronophage
-    # qu'il faut donc paralléliser
-    print("il y a %i centers" % (centers.lon.shape[0]))
-    import time
-
-    start = time.time()
-    eddies = []
-    for ic in range(centers.lon.shape[0]):
-
-        # Local selection
-        i = int(centers.gi[ic])
-        j = int(centers.gj[ic])
-        imin = max(i - wx2, 0)
-        imax = min(i + wx2 + 1, nx)
-        jmin = max(j - wy2, 0)
-        jmax = min(j + wy2 + 1, ny)
-        isel = {xdim: slice(imin, imax), ydim: slice(jmin, jmax)}
-        ul = u[isel]
-        vl = v[isel]
-        sshl = ssh[isel] if ssh is not None else None
-        if isinstance(dx, xr.DataArray):
-            dxl = dx[isel]
-            dyl = dy[isel]
-        else:
-            dxl, dyl = dx, dy
-
-        # Init eddy
-        eddy = RawEddy2D(
-            i - imin, j - jmin, ul, vl, ssh=sshl, dx=dxl, dy=dyl, ssh_method=ssh_method, **kwargs
-        )
-
-        if eddy.is_eddy(min_radius):
-            eddies.append(eddy)
-            eddy.attrs.update(
-                lnam=float(centers.lnam[ic]),
-                coriolis=float(centers.coriolis[ic]),
-                window_center=window_center,
-                window_fit=window_fit,
-            )
-    end = time.time()
-    print('temps de la boucle non parallelisée %.3f' % (end - start))
-
-    return eddies, centers, lnam, ow, extrema
-
-
-def detect_eddies_save(
-    u,
-    v,
-    window_center,
-    window_fit=None,
-    ssh=None,
-    dx=None,
-    dy=None,
-    min_radius=None,
-    ssh_method='streamline',
-    paral=False,
-    **kwargs,
-):
-    """Detect all eddies in a velocity field"""
-    if window_fit is None:
-        window_fit = 1.5 * window_center
-
-    if dx is None or dy is None:
-        dxdy = sgrid.get_dx_dy(u)
-        if dx is None:
-            dx = dxdy[0]
-        if dy is None:
-            dy = dxdy[1]
-    dxm = np.nanmean(dx)
-    dym = np.nanmean(dy)
-
-    lat = xcoords.get_lat(u)
-    lon = xcoords.get_lon(u)
-    lat2d, lon2d = xr.broadcast(lat, lon)
-
-    # Find center of cyclones and anticyclones
-    centers, lnam, ow, extrema = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=paral)
-
-    # Fit window
-    wx, wy = sgrid.get_wx_wy(
-        window_fit, dxm, dym
-    )  # window on which we look for streamlines closed contours
-    wx2 = wx // 2
-    wy2 = wy // 2
-    xdim = xcoords.get_xdim(u)
-    ydim = xcoords.get_ydim(u)
-    nx = u.sizes[xdim]
-    ny = u.sizes[ydim]
-
-    # Loop on detected centers : C'est ça qui est le plus chronophage
-    # qu'il faut donc paralléliser
-    print("il y a %i centers" % (centers.lon.shape[0]))
-    import time
-
-    start = time.time()
-    eddies = []
-    for ic in range(centers.lon.shape[0]):
-
-        # Local selection
-        i = int(centers.gi[ic])
-        j = int(centers.gj[ic])
-        imin = max(i - wx2, 0)
-        imax = min(i + wx2 + 1, nx)
-        jmin = max(j - wy2, 0)
-        jmax = min(j + wy2 + 1, ny)
-        isel = {xdim: slice(imin, imax), ydim: slice(jmin, jmax)}
-        ul = u[isel]
-        vl = v[isel]
-        sshl = ssh[isel] if ssh is not None else None
-        if isinstance(dx, xr.DataArray):
-            dxl = dx[isel]
-            dyl = dy[isel]
-        else:
-            dxl, dyl = dx, dy
-
-        # Init eddy
-        eddy = RawEddy2D(
-            i - imin, j - jmin, ul, vl, ssh=sshl, dx=dxl, dy=dyl, ssh_method=ssh_method, **kwargs
-        )
-
-        # Checks
-
-        start_nc = time.time()
-        a = eddy.ncontours
-        end_nc = time.time()
-        print('temps calcul ncontour %.2f ms' % (1e3 * (end_nc - start_nc)))
-
-        if not eddy.ncontours:
-            continue
-        # if eddy.sign != np.sign(centers.lnam.values[ic]): ## modif suite à l'ajout du calcul de psi
-        #    warnings.warn("Eddy sign inconsistency. Skipped...")
-        #    raise ("Eddy sign inconsistency. Skipped...")
-        #    continue
-        if min_radius and eddy.radius < min_radius:
-            continue
-        if len(eddy.contours):
-            eddies.append(eddy)
-
-        eddy.attrs.update(
-            lnam=float(centers.lnam[ic]),
-            coriolis=float(centers.coriolis[ic]),
-            window_center=window_center,
-            window_fit=window_fit,
-        )
-    end = time.time()
-    print('temps de la boucle non parallelisée %.3f' % (end - start))
-
-    return eddies, centers, lnam, ow, extrema
-
-
-def contour(eddy):
-    if eddy.ncontours:
-        return eddy
-
-
-def is_eddy(eddy, min_radius):
-    if eddy.is_eddies(min_radius):
-        return eddy
-
-
-### TO CONTINUE ###
-# la boucle se parallelise bien mais pour autant la structure du code est trop complexe
-# pour etre vraiment efficace
-def detect_eddies_paral(
-    u,
-    v,
-    window_center,
-    window_fit=None,
-    ssh=None,
-    dx=None,
-    dy=None,
-    min_radius=None,
-    ssh_method='streamline',
-    paral=False,
-    **kwargs,
-):
-    """Detect all eddies in a velocity field"""
-    import time
-
-    if window_fit is None:
-        window_fit = 1.5 * window_center
-
-    if dx is None or dy is None:
-        dxdy = sgrid.get_dx_dy(u)
-        if dx is None:
-            dx = dxdy[0]
-        if dy is None:
-            dy = dxdy[1]
-    dxm = np.nanmean(dx)
-    dym = np.nanmean(dy)
-
-    lat = xcoords.get_lat(u)
-    lon = xcoords.get_lon(u)
-    lat2d, lon2d = xr.broadcast(lat, lon)
-
-    # Find center of cyclones and anticyclones
-    centers, lnam, ow, extrema = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym)
-
-    # Fit window
-    wx, wy = sgrid.get_wx_wy(
-        window_fit, dxm, dym
-    )  # window on which we look for streamlines closed contours
-    wx2 = wx // 2
-    wy2 = wy // 2
-    xdim = xcoords.get_xdim(u)
-    ydim = xcoords.get_ydim(u)
-    nx = u.sizes[xdim]
-    ny = u.sizes[ydim]
-
-    # Loop on detected centers : C'est ça qui est le plus chronophage
-    # qu'il faut donc paralléliser
-
-    start = time.time()
-    eddies = []
-    for ic in range(centers.lon.shape[0]):  # boucle d'initialisation des eddies
-
-        # Local selection
-        i = int(centers.gi[ic])
-        j = int(centers.gj[ic])
-        imin = max(i - wx2, 0)
-        imax = min(i + wx2 + 1, nx)
-        jmin = max(j - wy2, 0)
-        jmax = min(j + wy2 + 1, ny)
-        isel = {xdim: slice(imin, imax), ydim: slice(jmin, jmax)}
-        ul = u[isel]
-        vl = v[isel]
-        sshl = ssh[isel] if ssh is not None else None
-        if isinstance(dx, xr.DataArray):
-            dxl = dx[isel]
-            dyl = dy[isel]
-        else:
-            dxl, dyl = dx, dy
-
-        # Init eddy
-        eddy = RawEddy2D(
-            i - imin, j - jmin, ul, vl, ssh=sshl, dx=dxl, dy=dyl, ssh_method=ssh_method, **kwargs
-        )
-        eddies.append(eddy)
-        eddy.attrs.update(
-            lnam=float(centers.lnam[ic]),
-            coriolis=float(centers.coriolis[ic]),
-            window_center=window_center,
-            window_fit=window_fit,
-        )
-    end = time.time()
-    print('temps de création des eddies %.2f s' % (end - start))
-    start = time.time()
-    print("j'ai %i CPUs" % mp.cpu_count())
-
-    with mp.Pool(mp.cpu_count()) as p:
-        # eddies = p.map(contour, zip(eddies, itertools.repeat(min_radius)))
-        eddies = p.map(contour, eddies)
-        p.close()
-    end = time.time()
-    print('temps de la boucle parallelisée %.3f' % (end - start))
-    start = time.time()
-    eddies = [e for e in eddies if e is not None and min_radius and eddy.radius < min_radius]
-    # eddies = [e for e in eddies if e is not None and e.is_eddies(min_radius)]
-    # eddies = [e for e in eddies if e is not None]
-    print('temps de la boucle complémentaire %.3f' % (end - start))
-
-    return eddies, centers, lnam, ow, extrema

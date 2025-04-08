@@ -16,7 +16,6 @@ from . import num as snum
 
 def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     """Get closed contours around a center
-
     Parameters
     ----------
     lon_center: float
