@@ -117,7 +117,6 @@ class Eddies3D:
                 window_center,
                 window_fit=window_fit,
                 min_radius=min_radius,
-                paral=True,
             )
             if z == len(depth) - 1:
                 for i, eddy in enumerate(eddies_z.eddies):

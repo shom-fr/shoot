@@ -358,8 +358,8 @@ class Tracks:
         ##reconstruction des traces
         track_eddies = {}  # dictionnary of tracks
         for i in np.unique(ds.track_id):
-            tmp = ds.where(ds.track_id == i, drop=True)  # selectionne les eddies de la trace  i
-            trace_times = tmp.time.values
+            tmp = ds.where(ds.track_id == i, drop=True) # selectionne les eddies de la trace  i
+            trace_times = list(tmp.time.values)
             trace_number = i
             trace_eddies = []
             for j in range(len(tmp.obs)):
@@ -421,7 +421,8 @@ class Tracks:
                     self.track_eddies[eddy.track_id].update(eddy, t)
 
     def track_step(self):
-        """track only for the last eddies
+        """
+        track only for the last eddies
         suppose the job has been done before for others
         usefull for update concerns
         """

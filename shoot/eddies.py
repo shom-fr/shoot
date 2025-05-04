@@ -5,6 +5,7 @@
 """
 Created on Wed Jul  3 15:39:51 2024 by sraynaud
 """
+import os
 import functools
 import warnings
 import numpy as np
@@ -432,6 +433,7 @@ class RawEddy2D:
 class Eddy:  ##This is a minimal class without computing capabilities
     def __init__(
         self,
+        time,
         lon,
         lat,
         i,
@@ -451,6 +453,7 @@ class Eddy:  ##This is a minimal class without computing capabilities
         b,
         angle,
     ):
+        self.time = time
         self.glon = lon
         self.glat = lat
         self.i = i
@@ -469,6 +472,7 @@ class Eddy:  ##This is a minimal class without computing capabilities
     @classmethod
     def reconstruct(cls, ds):
         return cls(
+            ds.time.values,
             float(ds.x_cen.values),
             float(ds.y_cen.values),
             int(ds.i_cen.values),
@@ -499,16 +503,18 @@ class Eddies:
         self.window_center = window_center
         self.window_fit = window_fit
         self.min_radius = min_radius
-
+    
+    
     @classmethod
     def reconstruct(cls, ds):
         window_center = float(ds.window_center[:-3])
         window_fit = float(ds.window_fit[:-3])
         min_radius = float(ds.min_radius[:-3])
-        time = ds.time[0]
         eddies = []
         for i in range(len(ds.obs)):
             eddies.append(Eddy.reconstruct(ds.isel(obs=i)))
+            if i == 0 : 
+                time = ds.isel(obs=i).time.values
         return cls(time, eddies, window_center, window_fit, min_radius)
 
     def test_eddy(eddy, min_radius):
@@ -546,7 +552,8 @@ class Eddies:
         lat2d, lon2d = xr.broadcast(lat, lon)
 
         # Find center of cyclones and anticyclones
-        # import time
+        import time
+
         # start_centers = time.time()
         centers, lnam, ow, extrema = find_eddy_centers(
             u, v, window_center, dx=dxm, dy=dym, paral=False
@@ -606,13 +613,14 @@ class Eddies:
         eddies = []
         wx2c = wx2
         wy2c = wy2
+        print("On dispose de %i cpus et %i coeurs" % (mp.cpu_count(), len(os.sched_getaffinity(0))))
         print("On travaille sur %i cpus" % mp.cpu_count())
         while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
             eddies_tmp = []
             for ic in range(centers.lon.shape[0]):
                 eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
-            with mp.Pool(mp.cpu_count()) as p:
+            with mp.Pool(min(2, mp.cpu_count())) as p:
                 eddies_tmp = p.starmap(Eddies.test_eddy, zip(eddies_tmp, repeat(min_radius)))
                 p.close()
 
@@ -633,7 +641,8 @@ class Eddies:
             centers = centers.isel(neddies=ind_good)
             wx2c += int(wx2c / 2)
             wy2c += int(wy2c / 2)
-
+        # end_eddy = time.time()
+        # print("eddy paral loop takes %.3f s" % (end_eddy - start_eddy))
         ## Cheking inclusion step
         ## This step can be modify to account for eddy-eddy interaction
         contain = np.ones(len(eddies)) * True
@@ -715,6 +724,29 @@ class EvolEddies:
             self.dt = (eddies[1].time - eddies[0].time) / np.timedelta64(1, 's')
         else:
             self.dt = None
+            
+    
+    @classmethod
+    def merge_ds(cls, *args): 
+        """
+        take each xarray dataset that should be merged as argument
+        track_id are reset when mergin is performed
+        """
+        dss = args 
+        try : 
+            print("%i dataset to merge"%len(dss))
+        except TypeError : 
+            print("No dataset to merge")
+            return 
+        eddies = []
+        for ds in dss : 
+            eddies_tmp = EvolEddies.reconstruct(ds).eddies
+            #refresh track_id
+            for eddy in eddies_tmp: 
+                for e in eddy.eddies: 
+                    e.track_id = None
+            eddies+=eddies_tmp
+        return cls(eddies)
 
     @classmethod
     def reconstruct(cls, ds):
