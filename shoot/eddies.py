@@ -447,6 +447,10 @@ class Eddy:  ##This is a minimal class without computing capabilities
         vmax_radius,
         vmax_length,
         vmax,
+        x_eff,
+        y_eff,
+        x_vmax,
+        y_vmax,
         elon,
         elat,
         a,
@@ -468,6 +472,10 @@ class Eddy:  ##This is a minimal class without computing capabilities
         self.eddy_type = eddy_type
         self.track_id = track_id
         self.is_parent = is_parent
+        self.x_eff = x_eff
+        self.y_eff = y_eff
+        self.x_vmax = x_vmax
+        self.y_vmax = y_vmax
 
     @classmethod
     def reconstruct(cls, ds):
@@ -486,6 +494,10 @@ class Eddy:  ##This is a minimal class without computing capabilities
             float(ds.vmax_radius.values),
             float(ds.vmax_length.values),
             float(ds.vmax.values),
+            ds.x_eff_contour.values,
+            ds.y_eff_contour.values,
+            ds.x_vmax_contour.values,
+            ds.y_vmax_contour.values,
             float(ds.x_ell.values),
             float(ds.y_ell.values),
             float(ds.a_ell.values),
@@ -503,8 +515,7 @@ class Eddies:
         self.window_center = window_center
         self.window_fit = window_fit
         self.min_radius = min_radius
-    
-    
+
     @classmethod
     def reconstruct(cls, ds):
         window_center = float(ds.window_center[:-3])
@@ -513,7 +524,7 @@ class Eddies:
         eddies = []
         for i in range(len(ds.obs)):
             eddies.append(Eddy.reconstruct(ds.isel(obs=i)))
-            if i == 0 : 
+            if i == 0:
                 time = ds.isel(obs=i).time.values
         return cls(time, eddies, window_center, window_fit, min_radius)
 
@@ -662,53 +673,105 @@ class Eddies:
 
     @property
     def ds(self):
-        return xr.Dataset(
-            {
-                "time": (("obs"), np.repeat(self.time, len(self.eddies))),
-                "i_cen": (("obs"), [e.i for e in self.eddies]),
-                "j_cen": (("obs"), [e.j for e in self.eddies]),
-                "x_cen": (("obs"), [e.glon for e in self.eddies]),
-                "y_cen": (("obs"), [e.glat for e in self.eddies]),
-                "track_id": (("obs"), [e.track_id for e in self.eddies]),
-                "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
-                # "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
-                "eff_radius": (("obs"), [e.radius for e in self.eddies]),
-                "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
-                "vmax_radius": (("obs"), [e.vmax_contour.radius for e in self.eddies]),
-                "vmax_length": (("obs"), [e.vmax_contour.length for e in self.eddies]),
-                "vmax": (("obs"), [e.vmax_contour.mean_velocity for e in self.eddies]),
-                "Ro": (("obs"), [e.ro for e in self.eddies]),
-                "x_ell": (("obs"), [e.ellipse.lon for e in self.eddies]),
-                "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
-                "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
-                "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
-                "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
-                "x_eff_contour": (
-                    ("obs", "nb_sample"),
-                    [e.boundary_contour.lon_int for e in self.eddies],
-                ),
-                "y_eff_contour": (
-                    ("obs", "nb_sample"),
-                    [e.boundary_contour.lat_int for e in self.eddies],
-                ),
-                "x_vmax_contour": (
-                    ("obs", "nb_sample"),
-                    [e.vmax_contour.lon_int for e in self.eddies],
-                ),
-                "y_vmax_contour": (
-                    ("obs", "nb_sample"),
-                    [e.vmax_contour.lat_int for e in self.eddies],
-                ),
-            },
-            attrs={
-                'window_center': '%i km' % self.window_center,
-                'window_fit': '%i km' % self.window_fit,
-                'min_radius': '%i km' % self.min_radius,
-                "project": "SHOOT",
-                "institution": "SHOM",
-                "contact": "jean.baptiste.roustan@shom.fr",
-            },
-        )
+
+        if (
+            getattr(self.eddies[0], 'length', -1) != -1
+        ):  # check whether we have Raw2DEddy or Eddy object
+            return xr.Dataset(
+                {
+                    "time": (("obs"), np.repeat(self.time, len(self.eddies))),
+                    "i_cen": (("obs"), [e.i for e in self.eddies]),
+                    "j_cen": (("obs"), [e.j for e in self.eddies]),
+                    "x_cen": (("obs"), [e.glon for e in self.eddies]),
+                    "y_cen": (("obs"), [e.glat for e in self.eddies]),
+                    "track_id": (("obs"), [e.track_id for e in self.eddies]),
+                    "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
+                    # "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
+                    "eff_radius": (("obs"), [e.radius for e in self.eddies]),
+                    "eff_length": (("obs"), [e.length for e in self.eddies]),
+                    "vmax_radius": (("obs"), [e.vmax_radius for e in self.eddies]),
+                    "vmax_length": (("obs"), [e.vmax_length for e in self.eddies]),
+                    "vmax": (("obs"), [e.vmax for e in self.eddies]),
+                    "Ro": (("obs"), [e.ro for e in self.eddies]),
+                    "x_ell": (("obs"), [e.ellipse.lon for e in self.eddies]),
+                    "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
+                    "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
+                    "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
+                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "x_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.x_eff for e in self.eddies],
+                    ),
+                    "y_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.y_eff for e in self.eddies],
+                    ),
+                    "x_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.x_vmax for e in self.eddies],
+                    ),
+                    "y_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.y_vmax for e in self.eddies],
+                    ),
+                },
+                attrs={
+                    'window_center': '%i km' % self.window_center,
+                    'window_fit': '%i km' % self.window_fit,
+                    'min_radius': '%i km' % self.min_radius,
+                    "project": "SHOOT",
+                    "institution": "SHOM",
+                    "contact": "jean.baptiste.roustan@shom.fr",
+                },
+            )
+        else:
+            return xr.Dataset(
+                {
+                    "time": (("obs"), np.repeat(self.time, len(self.eddies))),
+                    "i_cen": (("obs"), [e.i for e in self.eddies]),
+                    "j_cen": (("obs"), [e.j for e in self.eddies]),
+                    "x_cen": (("obs"), [e.glon for e in self.eddies]),
+                    "y_cen": (("obs"), [e.glat for e in self.eddies]),
+                    "track_id": (("obs"), [e.track_id for e in self.eddies]),
+                    "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
+                    # "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
+                    "eff_radius": (("obs"), [e.radius for e in self.eddies]),
+                    "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
+                    "vmax_radius": (("obs"), [e.vmax_contour.radius for e in self.eddies]),
+                    "vmax_length": (("obs"), [e.vmax_contour.length for e in self.eddies]),
+                    "vmax": (("obs"), [e.vmax_contour.mean_velocity for e in self.eddies]),
+                    "Ro": (("obs"), [e.ro for e in self.eddies]),
+                    "x_ell": (("obs"), [e.ellipse.lon for e in self.eddies]),
+                    "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
+                    "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
+                    "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
+                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "x_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.boundary_contour.lon_int for e in self.eddies],
+                    ),
+                    "y_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.boundary_contour.lat_int for e in self.eddies],
+                    ),
+                    "x_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.vmax_contour.lon_int for e in self.eddies],
+                    ),
+                    "y_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.vmax_contour.lat_int for e in self.eddies],
+                    ),
+                },
+                attrs={
+                    'window_center': '%i km' % self.window_center,
+                    'window_fit': '%i km' % self.window_fit,
+                    'min_radius': '%i km' % self.min_radius,
+                    "project": "SHOOT",
+                    "institution": "SHOM",
+                    "contact": "jean.baptiste.roustan@shom.fr",
+                },
+            )
 
     def save(self, path_nc):
         "this save at .nc format"
@@ -724,28 +787,27 @@ class EvolEddies:
             self.dt = (eddies[1].time - eddies[0].time) / np.timedelta64(1, 's')
         else:
             self.dt = None
-            
-    
+
     @classmethod
-    def merge_ds(cls, *args): 
+    def merge_ds(cls, *args):
         """
         take each xarray dataset that should be merged as argument
         track_id are reset when mergin is performed
         """
-        dss = args 
-        try : 
-            print("%i dataset to merge"%len(dss))
-        except TypeError : 
+        dss = args
+        try:
+            print("%i dataset to merge" % len(dss))
+        except TypeError:
             print("No dataset to merge")
-            return 
+            return
         eddies = []
-        for ds in dss : 
+        for ds in dss:
             eddies_tmp = EvolEddies.reconstruct(ds).eddies
-            #refresh track_id
-            for eddy in eddies_tmp: 
-                for e in eddy.eddies: 
+            # refresh track_id
+            for eddy in eddies_tmp:
+                for e in eddy.eddies:
                     e.track_id = None
-            eddies+=eddies_tmp
+            eddies += eddies_tmp
         return cls(eddies)
 
     @classmethod

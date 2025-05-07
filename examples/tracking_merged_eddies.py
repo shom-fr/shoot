@@ -98,4 +98,14 @@ eddies
 print(len(eddies.eddies))
 
 # %% Track on the complete time
-tracks = track_eddies(eddies, nbackward)
+tracks = track_eddies(eddies, 10)
+
+
+# %% Save the full tracking
+
+tracks.save(root_path + '/eddies_mest_test_merged.nc')
+
+
+# %% Test the merged dataset
+
+ds_merged = xr.open_dataset(root_path + '/eddies_mest_test_merged.nc')
