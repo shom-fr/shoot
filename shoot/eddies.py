@@ -543,6 +543,7 @@ class Eddies:
         dx=None,
         dy=None,
         min_radius=None,
+        nb_procs=None,
         **kwargs,
     ):
         """Detect all eddies in a velocity field"""
@@ -625,13 +626,18 @@ class Eddies:
         wx2c = wx2
         wy2c = wy2
         print("On dispose de %i cpus et %i coeurs" % (mp.cpu_count(), len(os.sched_getaffinity(0))))
-        print("On travaille sur %i cpus" % mp.cpu_count())
+        if nb_procs:
+            nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
+        else:
+            nb_procs = len(os.sched_getaffinity(0))
+        print("On travaille avec %i cpus" % nb_procs)
         while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
             eddies_tmp = []
             for ic in range(centers.lon.shape[0]):
                 eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
-            with mp.Pool(min(2, mp.cpu_count())) as p:
+            # with mp.Pool(min(2, mp.cpu_count())) as p:
+            with mp.Pool(nb_procs) as p:
                 eddies_tmp = p.starmap(Eddies.test_eddy, zip(eddies_tmp, repeat(min_radius)))
                 p.close()
 
