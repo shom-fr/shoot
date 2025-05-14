@@ -5,7 +5,7 @@
 """
 Created on Wed Jul  3 15:39:51 2024 by sraynaud
 """
-import os
+import os, gc
 import functools
 import warnings
 import numpy as np
@@ -631,12 +631,12 @@ class Eddies:
         else:
             nb_procs = len(os.sched_getaffinity(0))
         print("On travaille avec %i cpus" % nb_procs)
+
         while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
             eddies_tmp = []
             for ic in range(centers.lon.shape[0]):
                 eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
-            # with mp.Pool(min(2, mp.cpu_count())) as p:
             with mp.Pool(nb_procs) as p:
                 eddies_tmp = p.starmap(Eddies.test_eddy, zip(eddies_tmp, repeat(min_radius)))
                 p.close()
@@ -656,6 +656,8 @@ class Eddies:
                             eddies.append(eddy)
 
             centers = centers.isel(neddies=ind_good)
+            del eddies_tmp
+            gc.collect()
             wx2c += int(wx2c / 2)
             wy2c += int(wy2c / 2)
         # end_eddy = time.time()
@@ -829,6 +831,10 @@ class EvolEddies:
         "ds is a temporal dataframe"
         eddies = []
         for i in range(len(ds.time)):
+            import psutil
+
+            process = psutil.Process(os.getpid())
+            print(f"Mémoire après itération: {process.memory_info().rss / 1024**2:.2f} MB")
             # print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel(time=i)
             if not ssh is None:
