@@ -528,6 +528,7 @@ class Eddies:
                 time = ds.isel(obs=i).time.values
         return cls(time, eddies, window_center, window_fit, min_radius)
 
+    # @staticmethod
     def test_eddy(eddy, min_radius):
         if eddy.is_eddy(min_radius):
             return eddy
@@ -543,6 +544,7 @@ class Eddies:
         dx=None,
         dy=None,
         min_radius=None,
+        paral=False,
         nb_procs=None,
         **kwargs,
     ):
@@ -625,21 +627,29 @@ class Eddies:
         eddies = []
         wx2c = wx2
         wy2c = wy2
-        print("On dispose de %i cpus et %i coeurs" % (mp.cpu_count(), len(os.sched_getaffinity(0))))
-        if nb_procs:
-            nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
+        if paral:
+            print(
+                "On dispose de %i cpus et %i coeurs"
+                % (mp.cpu_count(), len(os.sched_getaffinity(0)))
+            )
+            if nb_procs:
+                nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
+            else:
+                nb_procs = len(os.sched_getaffinity(0))
+            print("On travaille avec %i cpus" % nb_procs)
         else:
-            nb_procs = len(os.sched_getaffinity(0))
-        print("On travaille avec %i cpus" % nb_procs)
+            print("on travaille en séquentiel")
 
         while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
             eddies_tmp = []
             for ic in range(centers.lon.shape[0]):
                 eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
-            with mp.Pool(nb_procs) as p:
-                eddies_tmp = p.starmap(Eddies.test_eddy, zip(eddies_tmp, repeat(min_radius)))
-                p.close()
+            if paral:
+                with mp.Pool(nb_procs) as p:
+                    eddies_tmp = p.starmap(Eddies.test_eddy, zip(eddies_tmp, repeat(min_radius)))
+            else:
+                eddies_tmp = [Eddies.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
 
             ind_good = []
             for i, eddy in enumerate(eddies_tmp):
@@ -660,8 +670,7 @@ class Eddies:
             gc.collect()
             wx2c += int(wx2c / 2)
             wy2c += int(wy2c / 2)
-        # end_eddy = time.time()
-        # print("eddy paral loop takes %.3f s" % (end_eddy - start_eddy))
+
         ## Cheking inclusion step
         ## This step can be modify to account for eddy-eddy interaction
         contain = np.ones(len(eddies)) * True
@@ -827,7 +836,18 @@ class EvolEddies:
         return cls(eddies)
 
     @classmethod
-    def detect_eddies(cls, ds, window_center, window_fit, min_radius, u='ugos', v='vgos', ssh=None):
+    def detect_eddies(
+        cls,
+        ds,
+        window_center,
+        window_fit,
+        min_radius,
+        u='ugos',
+        v='vgos',
+        ssh=None,
+        paral=False,
+        nb_procs=None,
+    ):
         "ds is a temporal dataframe"
         eddies = []
         for i in range(len(ds.time)):
@@ -845,7 +865,8 @@ class EvolEddies:
                     window_fit=window_fit,
                     ssh=dss[ssh],
                     min_radius=min_radius,
-                    paral=True,
+                    paral=paral,
+                    nb_procs=nb_procs,
                 )
             else:
                 eddies_ssh = Eddies.detect_eddies(
@@ -854,7 +875,8 @@ class EvolEddies:
                     window_center,
                     window_fit=window_fit,
                     min_radius=min_radius,
-                    paral=True,
+                    paral=paral,
+                    nb_procs=nb_procs,
                 )
             eddies.append(eddies_ssh)
         return cls(eddies)

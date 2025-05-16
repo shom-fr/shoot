@@ -29,6 +29,7 @@ class Anomaly:
             eddy.boundary_contour.radius
         )  # eddy.vmax_contour.radius  # eddy.radius in meters
         self.dens = dens
+        self.depth = xcoords.get_depth(dens)
         self.xdim = xcoords.get_xdim(self.dens, errors="raise")
         self.ydim = xcoords.get_ydim(self.dens, errors="raise")
         self.nz = nz
@@ -53,7 +54,7 @@ class Anomaly:
 
     @functools.cached_property
     def depth_vector(self):
-        depth = xcoords.get_depth(self.dens).isel({self.xdim: self._j, self.ydim: self._i})
+        depth = self.depth.isel({self.xdim: self._j, self.ydim: self._i})
         return np.linspace(depth.min().values, depth.max().values, self.nz)
 
     @functools.cached_property
@@ -61,7 +62,7 @@ class Anomaly:
         inside = self.dens.isel({self.xdim: self._j, self.ydim: self._i})
         return np.interp(
             self.depth_vector,
-            xcoords.get_depth(self.dens).isel({self.xdim: self._j, self.ydim: self._i}),
+            self.depth.isel({self.xdim: self._j, self.ydim: self._i}),
             inside,
         )
 
@@ -182,7 +183,7 @@ class Anomaly:
     def _depths_inside(self):
         X = self._xy_inside[0]
         Y = self._xy_inside[1]
-        return self.dens.depth.isel(
+        return self.depth.isel(
             {
                 self.xdim: xr.DataArray(
                     X,
@@ -199,7 +200,7 @@ class Anomaly:
     def _depths_outside(self):
         X = self._xy_outside[0]
         Y = self._xy_outside[1]
-        return self.dens.depth.isel(
+        return self.depth.isel(
             {
                 self.xdim: xr.DataArray(
                     X,
