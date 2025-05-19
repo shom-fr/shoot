@@ -28,11 +28,11 @@ class Anomaly:
         self.radius = (
             eddy.boundary_contour.radius
         )  # eddy.vmax_contour.radius  # eddy.radius in meters
-        self.dens = dens
+        self.dens = dens.squeeze()
         if not depth is None:
-            self.depth = depth
+            self.depth = depth.squeeze()
         else:
-            self.depth = xcoords.get_depth(dens)
+            self.depth = xcoords.get_depth(dens).squeeze()
         self.xdim = xcoords.get_xdim(self.dens, errors="raise")
         self.ydim = xcoords.get_ydim(self.dens, errors="raise")
         self.nz = nz
