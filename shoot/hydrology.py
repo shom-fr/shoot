@@ -29,7 +29,7 @@ class Anomaly:
             eddy.boundary_contour.radius
         )  # eddy.vmax_contour.radius  # eddy.radius in meters
         self.dens = dens
-        if depth:
+        if not depth is None:
             self.depth = depth
         else:
             self.depth = xcoords.get_depth(dens)
