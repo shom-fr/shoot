@@ -546,6 +546,7 @@ class Eddies:
         min_radius=None,
         paral=False,
         nb_procs=None,
+        ellipse_error=0.1,
         **kwargs,
     ):
         """Detect all eddies in a velocity field"""
@@ -613,6 +614,7 @@ class Eddies:
                 ssh=sshl,
                 dx=dxl,
                 dy=dyl,
+                max_ellipse_error=ellipse_error,
                 **kwargs,
             )
             eddy.attrs.update(
@@ -847,6 +849,7 @@ class EvolEddies:
         ssh=None,
         paral=False,
         nb_procs=None,
+        ellipse_error=0.1,
     ):
         "ds is a temporal dataframe"
         eddies = []
@@ -867,6 +870,7 @@ class EvolEddies:
                     min_radius=min_radius,
                     paral=paral,
                     nb_procs=nb_procs,
+                    ellipse_error=ellipse_error,
                 )
             else:
                 eddies_ssh = Eddies.detect_eddies(

@@ -21,7 +21,7 @@ def compute_dens(ds):
 
 
 class Anomaly:
-    def __init__(self, eddy, eddies, dens, r_factor=1.2, nz=100):
+    def __init__(self, eddy, eddies, dens, depth=None, r_factor=1.2, nz=100):
         self.lon = eddy.glon
         self.lat = eddy.glat
         self.eddy = eddy
@@ -29,7 +29,10 @@ class Anomaly:
             eddy.boundary_contour.radius
         )  # eddy.vmax_contour.radius  # eddy.radius in meters
         self.dens = dens
-        self.depth = xcoords.get_depth(dens)
+        if depth:
+            self.depth = depth
+        else:
+            self.depth = xcoords.get_depth(dens)
         self.xdim = xcoords.get_xdim(self.dens, errors="raise")
         self.ydim = xcoords.get_ydim(self.dens, errors="raise")
         self.nz = nz
