@@ -25,9 +25,13 @@ class Anomaly:
         self.lon = eddy.glon
         self.lat = eddy.glat
         self.eddy = eddy
-        self.radius = (
-            eddy.boundary_contour.radius
-        )  # eddy.vmax_contour.radius  # eddy.radius in meters
+        if hasattr(eddy, 'boundary_contour'):
+            self.radius = (
+                eddy.boundary_contour.radius
+            )  # eddy.vmax_contour.radius  # eddy.radius in meters
+        else:
+            self.radius = eddy.radius * 1000  # convert to meters
+
         self.dens = dens.squeeze()
         if not depth is None:
             self.depth = depth.squeeze()
@@ -79,8 +83,12 @@ class Anomaly:
         ]
         points = np.array([lon, lat]).T
 
-        xx = self.eddy.vmax_contour.lon
-        yy = self.eddy.vmax_contour.lat
+        if hasattr(self.eddy, 'x_vmax'):
+            xx = self.eddy.x_vmax
+            yy = self.eddy.y_vmax
+        else:
+            xx = self.eddy.vmax_contour.lon
+            yy = self.eddy.vmax_contour.lat
         result = snum.points_in_polygon(points, np.array([xx, yy]).T)
         return result
 
@@ -136,8 +144,12 @@ class Anomaly:
         points = np.array([lon, lat]).T
         result = np.ones(len(x)) * True
         for eddy in self.eddies.eddies:
-            xx = eddy.boundary_contour.lon
-            yy = eddy.boundary_contour.lat
+            if hasattr(eddy, 'x_eff'):
+                xx = eddy.x_eff
+                yy = eddy.y_eff
+            else:
+                xx = eddy.boundary_contour.lon
+                yy = eddy.boundary_contour.lat
             result *= np.invert(snum.points_in_polygon(points, np.array([xx, yy]).T))
         return result
 

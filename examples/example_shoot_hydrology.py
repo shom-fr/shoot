@@ -109,9 +109,18 @@ eddies_r = Eddies.reconstruct(ds_r)
 
 # %%
 # Detect anomaly exemple on a particular eddy
-eddy = eddies.eddies[0]
+eddy = eddies_r.eddies[0]
+# eddy = eddies.eddies[0]
 # here you can choose the desire variable : density, salinity, temp, celerity
 anomaly = Anomaly(eddy, eddies, ds_3d.sig0, r_factor=1.2)
+
+
+# %%
+# test basic functions
+
+anomaly.mean_profil_inside
+anomaly.mean_profil_outside
+anomaly.depth_vector
 
 # %%
 # Plots eddies
@@ -193,6 +202,7 @@ plt.xlabel(r'$cs$ [m/s]')
 # plt.ylabel('Depth [m]')
 plt.yticks([], [])
 plt.ylim(-2000, 0)
+
 
 # %%
 # Compute anomalies of all eddies
