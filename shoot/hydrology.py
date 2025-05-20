@@ -68,11 +68,18 @@ class Anomaly:
     @functools.cached_property
     def profil_inside(self):
         inside = self.dens.isel({self.xdim: self._j, self.ydim: self._i})
-        return np.interp(
-            self.depth_vector,
-            self.depth.isel({self.xdim: self._j, self.ydim: self._i}),
-            inside,
-        )
+        if self.depth_vector[0] < self.depth_vector[-1]:  # increasing case
+            return np.interp(
+                self.depth_vector,
+                self.depth.isel({self.xdim: self._j, self.ydim: self._i}),
+                inside,
+            )
+        else:  # decreasing order bad for np.interp
+            return np.interp(
+                self.depth_vector[::-1],
+                self.depth.isel({self.xdim: self._j, self.ydim: self._i})[::-1],
+                inside[::-1],
+            )[::-1]
 
     def is_inside(self, x, y):
         lon = [
@@ -233,44 +240,72 @@ class Anomaly:
     def mean_profil_inside(self):
         p = np.empty((len(self._profils_inside.nb_profil), self.nz))
         for i in range(len(self._profils_inside.nb_profil)):
-            p[i] = np.interp(
-                self.depth_vector,
-                self._depths_inside.isel(nb_profil=i),
-                self._profils_inside.isel(nb_profil=i),
-            )
+            if self.depth_vector[0] < self.depth_vector[-1]:  # increasing case
+                p[i] = np.interp(
+                    self.depth_vector,
+                    self._depths_inside.isel(nb_profil=i),
+                    self._profils_inside.isel(nb_profil=i),
+                )
+            else:
+                p[i] = np.interp(
+                    self.depth_vector[::-1],
+                    self._depths_inside.isel(nb_profil=i)[::-1],
+                    self._profils_inside.isel(nb_profil=i)[::-1],
+                )[::-1]
         return p.mean(axis=0)
 
     @functools.cached_property
     def std_profil_inside(self):
         p = np.empty((len(self._profils_inside.nb_profil), self.nz))
         for i in range(len(self._profils_inside.nb_profil)):
-            p[i] = np.interp(
-                self.depth_vector,
-                self._depths_inside.isel(nb_profil=i),
-                self._profils_inside.isel(nb_profil=i),
-            )
+            if self.depth_vector[0] < self.depth_vector[-1]:
+                p[i] = np.interp(
+                    self.depth_vector,
+                    self._depths_inside.isel(nb_profil=i),
+                    self._profils_inside.isel(nb_profil=i),
+                )
+            else:
+                p[i] = np.interp(
+                    self.depth_vector[::-1],
+                    self._depths_inside.isel(nb_profil=i)[::-1],
+                    self._profils_inside.isel(nb_profil=i)[::-1],
+                )[::-1]
         return p.std(axis=0)
 
     @functools.cached_property
     def mean_profil_outside(self):
         p = np.empty((len(self._profils_outside.nb_profil), self.nz))
         for i in range(len(self._profils_outside.nb_profil)):
-            p[i] = np.interp(
-                self.depth_vector,
-                self._depths_outside.isel(nb_profil=i),
-                self._profils_outside.isel(nb_profil=i),
-            )
+            if self.depth_vector[0] < self.depth_vector[-1]:
+                p[i] = np.interp(
+                    self.depth_vector,
+                    self._depths_outside.isel(nb_profil=i),
+                    self._profils_outside.isel(nb_profil=i),
+                )
+            else:
+                p[i] = np.interp(
+                    self.depth_vector[::-1],
+                    self._depths_outside.isel(nb_profil=i)[::-1],
+                    self._profils_outside.isel(nb_profil=i)[::-1],
+                )[::-1]
         return p.mean(axis=0)
 
     @functools.cached_property
     def std_profil_outside(self):
         p = np.empty((len(self._profils_outside.nb_profil), self.nz))
         for i in range(len(self._profils_outside.nb_profil)):
-            p[i] = np.interp(
-                self.depth_vector,
-                self._depths_outside.isel(nb_profil=i),
-                self._profils_outside.isel(nb_profil=i),
-            )
+            if self.depth_vector[0] < self.depth_vector[-1]:
+                p[i] = np.interp(
+                    self.depth_vector,
+                    self._depths_outside.isel(nb_profil=i),
+                    self._profils_outside.isel(nb_profil=i),
+                )
+            else:
+                p[i] = np.interp(
+                    self.depth_vector[::-1],
+                    self._depths_outside.isel(nb_profil=i)[::-1],
+                    self._profils_outside.isel(nb_profil=i)[::-1],
+                )[::-1]
         return p.std(axis=0)
 
     @functools.cached_property
