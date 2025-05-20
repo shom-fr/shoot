@@ -478,7 +478,14 @@ class Eddy:  ##This is a minimal class without computing capabilities
         self.y_vmax = y_vmax
 
     @classmethod
-    def reconstruct(cls, ds):
+    def reconstruct(cls, ds, track):
+        if track:
+            eddy_type = str(ds.eddy_type[int(ds.track_id.values)].values)
+            track_id = int(ds.track_id.values)
+        else:
+            eddy_type = str(ds.eddy_type.values)
+            track_id = None
+
         return cls(
             ds.time.values,
             float(ds.x_cen.values),
@@ -486,8 +493,8 @@ class Eddy:  ##This is a minimal class without computing capabilities
             int(ds.i_cen.values),
             int(ds.j_cen.values),
             float(ds.Ro.values),
-            str(ds.eddy_type[int(ds.track_id.values)].values),
-            int(ds.track_id.values),
+            eddy_type,
+            track_id,
             bool(ds.is_parent.values),
             float(ds.eff_radius.values),
             float(ds.eff_length.values),
@@ -522,8 +529,9 @@ class Eddies:
         window_fit = float(ds.window_fit[:-3])
         min_radius = float(ds.min_radius[:-3])
         eddies = []
+        track = False if ds.eddy_type.dims[0] == 'obs' else True
         for i in range(len(ds.obs)):
-            eddies.append(Eddy.reconstruct(ds.isel(obs=i)))
+            eddies.append(Eddy.reconstruct(ds.isel(obs=i), track))
             if i == 0:
                 time = ds.isel(obs=i).time.values
         return cls(time, eddies, window_center, window_fit, min_radius)
@@ -690,8 +698,7 @@ class Eddies:
         eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
         return cls(u.time.values, eddies, window_center, window_fit, min_radius)
 
-    @property
-    def ds(self):
+    def ds_track(self):
 
         if (
             getattr(self.eddies[0], 'length', -1) != -1
@@ -705,7 +712,6 @@ class Eddies:
                     "y_cen": (("obs"), [e.glat for e in self.eddies]),
                     "track_id": (("obs"), [e.track_id for e in self.eddies]),
                     "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
-                    # "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
                     "eff_radius": (("obs"), [e.radius for e in self.eddies]),
                     "eff_length": (("obs"), [e.length for e in self.eddies]),
                     "vmax_radius": (("obs"), [e.vmax_radius for e in self.eddies]),
@@ -753,7 +759,108 @@ class Eddies:
                     "y_cen": (("obs"), [e.glat for e in self.eddies]),
                     "track_id": (("obs"), [e.track_id for e in self.eddies]),
                     "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
-                    # "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
+                    "eff_radius": (("obs"), [e.radius for e in self.eddies]),
+                    "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
+                    "vmax_radius": (("obs"), [e.vmax_contour.radius for e in self.eddies]),
+                    "vmax_length": (("obs"), [e.vmax_contour.length for e in self.eddies]),
+                    "vmax": (("obs"), [e.vmax_contour.mean_velocity for e in self.eddies]),
+                    "Ro": (("obs"), [e.ro for e in self.eddies]),
+                    "x_ell": (("obs"), [e.ellipse.lon for e in self.eddies]),
+                    "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
+                    "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
+                    "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
+                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "x_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.boundary_contour.lon_int for e in self.eddies],
+                    ),
+                    "y_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.boundary_contour.lat_int for e in self.eddies],
+                    ),
+                    "x_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.vmax_contour.lon_int for e in self.eddies],
+                    ),
+                    "y_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.vmax_contour.lat_int for e in self.eddies],
+                    ),
+                },
+                attrs={
+                    'window_center': '%i km' % self.window_center,
+                    'window_fit': '%i km' % self.window_fit,
+                    'min_radius': '%i km' % self.min_radius,
+                    "project": "SHOOT",
+                    "institution": "SHOM",
+                    "contact": "jean.baptiste.roustan@shom.fr",
+                },
+            )
+
+    @property
+    def ds(self):
+
+        if (
+            getattr(self.eddies[0], 'length', -1) != -1
+        ):  # check whether we have Raw2DEddy or Eddy object
+            return xr.Dataset(
+                {
+                    "time": (("obs"), np.repeat(self.time, len(self.eddies))),
+                    "i_cen": (("obs"), [e.i for e in self.eddies]),
+                    "j_cen": (("obs"), [e.j for e in self.eddies]),
+                    "x_cen": (("obs"), [e.glon for e in self.eddies]),
+                    "y_cen": (("obs"), [e.glat for e in self.eddies]),
+                    "track_id": (("obs"), [e.track_id for e in self.eddies]),
+                    "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
+                    "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
+                    "eff_radius": (("obs"), [e.radius for e in self.eddies]),
+                    "eff_length": (("obs"), [e.length for e in self.eddies]),
+                    "vmax_radius": (("obs"), [e.vmax_radius for e in self.eddies]),
+                    "vmax_length": (("obs"), [e.vmax_length for e in self.eddies]),
+                    "vmax": (("obs"), [e.vmax for e in self.eddies]),
+                    "Ro": (("obs"), [e.ro for e in self.eddies]),
+                    "x_ell": (("obs"), [e.ellipse.lon for e in self.eddies]),
+                    "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
+                    "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
+                    "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
+                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "x_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.x_eff for e in self.eddies],
+                    ),
+                    "y_eff_contour": (
+                        ("obs", "nb_sample"),
+                        [e.y_eff for e in self.eddies],
+                    ),
+                    "x_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.x_vmax for e in self.eddies],
+                    ),
+                    "y_vmax_contour": (
+                        ("obs", "nb_sample"),
+                        [e.y_vmax for e in self.eddies],
+                    ),
+                },
+                attrs={
+                    'window_center': '%i km' % self.window_center,
+                    'window_fit': '%i km' % self.window_fit,
+                    'min_radius': '%i km' % self.min_radius,
+                    "project": "SHOOT",
+                    "institution": "SHOM",
+                    "contact": "jean.baptiste.roustan@shom.fr",
+                },
+            )
+        else:
+            return xr.Dataset(
+                {
+                    "time": (("obs"), np.repeat(self.time, len(self.eddies))),
+                    "i_cen": (("obs"), [e.i for e in self.eddies]),
+                    "j_cen": (("obs"), [e.j for e in self.eddies]),
+                    "x_cen": (("obs"), [e.glon for e in self.eddies]),
+                    "y_cen": (("obs"), [e.glat for e in self.eddies]),
+                    "track_id": (("obs"), [e.track_id for e in self.eddies]),
+                    "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
+                    "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
                     "eff_radius": (("obs"), [e.radius for e in self.eddies]),
                     "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
                     "vmax_radius": (("obs"), [e.vmax_contour.radius for e in self.eddies]),

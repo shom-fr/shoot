@@ -91,9 +91,21 @@ eddies = Eddies.detect_eddies(
     window_fit=window_fit,
     ssh=ds_2d.zeta,
     min_radius=min_radius,
+    paral=True,
 )
 end = time.time()
 print('it takes %.1f s' % (end - start))
+
+# %%
+# Save Eddies object
+
+eddies.save('/local/tmp/jbroust/DATA/CROCO/MED1.8/eddies_save_test.nc')
+
+# %%
+# Reconstruct
+ds_r = xr.open_dataset('/local/tmp/jbroust/DATA/CROCO/MED1.8/eddies_save_test.nc')
+eddies_r = Eddies.reconstruct(ds_r)
+
 
 # %%
 # Detect anomaly exemple on a particular eddy

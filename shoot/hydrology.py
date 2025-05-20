@@ -58,7 +58,8 @@ class Anomaly:
     @functools.cached_property
     def depth_vector(self):
         depth = self.depth.isel({self.xdim: self._j, self.ydim: self._i})
-        return np.linspace(depth.min().values, depth.max().values, self.nz)
+        # return np.linspace(depth.min().values, depth.max().values, self.nz)
+        return np.linspace(depth.values[0], depth.values[-1], self.nz)
 
     @functools.cached_property
     def profil_inside(self):

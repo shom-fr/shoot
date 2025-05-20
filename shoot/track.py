@@ -358,7 +358,7 @@ class Tracks:
         ##reconstruction des traces
         track_eddies = {}  # dictionnary of tracks
         for i in np.unique(ds.track_id):
-            tmp = ds.where(ds.track_id == i, drop=True) # selectionne les eddies de la trace  i
+            tmp = ds.where(ds.track_id == i, drop=True)  # selectionne les eddies de la trace  i
             trace_times = list(tmp.time.values)
             trace_number = i
             trace_eddies = []
@@ -380,7 +380,7 @@ class Tracks:
                 ds = track.ds
             else:
                 ds = xr.concat([ds, track.ds], dim='eddies')
-        ds_eddies = self.eddies.ds
+        ds_eddies = self.eddies.ds_track
         return xr.merge([ds_eddies, ds])
 
     def save(self, path_nc):
