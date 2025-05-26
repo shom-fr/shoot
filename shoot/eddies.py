@@ -106,7 +106,7 @@ class Ellipse:
     def __init__(self, lon, lat, a, b, angle, sign=0, fit=None):
         self.lon, self.lat, self.a, self.b, self.angle, self.sign = lon, lat, a, b, angle, sign
         self.fit_error = fit
-        self.radius = np.sqrt(self.a**2 + self.b**2)
+        self.radius = np.sqrt(self.a * self.b)
 
     @classmethod
     def from_coords(cls, lons, lats):
@@ -172,7 +172,7 @@ class RawEddy2D:
         dx=None,
         dy=None,
         uv_error=0.01,
-        max_ellipse_error=0.1,  # 0.1,  # 0.03,  # 0.01,
+        max_ellipse_error=0.01,  # 0.1,  # 0.03,  # 0.01,
         nlevels=100,
         robust=0.03,
         **attrs,
@@ -316,8 +316,8 @@ class RawEddy2D:
         """Radius deduced from :attr:`ellipse` or 0"""
         if not self.ncontours:
             return 0.0
-        # return self.ellipse.radius
-        return self.boundary_contour.radius / 1000  # in km
+        return self.ellipse.radius
+        # return self.boundary_contour.radius / 1000  # in km
 
     @functools.cached_property
     def ro(self):
@@ -554,7 +554,7 @@ class Eddies:
         min_radius=None,
         paral=False,
         nb_procs=None,
-        ellipse_error=0.1,
+        ellipse_error=0.01,
         **kwargs,
     ):
         """Detect all eddies in a velocity field"""
@@ -698,6 +698,7 @@ class Eddies:
         eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
         return cls(u.time.values, eddies, window_center, window_fit, min_radius)
 
+    @property
     def ds_track(self):
 
         if (
@@ -1004,6 +1005,16 @@ class EvolEddies:
                 ds = eddies.ds
             else:
                 ds = xr.concat([ds, eddies.ds], dim='obs')
+        return ds
+
+    @property
+    def ds_track(self):
+        ds = None
+        for eddies in self.eddies:  # warning info eddies have been detected it crashes
+            if ds is None:
+                ds = eddies.ds_track
+            else:
+                ds = xr.concat([ds, eddies.ds_track], dim='obs')
         return ds
 
     def save(self, path_nc):

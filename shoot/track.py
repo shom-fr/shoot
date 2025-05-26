@@ -363,7 +363,7 @@ class Tracks:
             trace_number = i
             trace_eddies = []
             for j in range(len(tmp.obs)):
-                trace_eddies.append(seddies.Eddy.reconstruct(tmp.isel(obs=j)))
+                trace_eddies.append(seddies.Eddy.reconstruct(tmp.isel(obs=j), track=True))
             track_eddies[i] = Track.reconstruct(
                 trace_eddies, trace_times, trace_number, eddies.dt, eddies.dt * nback
             )
