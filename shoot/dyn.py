@@ -106,9 +106,58 @@ def get_lnam(u, v, window, dx=None, dy=None):
     return lnam.transpose(*u.dims)
 
 
+def get_div(u, v, dx=None, dy=None):
+    """Get the divergence of the flow
+
+    Parameters
+    ----------
+    u: xarray.Dataset
+        Velocity along X
+    v: xarray.Dataset
+        Velocity along X
+    dx: None, xarray.Dataset
+        Resolution along X in m
+    dy: None, xarray.Dataset
+        Resolution along Y in m
+
+    Return
+    ------
+    xarray.DataArray
+        divergence
+    """
+    dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
+    xdim = xcoords.get_xdim(u, errors="raise")
+    ydim = xcoords.get_ydim(u, errors="raise")
+    input_core_dims = [[ydim, xdim], [ydim, xdim]]
+    if np.shape(dx) == 0:
+        input_core_dims.extend([[], []])
+    else:
+        input_core_dims.extend([[ydim, xdim], [ydim, xdim]])
+    div = xr.apply_ufunc(
+        _get_div_,
+        u,
+        v,
+        dx,
+        dy,
+        join="override",
+        input_core_dims=input_core_dims,
+        output_core_dims=[[ydim, xdim]],
+        dask="parallelized",
+    )
+    div = div.transpose(*u.dims)
+    return div
+
+
+def _get_div_(u, v, dx, dy):
+    sx = np.gradient(u, axis=-1) / dx
+    sy = np.gradient(v, axis=-2) / dy
+    div = sx + sy
+    div[np.isnan(u) | np.isnan(v)] = np.nan
+    return div
+
+
 def get_okuboweiss(u, v, dx=None, dy=None):
     """Get the Okubo-Weiss parameter
-
     Parameters
     ----------
     u: xarray.Dataset
@@ -142,7 +191,9 @@ def get_okuboweiss(u, v, dx=None, dy=None):
         join="override",
         input_core_dims=input_core_dims,
         output_core_dims=[[ydim, xdim]],
-        dask="parallelized",
+        dask="allowed",  # "allowed",  # "parallelized",
+        output_dtypes=[u.dtype],
+        # dask_gufunc_kwargs={"meta": np.ones((1))},
     )
     ow = ow.transpose(*u.dims)
     return ow
@@ -155,6 +206,67 @@ def _get_okuboweiss_(u, v, dx, dy):
     ow = sn**2 + ss**2 - om**2
     ow[np.isnan(u) | np.isnan(v)] = np.nan
     return ow
+
+
+# def _dx_(u):
+#     return np.gradient(u, axis=-1)
+
+
+# def _dy_(u):
+#     return np.gradient(u, axis=-2)
+
+
+# def get_okuboweiss_new(u, v, dx=None, dy=None):
+#     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
+#     xdim = xcoords.get_xdim(u, errors="raise")
+#     ydim = xcoords.get_ydim(u, errors="raise")
+#     du_dx = xr.apply_ufunc(
+#         _dx_,
+#         u,
+#         join="override",
+#         input_core_dims=[[ydim, xdim]],
+#         output_core_dims=[[ydim, xdim]],
+#         dask="parallelized",
+#         output_dtypes=[u.dtype],
+#         # dask_gufunc_kwargs={"meta": np.ones((1))},
+#     )
+#     du_dy = xr.apply_ufunc(
+#         _dy_,
+#         u,
+#         join="override",
+#         input_core_dims=[[ydim, xdim]],
+#         output_core_dims=[[ydim, xdim]],
+#         dask="parallelized",
+#         output_dtypes=[u.dtype],
+#         # dask_gufunc_kwargs={"meta": np.ones((1))},
+#     )
+#     dv_dx = xr.apply_ufunc(
+#         _dx_,
+#         v,
+#         join="override",
+#         input_core_dims=[[ydim, xdim]],
+#         output_core_dims=[[ydim, xdim]],
+#         dask="parallelized",
+#         output_dtypes=[u.dtype],
+#         # dask_gufunc_kwargs={"meta": np.ones((1))},
+#     )
+#     dv_dy = xr.apply_ufunc(
+#         _dy_,
+#         v,
+#         join="override",
+#         input_core_dims=[[ydim, xdim]],
+#         output_core_dims=[[ydim, xdim]],
+#         dask="parallelized",
+#         output_dtypes=[u.dtype],
+#         # dask_gufunc_kwargs={"meta": np.ones((1))},
+#     )
+#     sn = du_dx / dx - dv_dy / dy
+#     ss = dv_dx / dx + du_dy / dy
+#     om = dv_dx / dx - du_dy / dy
+#     ow = sn**2 + ss**2 - om**2
+#     print(ow)
+#     # ow[np.isnan(u) | np.isnan(v)] = np.nan
+#     return ow.transpose(*u.dims)
 
 
 def get_relvort(u, v, dx=None, dy=None):
@@ -266,8 +378,9 @@ def get_geos(ssh, dx=None, dy=None):
         input_core_dims=input_core_dims,
         output_core_dims=[[ydim, xdim], [ydim, xdim]],
         join="inner",
-        dask="parallelized",
+        dask="allowed",  # "allowed",  # "parallelized",
         dask_gufunc_kwargs={"allow_rechunk": True},
+        # output_dtypes=[ssh.dtype, ssh.dtype],
     )
     return ugeos.transpose(*ssh.dims), vgeos.transpose(*ssh.dims)
 

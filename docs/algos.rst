@@ -6,4 +6,4 @@ Algorithms
 .. toctree::
 
     algos.eddies
-    
+    algos.track

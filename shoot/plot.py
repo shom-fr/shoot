@@ -81,4 +81,4 @@ def create_map(
         ax.add_wms("https://ows.emodnet-bathymetry.eu/wms", "emodnet:mean_atlas_land")
     if title:
         ax.set_title(title)
-    return ax
+    return fig, ax
