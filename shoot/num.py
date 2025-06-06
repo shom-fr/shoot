@@ -2,27 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Pure numeric utilities
+======================
 """
 
 import numba
 import numpy as np
 import xoa.coords as xcoords
 import xarray as xr
-
-
-# @numba.njit(numba.int64[:](numba.int64, numba.int64[:]), cache=False)
-# def unravel_index(i, shape):
-#     ir = i
-#     ndim = len(shape)
-#     ii = np.zeros(ndim, np.int64)
-#     for o in range(ndim):
-#         if o != ndim - 1:
-#             base = np.prod(shape[o + 1 :])
-#         else:
-#             base = 1
-#         ii[o] = ir // base
-#         ir -= ii[o] * base
-#     return ii
 
 
 @numba.njit  # this version can't be paralellized : today's reference
@@ -66,14 +52,6 @@ def _find_signed_peaks_2d_ref(data, wx, wy):
                 minima = np.append(minima, np.array([[i, j]]), axis=0)
             if imax == i and jmax == j:
                 maxima = np.append(maxima, np.array([[i, j]]), axis=0)
-
-            # ijmax = unravel_index(np.argmax(data[j0:j1, i0:i1]), np.array([j1 - j0, i1 - i0]))
-            # if ijmax[1] + i0 == i and ijmax[0] + j0 == j:
-            #     maxima = np.append(maxima, np.array([[i, j]]), axis=0)
-
-            # ijmin = unravel_index(np.argmin(data[j0:j1, i0:i1]), np.array([j1 - j0, i1 - i0]))
-            # if ijmin[1] + i0 == i and ijmin[0] + j0 == j:
-            #     minima = np.append(minima, np.array([[i, j]]), axis=0)
 
     return minima, maxima
 

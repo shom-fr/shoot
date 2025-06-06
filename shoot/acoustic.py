@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-# -*- coding: utf-8 -*-
 """
 acoustic functions
+==================
 """
+
 import functools
 import math
 import numpy as np
@@ -16,7 +17,6 @@ from . import grid as sgrid
 from . import num as snum
 
 
-## TO BE IMPLEMENTED
 def _ilmax(profile):
     return argrelmax(profile)[0]
 
@@ -374,9 +374,14 @@ class AcousEddy:
 
 
 def acoustic_points(eddies):
-    """
-    eddies is an Eddies objectv that have been attributed an acoustic anomaly attribute
-    The function add an ecs, iminc, mcp points inside and outside every eddies
+    """The function add an ecs, iminc, mcp points inside and outside every eddies
+
+    Parameters
+    ----------
+    eddies: Eddies object
+
+    Return
+    ------
     """
     for eddy in eddies.eddies:
         acous = AcousEddy(eddy.anomaly)

@@ -4,6 +4,7 @@
 # -*- coding: utf-8 -*-
 """
 Optimization routines
+=====================
 """
 import numpy as np
 import scipy.optimize as scio
@@ -20,7 +21,9 @@ GRAVITY = 9.81
 OMEGA = 2 * np.pi / 86400
 EARTH_RADIUS = 6371e3
 
-# %% Ellipse avec Méthode mean square
+# %%
+# Ellipse Mean Square fit
+# -----------------------
 
 
 # Fonction de distance à l’ellipse
@@ -42,6 +45,9 @@ def fit_ellipse_from_coords(lons, lats, get_fit=False):
         Longitudes in degrees
     lats: array(npts)
         Latitudes in degrees
+
+    get_fit: boolean (optional)
+        True if error metric is wanted
 
     Returns
     -------

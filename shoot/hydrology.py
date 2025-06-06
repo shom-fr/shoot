@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 hydrologic functions
+====================
 """
 import functools
 import math
@@ -10,14 +11,6 @@ import xarray as xr
 import xoa.coords as xcoords
 from . import grid as sgrid
 from . import num as snum
-
-
-def compute_cs(ds):
-    return "TODO difficult to get the name of temp and salt variables"
-
-
-def compute_dens(ds):
-    return "TODO difficult to get the name of temp and salt variables"
 
 
 class Anomaly:
@@ -328,10 +321,22 @@ class Anomaly:
 
 
 def compute_anomalies(eddies, dens, nz=100, r_factor=1.2):
-    """
-    eddies is an Eddies object
-    dens is the density (temp or salt) dataarray containing depth
-    The function add an anomaly object for each eddies
+    """Add anomaly to detected eddies
+    Parameters
+    ----------
+    eddies: Eddies object
+
+    dens: 3D dataarray
+        Variable of interest including a depth dimension
+
+    nz: int (optional)
+        number of depth layers
+    r_factor: float (optional)
+        maximum distance to the center to combute background values
+
+    Returns
+    -------
+     nothing : directly appends anomaly object in each eddies
     """
     for eddy in eddies.eddies:
         eddy.anomaly = Anomaly(eddy, eddies, dens, r_factor=r_factor, nz=nz)

@@ -7,22 +7,11 @@ Created on Thu Jan  9 13:24:21 2025
 """
 
 import functools
-import warnings
 import numpy as np
 import xarray as xr
-import matplotlib.pyplot as plt
 from scipy.optimize import linear_sum_assignment
-
-import xoa.coords as xcoords
 import xoa.geo as xgeo
 
-from . import num as snum
-from . import dyn as sdyn
-from . import grid as sgrid
-from . import fit as sfit
-from . import streamline as strl
-from . import contours as scontours
-from . import plot as splot
 from . import eddies as seddies
 
 
@@ -468,16 +457,47 @@ class Tracks:
 
 
 def track_eddies(eddies, nback):
-    """eddies is an EvolEddies object"""
-    # return Tracks(eddies, nback).tracking()
+    """Add anomaly to detected eddies
+    Parameters
+    ----------
+    eddies: EvolEddies object
+        represent detections at several timestep.
+        Mind that the time interval is preferably constant
+
+    nback: int
+        number of backward time step for eddy tracking.
+        Typically around 10 days for satelitte altimetry
+        and 1 or 2 days for numerical simulations
+
+    Returns
+    -------
+     tracks: Tracks object
+         directly appends anomaly object in each eddies
+    """
     tracks = Tracks(eddies, nback)
     tracks.tracking()
     return tracks
 
 
 def update_tracks(ds, new_eddies, nback):
-    """ds is the xarray with previous detections
-    new_eddies is an Eddies object
+    """update tracking based on new eddies detection
+    Parameters
+    ----------
+    ds: xarray dataset
+      already tracked perdiod
+
+    new_eddies: Eddies object
+        represent detections at the new time step.
+
+    nback: int
+        number of backward time step for eddy tracking.
+        Typically around 10 days for satelitte altimetry
+        and 1 or 2 days for numerical simulations
+
+    Returns
+    -------
+     tracks: Tracks object
+         updated track object
     """
     tracks = Tracks.reconstruct(ds, nback)
     return tracks.refresh(new_eddies)
