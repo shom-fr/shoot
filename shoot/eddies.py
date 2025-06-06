@@ -81,24 +81,19 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
     elnam = lnam.values[jj, ii]
     eow = ow.values[jj, ii]
 
-    return (
-        xr.Dataset(
-            {
-                "lnam": ("neddies", elnam, {"long_name": "Local normalized angular momentum"}),
-                "coriolis": ("neddies", ecorio, {"long_name": "Coriolis parameter"}),
-                "ow": ("neddies", eow, {"long_name": "Okubow Weiss"}),
-            },
-            coords={
-                "gi": ("neddies", ii, {"long_name": "Grid indices along X"}),
-                "gj": ("neddies", jj, {"long_name": "Grid indices along Y"}),
-                "lon": ("neddies", elons, {"long_name": "Longitudes"}),
-                "lat": ("neddies", elats, {"long_name": "Latitudes"}),
-            },
-            attrs={"window": window, "wx": wx, "wy": wy, "dx_mean": dxm, "dy_mean": dym},
-        ),
-        lnam,
-        ow,
-        extrema,
+    return xr.Dataset(
+        {
+            "lnam": ("neddies", elnam, {"long_name": "Local normalized angular momentum"}),
+            "coriolis": ("neddies", ecorio, {"long_name": "Coriolis parameter"}),
+            "ow": ("neddies", eow, {"long_name": "Okubow Weiss"}),
+        },
+        coords={
+            "gi": ("neddies", ii, {"long_name": "Grid indices along X"}),
+            "gj": ("neddies", jj, {"long_name": "Grid indices along Y"}),
+            "lon": ("neddies", elons, {"long_name": "Longitudes"}),
+            "lat": ("neddies", elats, {"long_name": "Latitudes"}),
+        },
+        attrs={"window": window, "wx": wx, "wy": wy, "dx_mean": dxm, "dy_mean": dym},
     )
 
 
@@ -296,7 +291,7 @@ class RawEddy2D:
         ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
         ok = np.concatenate([ok, [len(dsb.lon) - 1]])
         try:
-            tck, u = splprep([dsb.lon[ok], dsb.lat[ok]], s=0)  # avoid repeated values
+            tck, u = splprep([dsb.lon[ok], dsb.lat[ok]], s=0, per=1)  # avoid repeated values
         except ValueError:
             print("certainement un problème de redondance des points")
         xy_int = splev(np.linspace(0, 1, 50), tck)
@@ -425,6 +420,19 @@ class RawEddy2D:
             )
             # out["ellipse"] = self.boundary_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             # out["ellipse"] = self.vmax_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
+            out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
+            out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
+        return out
+
+    def plot_previ(self, ax=None, lw=1, color=None, **kwargs):
+        """Quickly plot the eddy"""
+        if ax is None:
+            ax = plt.gca()
+        if color is None:
+            color = self.color
+        kw = dict(color=color, **kwargs)
+        out = {"center": ax.scatter(self.lon, self.lat, **kw)}
+        if self.ncontours:
             out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
         return out
@@ -578,9 +586,7 @@ class Eddies:
         import time
 
         # start_centers = time.time()
-        centers, lnam, ow, extrema = find_eddy_centers(
-            u, v, window_center, dx=dxm, dy=dym, paral=False
-        )
+        centers = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=False)
         # end_centers = time.time()
         # print("center research takes %.3fs" % (end_centers - start_centers))
 
@@ -916,12 +922,11 @@ class EvolEddies:
             self.dt = None
 
     @classmethod
-    def merge_ds(cls, *args):
+    def merge_ds(cls, dss):
         """
-        take each xarray dataset that should be merged as argument
+        take a list of xarray dataset that should be merged as argument
         track_id are reset when mergin is performed
         """
-        dss = args
         try:
             print("%i dataset to merge" % len(dss))
         except TypeError:

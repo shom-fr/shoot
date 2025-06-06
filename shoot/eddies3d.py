@@ -30,9 +30,10 @@ from . import eddies as eddies
 
 
 class Associate:
-    def __init__(self, parent_eddies, new_eddies):
+    def __init__(self, parent_eddies, new_eddies, max_distance=10):
         self.parent_eddies = parent_eddies  # reference eddies
         self.new_eddies = new_eddies  # next time eddies
+        self._max_distance = max_distance  # maximum distance for centers to be associated
 
     def search_dist(self, eddyj, eddyi):
         istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
@@ -59,6 +60,7 @@ class Associate:
                 x = xgeo.deg2m(dlon, self.parent_eddies[j].glat)
                 y = xgeo.deg2m(dlat)
                 dxy = np.sqrt(x**2 + y**2) / 1000
+                dxy = dxy if dxy < self._max_distance else 1e6
                 M[i, j] = (
                     dxy if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type else 1e6
                 )
@@ -102,6 +104,7 @@ class Eddies3D:
         min_radius=None,
         ssh_method='streamline',
         paral=False,
+        max_distance=10,
         **kwargs,
     ):
         depth = u.depth
@@ -112,22 +115,16 @@ class Eddies3D:
             uz = u.isel(depth=z)
             vz = v.isel(depth=z)
             eddies_z = eddies.Eddies.detect_eddies(
-                uz,
-                vz,
-                window_center,
-                window_fit=window_fit,
-                min_radius=min_radius,
+                uz, vz, window_center, window_fit=window_fit, min_radius=min_radius, paral=paral
             )
             if z == len(depth) - 1:
                 for i, eddy in enumerate(eddies_z.eddies):
                     eddy.z_id = i
                 nb_eddies = len(eddies_z.eddies)
             else:
-                Associate(eddies_tmp.eddies, eddies_z.eddies).order()
+                Associate(eddies_tmp.eddies, eddies_z.eddies, max_distance=max_distance).order()
                 for eddy in eddies_z.eddies:
-                    try:
-                        eddy.z_id
-                    except AttributeError:
+                    if not hasattr(eddy, 'z_id'):
                         eddy.z_id = nb_eddies
                         nb_eddies += 1
 

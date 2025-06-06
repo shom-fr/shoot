@@ -201,6 +201,8 @@ class ProfileAcous:
 
     def __init__(self, profile):
         self.profile = profile  # it an cs xarray profile
+        self.depth = xcoords.get_depth(profile)
+        self.depth_dim = self.depth.dims[0]
 
     @functools.cached_property
     def ilmax(self):
@@ -215,63 +217,15 @@ class ProfileAcous:
 
     @functools.cached_property
     def ecs(self):
-        try:
-            return (
-                self.profile.depth.isel(s_rho=self.ilmax[-1])
-                if self.profile.isel(s_rho=self.ilmax[-1]) > self.profile.isel(s_rho=-1)
-                else np.nan
-            )
-        except IndexError:
-            return np.nan
-        # warning to be coded with more generality
+        return _ecs(self.profile.values, self.depth)
 
     @functools.cached_property
     def iminc(self):
-        pos_iminc = None
-        if len(self.ilmax) > 1:
-            maxd = self.ilmax[-2]
-            maxs = self.ilmax[-1]
-            for l in self.ilmin:
-                if (l > maxd) and (l < maxs):
-                    pos_iminc = l
-                    break
-        if pos_iminc:
-            return self.profile.depth.isel(s_rho=pos_iminc)
-        else:
-            return self.mcp
+        return _iminc(self.profile.values, self.depth)
 
     @functools.cached_property
     def mcp(self):
-        try:
-            return self.profile.depth.isel(s_rho=self.ilmin[0])
-        except IndexError:
-            return np.nan
-
-
-class Acous2D:
-    def __init__(self, dens):
-        self.dens = dens
-        self.xdim = xcoords.get_xdim(self.dens, errors="raise")
-        self.ydim = xcoords.get_ydim(self.dens, errors="raise")
-
-    @functools.cached_property
-    # @numba.njit(parallel=True)
-    def ecs(self):
-        print(self.xdim, self.ydim)
-        print(self.dens.shape)
-        ny, nx = self.dens.shape[-2], self.dens.shape[-1]
-        res = np.empty([ny, nx])
-        # for j in numba.prange(1, ny - 1):
-        for j in range(ny):
-            for i in range(nx):
-                res[j, i] = ProfileAcous(self.dens.isel({self.xdim: i, self.ydim: j})).ecs
-        return res
-
-    def iminc(self):
-        return
-
-    def mcp(self):
-        return
+        return _mcp(self.profile.values, self.depth)
 
 
 class AcousEddy:
@@ -280,6 +234,56 @@ class AcousEddy:
 
     @functools.cached_property
     def ecs_inside(self):
+        return ProfileAcous(self.anomaly.mean_profil_inside).ecs
+
+    @functools.cached_property
+    def iminc_inside(self):
+        return ProfileAcous(self.anomaly.mean_profil_inside).iminc
+
+    @functools.cached_property
+    def mcp_inside(self):
+        return ProfileAcous(self.anomaly.mean_profil_inside).mcp
+
+    @functools.cached_property
+    def ecs_outside(self):
+        return ProfileAcous(self.anomaly.mean_profil_outside).ecs
+
+    @functools.cached_property
+    def iminc_outside(self):
+        return ProfileAcous(self.anomaly.mean_profil_outside).iminc
+
+    @functools.cached_property
+    def mcp_outside(self):
+        return ProfileAcous(self.anomaly.mean_profil_outside).mcp
+
+    @staticmethod
+    def _distance(e1, e2):
+        if np.isnan(e1) and np.isnan(e2):  # point doesn exists at all
+            return 0
+        elif np.isnan(e1) or np.isnan(e2):  # creation/destruction point
+            return 1
+        elif e1 == 0 and e2 == 0:
+            return 0
+        else:
+            return np.abs(e1 - e2) / np.abs((0.5 * (e1 + e2)))
+
+    @functools.cached_property
+    def acoustic_impact(self):
+        ecs_in = self.ecs_inside
+        mcp_in = self.mcp_inside
+        iminc_in = self.iminc_inside
+        ecs_out = self.ecs_outside
+        mcp_out = self.mcp_outside
+        iminc_out = self.iminc_outside
+
+        d_mcp = AcousEddy._distance(mcp_in, mcp_out)
+        d_iminc = AcousEddy._distance(iminc_in, iminc_out)
+        d_ecs = AcousEddy._distance(ecs_in, ecs_out)
+
+        return d_mcp + d_iminc + d_ecs
+
+    @functools.cached_property
+    def ecs_insides(self):
         ecs = np.empty(self.anomaly._profils_inside.shape[1])
         for i in range(len(ecs)):
             ecs[i] = ProfileAcous(self.anomaly._profils_inside.isel(nb_profil=i)).ecs
@@ -294,7 +298,7 @@ class AcousEddy:
         return ecs
 
     @functools.cached_property
-    def ecs_outside(self):
+    def ecs_outsides(self):
         ecs = np.empty(self.anomaly._profils_outside.shape[1])
         for i in range(len(ecs)):
             ecs[i] = ProfileAcous(self.anomaly._profils_outside.isel(nb_profil=i)).ecs
@@ -309,7 +313,7 @@ class AcousEddy:
         return ecs
 
     @functools.cached_property
-    def mcp_inside(self):
+    def mcp_insides(self):
         mcp = np.empty(self.anomaly._profils_inside.shape[1])
         for i in range(len(mcp)):
             mcp[i] = ProfileAcous(self.anomaly._profils_inside.isel(nb_profil=i)).mcp
@@ -324,7 +328,7 @@ class AcousEddy:
         return mcp
 
     @functools.cached_property
-    def mcp_outside(self):
+    def mcp_outsides(self):
         mcp = np.empty(self.anomaly._profils_outside.shape[1])
         for i in range(len(mcp)):
             mcp[i] = ProfileAcous(self.anomaly._profils_outside.isel(nb_profil=i)).mcp
@@ -339,7 +343,7 @@ class AcousEddy:
         return mcp
 
     @functools.cached_property
-    def iminc_inside(self):
+    def iminc_insides(self):
         iminc = np.empty(self.anomaly._profils_inside.shape[1])
         for i in range(len(iminc)):
             iminc[i] = ProfileAcous(self.anomaly._profils_inside.isel(nb_profil=i)).iminc
@@ -354,7 +358,7 @@ class AcousEddy:
         return iminc
 
     @functools.cached_property
-    def iminc_outside(self):
+    def iminc_outsides(self):
         iminc = np.empty(self.anomaly._profils_outside.shape[1])
         for i in range(len(iminc)):
             iminc[i] = ProfileAcous(self.anomaly._profils_outside.isel(nb_profil=i)).iminc
@@ -376,9 +380,10 @@ def acoustic_points(eddies):
     """
     for eddy in eddies.eddies:
         acous = AcousEddy(eddy.anomaly)
-        eddy.ecs_inside = acous.ecs_inside
-        eddy.ecs_outside = acous.ecs_outside
-        eddy.iminc_inside = acous.iminc_inside
-        eddy.iminc_outside = acous.iminc_outside
-        eddy.mcp_inside = acous.mcp_inside
-        eddy.mcp_outside = acous.mcp_outside
+        eddy.ecs_insides = acous.ecs_insides
+        eddy.ecs_outsides = acous.ecs_outsides
+        eddy.iminc_insides = acous.iminc_insides
+        eddy.iminc_outsides = acous.iminc_outsides
+        eddy.mcp_insides = acous.mcp_insides
+        eddy.mcp_outsides = acous.mcp_outsides
+        eddy.acoustic_impact = acous.acoustic_impact

@@ -35,6 +35,7 @@ from shoot.acoustique import (
     get_iminc,
     get_mcp,
 )
+
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
 from shoot.contours import get_lnam_peaks
@@ -55,7 +56,7 @@ path = os.path.join(root_path, 'ionian_shoot_3d_10042024.nc')
 
 ds_3d = xr.open_dataset(path)
 ## Pelops area
-# ds_3d = ds_3d.isel(x_rho=slice(350, 550), y_rho=slice(50, 250))
+ds_3d = ds_3d.isel(x_rho=slice(350, 550), y_rho=slice(50, 250))
 
 ds_2d = ds_3d.isel(s_rho=len(ds_3d.s_rho) - 1)
 
@@ -109,10 +110,10 @@ eddies_r = Eddies.reconstruct(ds_r)
 
 # %%
 # Detect anomaly exemple on a particular eddy
-eddy = eddies_r.eddies[0]
-# eddy = eddies.eddies[0]
+# eddy = eddies_r.eddies[0]
+eddy = eddies.eddies[0]
 # here you can choose the desire variable : density, salinity, temp, celerity
-anomaly = Anomaly(eddy, eddies, ds_3d.sig0, depth=-ds_3d.depth, r_factor=1.2)
+anomaly = Anomaly(eddy, eddies, ds_3d.sig0, depth=ds_3d.depth, r_factor=1.2)
 
 
 # %%
@@ -145,11 +146,12 @@ ax.scatter(
     marker='o',
     # c = ecs_outside,
     # c=mcp_outside,
-    c=anomaly._profils_outside.max(dim='s_rho'),
-    cmap='nipy_spectral',
-    vmin=28,
-    vmax=30,
+    # c=anomaly._profils_outside.max(dim='s_rho'),
+    # cmap='nipy_spectral',
+    # vmin=28,
+    # vmax=30,
     transform=pcarr,
+    label="inside",
 )
 
 cmb = ax.scatter(
@@ -159,16 +161,18 @@ cmb = ax.scatter(
     marker='*',
     # c=ecs_inside,
     # c=mcp_inside,
-    c=anomaly._profils_inside.max(dim='s_rho'),
-    cmap='nipy_spectral',
-    vmin=28,
-    vmax=30,
+    # c=anomaly._profils_inside.max(dim='s_rho'),
+    # cmap='nipy_spectral',
+    # vmin=28,
+    # vmax=30,
     transform=pcarr,
+    label='outside',
 )
 
-plt.colorbar(cmb, label='Max density [kg/m3]')
+# plt.colorbar(cmb, label='Max density [kg/m3]')
 plt.title("Eddy detection")
 plt.tight_layout()
+plt.legend()
 
 # %%
 # Plot anomaly
@@ -177,8 +181,8 @@ plt.figure(figsize=(10, 5))
 plt.subplot(121)
 plt.plot(anomaly.anomaly, anomaly.depth_vector, label='averaged profile')
 plt.plot(anomaly.center_anomaly, anomaly.depth_vector, label="center profile")
-# plt.xlabel(r'$\Delta\sigma_0$ [kg/m3]')
-plt.xlabel(r'$\Delta cs$ [m/s]')
+plt.xlabel(r'$\Delta\sigma_0$ [kg/m3]')
+# plt.xlabel(r'$\Delta cs$ [m/s]')
 plt.ylabel('Depth [m]')
 plt.ylim(-2000, 0)
 plt.legend()
@@ -200,8 +204,8 @@ ax.fill_betweenx(
     color='k',
 )
 plt.legend()
-# plt.xlabel(r'$\sigma_0$ [kg/m3]')
-plt.xlabel(r'$cs$ [m/s]')
+plt.xlabel(r'$\sigma_0$ [kg/m3]')
+# plt.xlabel(r'$cs$ [m/s]')
 # plt.ylabel('Depth [m]')
 plt.yticks([], [])
 plt.ylim(-2000, 0)

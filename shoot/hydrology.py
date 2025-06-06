@@ -252,7 +252,10 @@ class Anomaly:
                     self._depths_inside.isel(nb_profil=i)[::-1],
                     self._profils_inside.isel(nb_profil=i)[::-1],
                 )[::-1]
-        return p.mean(axis=0)
+
+        return xr.DataArray(
+            p.mean(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
+        )
 
     @functools.cached_property
     def std_profil_inside(self):
@@ -270,7 +273,9 @@ class Anomaly:
                     self._depths_inside.isel(nb_profil=i)[::-1],
                     self._profils_inside.isel(nb_profil=i)[::-1],
                 )[::-1]
-        return p.std(axis=0)
+        return xr.DataArray(
+            p.std(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
+        )
 
     @functools.cached_property
     def mean_profil_outside(self):
@@ -288,7 +293,9 @@ class Anomaly:
                     self._depths_outside.isel(nb_profil=i)[::-1],
                     self._profils_outside.isel(nb_profil=i)[::-1],
                 )[::-1]
-        return p.mean(axis=0)
+        return xr.DataArray(
+            p.mean(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
+        )
 
     @functools.cached_property
     def std_profil_outside(self):
@@ -306,7 +313,9 @@ class Anomaly:
                     self._depths_outside.isel(nb_profil=i)[::-1],
                     self._profils_outside.isel(nb_profil=i)[::-1],
                 )[::-1]
-        return p.std(axis=0)
+        return xr.DataArray(
+            p.std(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
+        )
 
     @functools.cached_property
     def anomaly(self):  ## Pour l'instant fait hypothèse de niveaux équirépartie
