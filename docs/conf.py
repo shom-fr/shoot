@@ -5,12 +5,14 @@
 
 import sys
 import os
-import shoot
 import sphinx_autosummary_accessors
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
 
 sys.path.insert(0, os.path.join(os.path.abspath(os.path.dirname(__file__)), 'ext'))
+sys.path.insert(0, os.path.abspath(".."))
+
+import shoot
 
 
 # %% Project information
