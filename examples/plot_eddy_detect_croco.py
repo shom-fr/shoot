@@ -13,22 +13,17 @@ In this example, eddies are detected from CROCO model currents interpolated to 1
 #
 # Import needed stuff.
 import os, sys
+import time
 import multiprocessing as mp
 import cmocean
 import matplotlib.pyplot as plt
 import xarray as xr
 import xoa.cf as xcf
 
-sys.path.append('/home/shom/jbroust/Documents/CODE/SHOOT_LIB/')
-# from shoot.eddies import Eddies
-from shoot.eddies_debug import find_eddy_centers, Eddies
+from shoot.eddies import Eddies
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
 from shoot.contours import get_lnam_peaks
-
-
-# if __name__ == "__main__": ## A faire pour être très propre avce de gros jeux de données
-#     mp.set_start_method("spawn")
 
 xr.set_options(display_style="text")
 
@@ -38,17 +33,14 @@ xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
-root_path = '/local/tmp/jbroust/DATA/CROCO/GIGATL'
-# root_path = '/home/shom/sraynaud/Src/shoot/examples'
-# path = os.path.join(root_path, 'gigatl1-1000m.nc')
-path = os.path.join(root_path, 'gigatl1_1h_tides_iberia2_daily_2008-11-01_at_z.nc')
+
+# Mind that the dataarray should be 2D : single time and single depth
+root_path = './data'
+path = os.path.join(root_path, 'gigatl1-1000m.nc')
 ds = xr.open_dataset(path)
-ds = ds.isel(depth_rho=2).squeeze()
 
-ds = ds.sel(x_rho=slice(600, 1100), y_rho=slice(900, 1200))
-# ds = ds.sel(x_rho=slice(800, 1100), y_rho=slice(1050, 1200))
 
-# %% D
+# %%
 # Detect eddies
 # -------------
 # Parameters
@@ -66,20 +58,15 @@ window_fit = 120  # 120
 min_radius = 15
 
 # %%
-# Detection centres
-# ~~~~~~~~~
+# Ellipse error
+# preconised 1% for deep field, 5% to 10% to surface field
 
-centers, lnam, ow, extrema = find_eddy_centers(ds.u, ds.v, window_center, paral=False)
-
+ellipse_error = 0.01
 # %%
-# Detection eddies
-
-
-import time
+# Detection
+# ---------
 
 start = time.time()
-# eddies, centers, lnam, ow, extrema= detect_eddies(ds.u, ds.v, window_center, window_fit=window_fit, min_radius=min_radius
-#                                                   , ssh_method = 'streamline')
 eddies = Eddies.detect_eddies(
     ds.u,
     ds.v,
@@ -111,9 +98,7 @@ plt.quiver(
     transform=pcarr,
 )
 
-plt.scatter(centers.lon, centers.lat, c='k', transform=pcarr)
 for eddy in eddies.eddies:
     eddy.plot(transform=pcarr, lw=1)
-# plt.title("Relative vorticity at 1000m")
-plt.title("Ellipse Error 1%")
+plt.title("Relative vorticity at 1000m")
 plt.tight_layout()

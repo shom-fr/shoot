@@ -26,6 +26,7 @@ xr.set_options(display_style="text")
 # %%
 # Read data
 # ---------
+
 root_path = './data'
 path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.n')
 # select one specific date for this example
@@ -37,7 +38,8 @@ ds = xr.open_dataset(path).isel(time=0)
 
 # Parameters
 # ~~~~~~~~~~
-#
+
+
 # Window size in km to compute the LNAM and find eddy centers : Lb
 window_center = 50
 
