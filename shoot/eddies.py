@@ -642,16 +642,16 @@ class Eddies:
         if paral:
             if verbose:
                 print(
-                    "On dispose de %i cpus et %i coeurs"
+                    " %i cpus and %i cores availables"
                     % (mp.cpu_count(), len(os.sched_getaffinity(0)))
                 )
             if nb_procs:
                 nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
             else:
                 nb_procs = len(os.sched_getaffinity(0))
-            print("On travaille avec %i cpus" % nb_procs)
+            print("Work with %i cpus" % nb_procs)
         elif verbose:
-            print("on travaille en séquentiel")
+            print("Running in sequential way")
 
         while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
             eddies_tmp = []
