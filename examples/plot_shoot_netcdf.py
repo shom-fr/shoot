@@ -73,11 +73,13 @@ def create_map_ax(
     return fig, ax
 
 
-# #### Import data
+# %%
+# Initialisation
+# --------------
 
-# In[3]:
+#  Import data
 
-root_path = './data'
+root_path = '../data'
 
 
 ds = xr.open_dataset(os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc'))

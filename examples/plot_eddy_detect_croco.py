@@ -12,10 +12,8 @@ In this example, eddies are detected from CROCO model currents interpolated to 1
 # -----------------
 #
 # Import needed stuff.
-import os, sys
+import os
 import time
-import multiprocessing as mp
-import cmocean
 import matplotlib.pyplot as plt
 import xarray as xr
 import xoa.cf as xcf
@@ -23,7 +21,6 @@ import xoa.cf as xcf
 from shoot.eddies import Eddies
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
-from shoot.contours import get_lnam_peaks
 
 xr.set_options(display_style="text")
 
@@ -35,9 +32,9 @@ xcf.set_cf_specs("croco.cfg")
 # Read data
 
 # Mind that the dataarray should be 2D : single time and single depth
-root_path = './data'
+root_path = '../data'
 path = os.path.join(root_path, 'gigatl1-1000m.nc')
-ds = xr.open_dataset(path)
+ds = xr.open_dataset(path).isel(time=0)
 
 
 # %%
@@ -47,11 +44,11 @@ ds = xr.open_dataset(path)
 # ~~~~~~~~~~
 #
 # Window size in km to compute the LNAM and find eddy centers
-window_center = 50  # 25  # 50
+window_center = 50
 
 # %%
 # Window size in km to fit SSH and make other diagnostics like contours
-window_fit = 120  # 120
+window_fit = 120
 
 # %%
 # Minimal radius of an eddy to retain it
@@ -85,11 +82,12 @@ print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - star
 #
 # We plot eddies with the relative vorticity as background.
 #
+
 fig, ax = create_map(ds.lon_rho, ds.lat_rho, figsize=(8, 5))
 get_relvort(ds.u, ds.v).plot(
     x="lon_rho", y="lat_rho", cmap="cmo.curl", ax=ax, add_colorbar=False, transform=pcarr
 )
-nj = 10
+nj = 5
 plt.quiver(
     ds.lon_rho[::nj, ::nj].values,
     ds.lat_rho[::nj, ::nj].values,

@@ -22,7 +22,7 @@ from shoot.plot import create_map, pcarr
 
 # %%
 # Read data
-root_path = './data'
+root_path = '../data'
 path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc')
 ds = xr.open_dataset(path)
 

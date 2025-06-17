@@ -12,7 +12,6 @@ Detect eddies from satellite sea level
 # Import needed stuff.
 import os, sys
 import time
-import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 
@@ -27,8 +26,8 @@ xr.set_options(display_style="text")
 # Read data
 # ---------
 
-root_path = './data'
-path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.n')
+root_path = '../data'
+path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc')
 # select one specific date for this example
 ds = xr.open_dataset(path).isel(time=0)
 

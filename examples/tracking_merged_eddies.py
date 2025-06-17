@@ -21,7 +21,7 @@ xr.set_options(display_style="text")
 
 # %%
 # Read data
-root_path = './data'
+root_path = '../data'
 path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.n')
 # partition into 2 dataset continuous in time
 ds1 = xr.open_dataset(path).isel(time=slice(0, 10))

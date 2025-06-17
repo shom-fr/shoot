@@ -14,34 +14,13 @@ Hydrology anomalies can be performes in every 3D fields.
 # Import needed stuff.
 import os
 import time
-import cmocean
 import matplotlib.pyplot as plt
 import xarray as xr
-import numpy as np
-import gsw
 import xoa.cf as xcf
-import xoa.sigma as xsig
-import cmocean as cm
-
-
 from shoot.eddies import Eddies
 from shoot.hydrology import Anomaly, compute_anomalies
-from shoot.acoustique import (
-    ProfileAcous,
-    AcousEddy,
-    Acous2D,
-    acoustic_points,
-    get_ecs,
-    get_iminc,
-    get_mcp,
-)
-
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
-from shoot.contours import get_lnam_peaks
-from shoot.rossby import Rossby
-from shoot.grid import get_dx_dy
-
 
 xr.set_options(display_style="text")
 
@@ -51,7 +30,7 @@ xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
-root_path = './data'
+root_path = '../data'
 path = os.path.join(root_path, 'pelops_3d.nc')
 
 ds_3d = xr.open_dataset(path)
@@ -181,5 +160,4 @@ plt.ylim(-2000, 0)
 # %%
 # Compute anomalies of all eddies
 
-# compute_anomalies(eddies, ds_3d.sig0, r_factor=1.05)
-compute_anomalies(eddies, ds_3d.cs, r_factor=1.05)
+compute_anomalies(eddies, ds_3d.sig0, r_factor=1.05)
