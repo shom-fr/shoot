@@ -22,3 +22,11 @@ The eddies detection is performed by :func:`~shoot.eddies.detect_eddies` with th
    #. If the velocity contour matches the eddy boundary contour we make the search in a largest window
 
 #. Loop on eddy to avoid eddy inclusion. If two eddies share part of maximum velocity contour only keep the one with largest LNAM. 
+
+#. Parameters : The eddy detection is based on three main parameters and an optional fourth one. 
+   
+   #. windows_center : Size of the window for LNAM computation  
+   #. windows_fit : Size of the window for research of closed ssh contours 
+   #. min_radius : Minimum radius size. Warn that the radius considered is the one of the maximum speed contour. 
+   #. ellipse_error (optional) : 
+   

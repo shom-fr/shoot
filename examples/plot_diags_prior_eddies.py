@@ -11,6 +11,7 @@ Diagnostics prior to eddy detection
 #
 # Import needed stuff.
 import os
+import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 from shoot.grid import get_dx_dy
@@ -78,7 +79,7 @@ lnam = get_lnam(ds.ugos, ds.vgos, window_lnam, dx=dx, dy=dy)
 # %%
 # Plot
 fig1, ax1 = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-lnam.plot(cmap="cmo.diff", ax=ax1, add_colorbar=False, transform=pcarr)
+lnam.plot(cmap=cm.cm.diff, ax=ax1, add_colorbar=False, transform=pcarr)
 plt.title(f"Local angular momentum [{window_lnam}km]")
 
 
@@ -92,6 +93,6 @@ ow = get_okuboweiss(ds.ugos, ds.vgos, dx=dx, dy=dy)
 # %%
 # Plot
 fig2, ax2 = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-lnam.plot(cmap="cmo.delta", ax=ax, add_colorbar=False, transform=pcarr)
+lnam.plot(cmap=cm.cm.delta, ax=ax, add_colorbar=False, transform=pcarr)
 lnam.plot.contour(levels=[0], colors="k", transform=pcarr)
 plt.title("Okubo-Weiss")

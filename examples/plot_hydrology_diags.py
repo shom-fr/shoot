@@ -14,6 +14,7 @@ Hydrology anomalies can be performes in every 3D fields.
 # Import needed stuff.
 import os
 import time
+import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 import xoa.cf as xcf
@@ -93,7 +94,7 @@ anomaly = Anomaly(eddy, eddies, ds_3d.sig0, depth=ds_3d.depth, r_factor=1.2)
 #
 fig, ax = create_map(ds_2d.lon_rho, ds_2d.lat_rho, figsize=(8, 5))
 get_relvort(ds_2d.u, ds_2d.v).plot(
-    x="lon_rho", y="lat_rho", cmap="cmo.curl", ax=ax, add_colorbar=False, transform=pcarr
+    x="lon_rho", y="lat_rho", cmap=cm.cm.curl, ax=ax, add_colorbar=False, transform=pcarr
 )
 
 for eddy in eddies.eddies:

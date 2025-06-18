@@ -15,7 +15,6 @@ import time
 import matplotlib.pyplot as plt
 import xarray as xr
 
-
 sys.path.append('/home/shom/jbroust/Documents/CODE/SHOOT_LIB/')
 from shoot.eddies import Eddies
 from shoot.plot import create_map, pcarr

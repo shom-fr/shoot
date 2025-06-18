@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Detect eddies from satellite sea level
-======================================
+Detect and Track eddies from satellite sea level
+================================================
 """
 
 # %%
@@ -12,6 +12,7 @@ Detect eddies from satellite sea level
 # Import needed stuff.
 import os
 import time
+import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 
@@ -75,7 +76,8 @@ tracks = track_eddies(eddies, nbackward)  # 10*dt
 tracked_eddies = tracks.track_eddies
 
 # sauvegarde du tracking complet
-tracks.save(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
+
+# tracks.save(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
 
 # %%
 # Plots
@@ -84,7 +86,7 @@ tracks.save(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
 n = 30  # 297
 dss = ds.isel(time=n)
-dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="nipy_spectral")
+dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap=cm.cm.dense)
 
 plt.quiver(
     dss.longitude.values, dss.latitude.values, dss.ugos.values, dss.vgos.values, transform=pcarr

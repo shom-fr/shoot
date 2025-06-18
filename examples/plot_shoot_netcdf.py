@@ -93,11 +93,9 @@ tracks = xr.open_dataset(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024
 # Plot tracking
 
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-n = 78  # 297
-
 colors = {"cyclone": "b", "anticyclone": "r"}
 
-dss = ds.isel(time=n)
+dss = ds.isel(time=-1)
 
 dss.adt.plot(
     x="longitude",
@@ -153,68 +151,68 @@ plt.tight_layout()
 # Animation
 
 
-img = []  # some array of images
-frames = []  # for storing the generated images
+# img = []  # some array of images
+# frames = []  # for storing the generated images
 
-fig = plt.figure(figsize=(7, 5))
-ax = plt.subplot(111)
-colors = {"cyclone": "b", "anticyclone": "r"}
-
-
-def animate(i):
-    plt.cla()
-    dss = ds.sel(time=i)
-
-    dss.adt.plot(
-        x="longitude",
-        y="latitude",
-        cmap="nipy_spectral",
-        ax=ax,
-        add_colorbar=False,
-    )
-
-    nj = 2
-    plt.quiver(
-        dss.longitude[::nj].values,
-        dss.latitude[::nj].values,
-        dss.ugos[::nj, ::nj].values,
-        dss.vgos[::nj, ::nj].values,
-    )
-    plt.title(str(dss.time.values)[:10])
-    plt.tight_layout()
-
-    day = np.where(tracks.time.values == dss.time.values)[0]
-    track_day = tracks.isel(obs=day)
-
-    for i in range(len(track_day.obs)):
-        tmp = track_day.isel(obs=i)
-        plt.scatter(
-            tmp.x_cen,
-            tmp.y_cen,
-            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
-            s=10,
-        )
-
-        plt.plot(
-            tmp.x_vmax_contour,
-            tmp.y_vmax_contour,
-            '--',
-            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
-            # transform=pcarr,
-        )
-
-        plt.plot(
-            tmp.x_eff_contour,
-            tmp.y_eff_contour,
-            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
-            # transform=pcarr,
-        )
+# fig = plt.figure(figsize=(7, 5))
+# ax = plt.subplot(111)
+# colors = {"cyclone": "b", "anticyclone": "r"}
 
 
-ani = animation.FuncAnimation(fig, animate, frames=np.unique(tracks.time), interval=1000)
+# def animate(i):
+#     plt.cla()
+#     dss = ds.sel(time=i)
 
-ani.save(os.path.join(root_path, 'tracking_ionian_2023_2024.gif'))
-plt.show()
+#     dss.adt.plot(
+#         x="longitude",
+#         y="latitude",
+#         cmap="nipy_spectral",
+#         ax=ax,
+#         add_colorbar=False,
+#     )
+
+#     nj = 2
+#     plt.quiver(
+#         dss.longitude[::nj].values,
+#         dss.latitude[::nj].values,
+#         dss.ugos[::nj, ::nj].values,
+#         dss.vgos[::nj, ::nj].values,
+#     )
+#     plt.title(str(dss.time.values)[:10])
+#     plt.tight_layout()
+
+#     day = np.where(tracks.time.values == dss.time.values)[0]
+#     track_day = tracks.isel(obs=day)
+
+#     for i in range(len(track_day.obs)):
+#         tmp = track_day.isel(obs=i)
+#         plt.scatter(
+#             tmp.x_cen,
+#             tmp.y_cen,
+#             c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+#             s=10,
+#         )
+
+#         plt.plot(
+#             tmp.x_vmax_contour,
+#             tmp.y_vmax_contour,
+#             '--',
+#             c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+#             # transform=pcarr,
+#         )
+
+#         plt.plot(
+#             tmp.x_eff_contour,
+#             tmp.y_eff_contour,
+#             c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+#             # transform=pcarr,
+#         )
+
+
+# ani = animation.FuncAnimation(fig, animate, frames=np.unique(tracks.time), interval=1000)
+
+# ani.save(os.path.join(root_path, 'tracking_ionian_2023_2024.gif'))
+# plt.show()
 
 # %%
 # #### Heatmaps

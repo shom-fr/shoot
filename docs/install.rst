@@ -25,7 +25,14 @@ shoot requires ``python>3`` and depends on the following packages:
        with labelled multi-dimensional arrays simple, efficient, and fun!
    * - `xoa <https://xoa.readthedocs.io/en/develop/>`_
      - xoa helps analyzing ocean fields
-
+   * - `numpy <https://numpy.org/>`_
+     - Numpy is a comprehensive library for scientific computation
+   * - `math <https://docs.python.org/3/library/math.html>`_
+     - Math package provides common mathematical functions
+   * - `contourpy <https://pypi.org/project/contourpy/>`_
+     - Contourpy is a library for computing contours on grids
+   * - `cartopy <https://scitools.org.uk/cartopy/docs/latest/>`_
+     - Cartopy is a package for geospatial data processing 
 
 
 From sources

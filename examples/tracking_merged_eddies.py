@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Detect eddies from satellite sea level
-======================================
+Detect eddies from different files and merge tracking
+=====================================================
 """
 
 # %%

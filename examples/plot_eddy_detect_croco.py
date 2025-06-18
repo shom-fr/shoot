@@ -13,6 +13,7 @@ In this example, eddies are detected from CROCO model currents interpolated to 1
 #
 # Import needed stuff.
 import os
+import cmocean as cm
 import time
 import matplotlib.pyplot as plt
 import xarray as xr
@@ -85,7 +86,7 @@ print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - star
 
 fig, ax = create_map(ds.lon_rho, ds.lat_rho, figsize=(8, 5))
 get_relvort(ds.u, ds.v).plot(
-    x="lon_rho", y="lat_rho", cmap="cmo.curl", ax=ax, add_colorbar=False, transform=pcarr
+    x="lon_rho", y="lat_rho", cmap=cm.cm.curl, ax=ax, add_colorbar=False, transform=pcarr
 )
 nj = 5
 plt.quiver(
