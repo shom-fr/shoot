@@ -10,7 +10,6 @@ import scipy.ndimage as scin
 import xarray as xr
 import xoa.coords as xcoords
 import xoa.geo as xgeo
-
 from . import num as snum
 
 
@@ -21,6 +20,8 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     lon_center: float
     lat_center: float
     ssh: xarray.DataArray
+    nlevels: maximum number of values for contour (optional)
+    robust: percentage quantile to avoid looking at extreme ssh values
 
     Returns
     -------
@@ -75,29 +76,6 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
                         )
                     )
     return dss
-
-    # return lines, lons, lats
-    # centers = np.array([l.mean(axis=0) for l in lines])
-    # center = np.median(centers, axis=0)
-    # cdists = np.sqrt([((c - center) ** 2).sum() for c in centers])
-    # mdist = np.median(centers)
-    # return [lines[i] for i, cdist in enumerate(cdists) if cdist / mdist < tol]
-
-
-# class ContourLengthGetter:
-#     def __init__(self, dx, dy):
-#         self.dx, self.dy = dx, dy
-
-#     def __call__(self, ds):
-#         xdiff = xgeo.deg2m(np.diff(ds.lon.values), ds.lat.values.mean())
-#         ydiff = xgeo.deg2m(np.diff(ds.lat.values))
-#         return np.sqrt(xdiff**2 + ydiff**2).sum()
-
-
-# def contour_length_getter(ds):
-#     xdiff = xgeo.deg2m(np.diff(ds.lon.values), ds.lat.values.mean())
-#     ydiff = xgeo.deg2m(np.diff(ds.lat.values))
-#     return np.sqrt(xdiff**2 + ydiff**2).sum()
 
 
 def interp_to_line(data, line):

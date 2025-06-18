@@ -7,3 +7,4 @@ Algorithms
 
     algos.eddies
     algos.track
+    algos.hydrology 

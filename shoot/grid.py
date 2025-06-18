@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Grid utilities
+==============
 """
 import numpy as np
 import xarray as xr

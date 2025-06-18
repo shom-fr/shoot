@@ -7,19 +7,15 @@ Created on Wed Jul  3 15:39:51 2024 by sraynaud
 """
 import os, gc
 import functools
-import warnings
 import numpy as np
-from scipy.interpolate import splprep, make_interp_spline, splev
+from scipy.interpolate import splprep, splev
 import multiprocessing as mp
-import itertools
 from itertools import repeat
 import xarray as xr
 import matplotlib.pyplot as plt
 import json
-import pandas as pd
 
 import xoa.coords as xcoords
-import xoa.geo as xgeo
 
 from . import num as snum
 from . import dyn as sdyn
@@ -28,6 +24,7 @@ from . import fit as sfit
 from . import streamline as strl
 from . import contours as scontours
 from . import plot as splot
+
 
 COLORS = {"anticyclone": "tab:red", "cyclone": "tab:blue", "undefined": "0.5"}
 
@@ -98,6 +95,8 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
 
 
 class Ellipse:
+    """A basic ellipse object with minimum information"""
+
     def __init__(self, lon, lat, a, b, angle, sign=0, fit=None):
         self.lon, self.lat, self.a, self.b, self.angle, self.sign = lon, lat, a, b, angle, sign
         self.fit_error = fit
@@ -438,7 +437,9 @@ class RawEddy2D:
         return out
 
 
-class Eddy:  ##This is a minimal class without computing capabilities
+class Eddy:
+    """This mimic Raw2DEddy class without computing capabilities"""
+
     def __init__(
         self,
         time,
@@ -563,6 +564,7 @@ class Eddies:
         paral=False,
         nb_procs=None,
         ellipse_error=0.01,
+        verbose=True,
         **kwargs,
     ):
         """Detect all eddies in a velocity field"""
@@ -582,13 +584,8 @@ class Eddies:
         lon = xcoords.get_lon(u)
         lat2d, lon2d = xr.broadcast(lat, lon)
 
-        # Find center of cyclones and anticyclones
-        import time
-
-        # start_centers = time.time()
+        # find eddy centers
         centers = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=False)
-        # end_centers = time.time()
-        # print("center research takes %.3fs" % (end_centers - start_centers))
 
         # Fit window
         wx, wy = sgrid.get_wx_wy(
@@ -639,22 +636,22 @@ class Eddies:
             )
             return eddy
 
-        # start_eddy = time.time()
         eddies = []
         wx2c = wx2
         wy2c = wy2
         if paral:
-            print(
-                "On dispose de %i cpus et %i coeurs"
-                % (mp.cpu_count(), len(os.sched_getaffinity(0)))
-            )
+            if verbose:
+                print(
+                    " %i cpus and %i cores availables"
+                    % (mp.cpu_count(), len(os.sched_getaffinity(0)))
+                )
             if nb_procs:
                 nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
             else:
                 nb_procs = len(os.sched_getaffinity(0))
-            print("On travaille avec %i cpus" % nb_procs)
-        else:
-            print("on travaille en séquentiel")
+            print("Work with %i cpus" % nb_procs)
+        elif verbose:
+            print("Running in sequential way")
 
         while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
             eddies_tmp = []
@@ -966,6 +963,7 @@ class EvolEddies:
     ):
         "ds is a temporal dataframe"
         eddies = []
+        verbose = True
         for i in range(len(ds.time)):
             import psutil
 
@@ -984,6 +982,7 @@ class EvolEddies:
                     paral=paral,
                     nb_procs=nb_procs,
                     ellipse_error=ellipse_error,
+                    verbose=verbose,
                 )
             else:
                 eddies_ssh = Eddies.detect_eddies(
@@ -994,8 +993,10 @@ class EvolEddies:
                     min_radius=min_radius,
                     paral=paral,
                     nb_procs=nb_procs,
+                    verbose=verbose,
                 )
             eddies.append(eddies_ssh)
+            verbose = False
         return cls(eddies)
 
     def add(self, eddies):

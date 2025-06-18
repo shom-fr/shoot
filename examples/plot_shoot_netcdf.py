@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
+"""
+Open and analyse shoot output netcdf
+====================================
+"""
 
-import os, sys
+import os
 import xarray as xr
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,7 +21,8 @@ from shoot.plot import create_map, pcarr
 
 
 # %%
-# #### Usefull function
+# Usefull function
+# ----------------
 
 
 def create_map_ax(
@@ -68,33 +73,29 @@ def create_map_ax(
     return fig, ax
 
 
-# #### Import data
+# %%
+# Initialisation
+# --------------
 
-# In[3]:
+#  Import data
 
-root_path = './data'
-root_path = '/local/tmp/jbroust/DATA/DUACS_INDIEN'
-
-
-# In[4]:
-
-# ds = xr.open_dataset(os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc'))
-# tracks = xr.open_dataset(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
-
-ds = xr.open_dataset(os.path.join(root_path, 'INDIEN_2025.nc'))
-tracks = xr.open_dataset(os.path.join(root_path, 'track_Indien_2025.nc'))
-tracks
+root_path = '../data'
 
 
-# In[27]:
-# #### Plot tracking
+ds = xr.open_dataset(os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc'))
+tracks = xr.open_dataset(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
+
+
+# %%
+# Plots
+# -----
+
+# Plot tracking
 
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-n = 78  # 297
-
 colors = {"cyclone": "b", "anticyclone": "r"}
 
-dss = ds.isel(time=n)
+dss = ds.isel(time=-1)
 
 dss.adt.plot(
     x="longitude",
@@ -103,7 +104,6 @@ dss.adt.plot(
     ax=ax,
     add_colorbar=False,
     transform=pcarr,
-    # levels=np.linspace(-0.7, 0.6, 50),
 )
 
 nj = 2
@@ -144,111 +144,78 @@ for i in range(len(track_day.obs)):
         transform=pcarr,
     )
 
-    ## eddy track
-    # track = tracks.isel(obs=np.where(tracks.track_id == tmp.track_id)[0])
-    # plt.plot(track.x_cen, track.y_cen, c='gray', transform=pcarr)
-    # plt.text(tmp.x_cen, tmp.y_cen, len(track.x_cen), c='w', transform=pcarr)
-
 plt.title(np.datetime_as_string(dss.time, unit='D'))
 plt.tight_layout()
 
-
-# #### Animation
-
-# In[36]:
+# %%
+# Animation
 
 
-img = []  # some array of images
-frames = []  # for storing the generated images
-# fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
+# img = []  # some array of images
+# frames = []  # for storing the generated images
 
-fig = plt.figure(figsize=(7, 5))
-ax = plt.subplot(111)
-colors = {"cyclone": "b", "anticyclone": "r"}
-
-
-def animate(i):
-    plt.cla()
-    dss = ds.sel(time=i)
-    # dss.zeta.plot(
-    #     x="lon_rho",
-    #     y="lat_rho",
-    #     cmap="nipy_spectral",
-    #     ax=ax,
-    #     add_colorbar=False,
-    #     # transform=pcarr,
-    #     # levels=np.linspace(-0.7, 0.6, 50),
-    # )
-
-    # nj = 20
-    # plt.quiver(
-    #     dss.lon_rho[::nj, ::nj].values,
-    #     dss.lat_rho[::nj, ::nj].values,
-    #     dss.u[::nj, ::nj].values,
-    #     dss.v[::nj, ::nj].values,
-    #     # transform=pcarr,
-    # )
-
-    dss.adt.plot(
-        x="longitude",
-        y="latitude",
-        cmap="nipy_spectral",
-        ax=ax,
-        add_colorbar=False,
-        # transform=pcarr,
-        # levels=np.linspace(-0.7, 0.6, 50),
-    )
-
-    nj = 2
-    plt.quiver(
-        dss.longitude[::nj].values,
-        dss.latitude[::nj].values,
-        dss.ugos[::nj, ::nj].values,
-        dss.vgos[::nj, ::nj].values,
-        # transform=pcarr,
-    )
-    plt.title(str(dss.time.values)[:10])
-    plt.tight_layout()
-
-    day = np.where(tracks.time.values == dss.time.values)[0]
-    track_day = tracks.isel(obs=day)
-
-    for i in range(len(track_day.obs)):
-        tmp = track_day.isel(obs=i)
-        plt.scatter(
-            tmp.x_cen,
-            tmp.y_cen,
-            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
-            s=10,
-            # transform=pcarr,
-        )
-
-        plt.plot(
-            tmp.x_vmax_contour,
-            tmp.y_vmax_contour,
-            '--',
-            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
-            # transform=pcarr,
-        )
-
-        plt.plot(
-            tmp.x_eff_contour,
-            tmp.y_eff_contour,
-            c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
-            # transform=pcarr,
-        )
+# fig = plt.figure(figsize=(7, 5))
+# ax = plt.subplot(111)
+# colors = {"cyclone": "b", "anticyclone": "r"}
 
 
-ani = animation.FuncAnimation(fig, animate, frames=np.unique(tracks.time), interval=1000)
+# def animate(i):
+#     plt.cla()
+#     dss = ds.sel(time=i)
 
-ani.save(os.path.join(root_path, 'tracking_ionian_2023_2024.gif'))
-plt.show()
+#     dss.adt.plot(
+#         x="longitude",
+#         y="latitude",
+#         cmap="nipy_spectral",
+#         ax=ax,
+#         add_colorbar=False,
+#     )
+
+#     nj = 2
+#     plt.quiver(
+#         dss.longitude[::nj].values,
+#         dss.latitude[::nj].values,
+#         dss.ugos[::nj, ::nj].values,
+#         dss.vgos[::nj, ::nj].values,
+#     )
+#     plt.title(str(dss.time.values)[:10])
+#     plt.tight_layout()
+
+#     day = np.where(tracks.time.values == dss.time.values)[0]
+#     track_day = tracks.isel(obs=day)
+
+#     for i in range(len(track_day.obs)):
+#         tmp = track_day.isel(obs=i)
+#         plt.scatter(
+#             tmp.x_cen,
+#             tmp.y_cen,
+#             c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+#             s=10,
+#         )
+
+#         plt.plot(
+#             tmp.x_vmax_contour,
+#             tmp.y_vmax_contour,
+#             '--',
+#             c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+#             # transform=pcarr,
+#         )
+
+#         plt.plot(
+#             tmp.x_eff_contour,
+#             tmp.y_eff_contour,
+#             c=colors[str(tmp.eddy_type.isel(eddies=tmp.track_id.values).values)],
+#             # transform=pcarr,
+#         )
 
 
+# ani = animation.FuncAnimation(fig, animate, frames=np.unique(tracks.time), interval=1000)
+
+# ani.save(os.path.join(root_path, 'tracking_ionian_2023_2024.gif'))
+# plt.show()
+
+# %%
 # #### Heatmaps
-
-# In[18]:
-
 
 ## to be modified by the user
 lons = np.arange(-6, 36, 0.1)
@@ -286,9 +253,6 @@ for i in range(len(shoot_cyc.obs)):
         in_poly = points_in_polygon(points, line)
         # print(in_poly)
         count_s_cyc[:, j] += in_poly
-
-
-# In[26]:
 
 
 count_s_anti[count_s_anti == 0] = np.nan
