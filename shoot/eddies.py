@@ -968,7 +968,7 @@ class EvolEddies:
             import psutil
 
             process = psutil.Process(os.getpid())
-            print(f"Mémoire après itération: {process.memory_info().rss / 1024**2:.2f} MB")
+            print(f"Used memory : {process.memory_info().rss / 1024**2:.2f} MB")
             # print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel(time=i)
             if not ssh is None:
@@ -1007,6 +1007,8 @@ class EvolEddies:
     def ds(self):
         ds = None
         for eddies in self.eddies:  # warning ifno eddies have been detected it crashes
+            if len(eddies.eddies) == 0:
+                continue
             if ds is None:
                 ds = eddies.ds
             else:
@@ -1017,6 +1019,8 @@ class EvolEddies:
     def ds_track(self):
         ds = None
         for eddies in self.eddies:  # warning info eddies have been detected it crashes
+            if len(eddies.eddies) == 0:
+                continue
             if ds is None:
                 ds = eddies.ds_track
             else:
