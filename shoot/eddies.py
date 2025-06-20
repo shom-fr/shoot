@@ -407,8 +407,8 @@ class RawEddy2D:
         if color is None:
             color = self.color
         kw = dict(color=color, **kwargs)
-        # out = {"center": ax.scatter(self.lon, self.lat, **kw)}
-        out = {"center": ax.scatter(self.glon, self.glat, s=10, **kw)}
+        out = {"center": ax.scatter(self.lon, self.lat, **kw)}
+        # out = {"center": ax.scatter(self.glon, self.glat, s=10, **kw)}
         if self.ncontours:
             # out["boundary"] = ax.plot(
             #     self.boundary_contour.lon, self.boundary_contour.lat, lw=lw, **kw

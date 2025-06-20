@@ -319,6 +319,16 @@ class Anomaly:
     def center_anomaly(self):  ## Pour l'instant fait hypothèse de niveaux équirépartie
         return self.profil_inside - self.mean_profil_outside
 
+    @functools.cached_property
+    def core_depth(self):
+        if np.isnan(self.anomaly).all():
+            return None
+        return np.abs(self.depth_vector[np.nanargmax(np.abs(self.anomaly))])
+
+    @functools.cached_property
+    def intensity(self):
+        return np.nanmax(np.abs(self.anomaly))
+
 
 def compute_anomalies(eddies, dens, nz=100, r_factor=1.2):
     """Add anomaly to detected eddies
