@@ -3,7 +3,6 @@
 """
 Detect CROCO-GIGATL1 eddies at 1000m
 ====================================
-
 In this example, eddies are detected from CROCO model currents interpolated to 1000 m and collocated at RHO points.
 
 """
@@ -19,7 +18,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import xoa.cf as xcf
 
-from shoot.eddies import Eddies
+from shoot.eddies.eddies2d import Eddies2D
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
 
@@ -65,7 +64,7 @@ ellipse_error = 0.01
 # ---------
 
 start = time.time()
-eddies = Eddies.detect_eddies(
+eddies = Eddies2D.detect_eddies(
     ds.u,
     ds.v,
     window_center,

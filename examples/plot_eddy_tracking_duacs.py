@@ -16,8 +16,8 @@ import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 
-from shoot.eddies import EvolEddies
-from shoot.track import track_eddies
+from shoot.eddies.eddies2d import EvolEddies2D
+from shoot.eddies.track import track_eddies
 from shoot.plot import create_map, pcarr
 
 
@@ -54,7 +54,7 @@ ellipse_error = 0.05
 # ~~~~~~~~~
 
 start = time.time()
-eddies = EvolEddies.detect_eddies(
+eddies = EvolEddies2D.detect_eddies(
     ds,
     window_center,
     window_fit,
