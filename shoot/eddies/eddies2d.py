@@ -521,6 +521,23 @@ class Eddy:
             float(ds.angle_ell.values),
         )
 
+    @functools.cached_property
+    def color(self):
+        return COLORS.get(self.eddy_type, COLORS["undefined"])
+
+    def plot(self, ax=None, lw=1, color=None, **kwargs):
+        """Quickly plot the eddy"""
+        if ax is None:
+            ax = plt.gca()
+        if color is None:
+            color = self.color
+        kw = dict(color=color, **kwargs)
+        out = {"center": ax.scatter(self.lon, self.lat, **kw)}
+        out["boundary"] = ax.plot(self.x_eff, self.y_eff, lw=lw, **kw)
+        out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
+        out["velmax"] = ax.plot(self.x_vmax, self.y_vmax, "--", lw=lw, **kw)
+        return out
+
 
 class Eddies2D:
     """This class contains a list of detected eddies at one time"""

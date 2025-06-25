@@ -15,8 +15,8 @@ from . import num as snum
 
 class Anomaly:
     def __init__(self, eddy, eddies, dens, depth=None, r_factor=1.2, nz=100):
-        self.lon = eddy.glon
-        self.lat = eddy.glat
+        self.lon = eddy.lon
+        self.lat = eddy.lat
         self.eddy = eddy
         if hasattr(eddy, 'boundary_contour'):
             self.radius = (
@@ -38,24 +38,42 @@ class Anomaly:
         self._r = r_factor
         self.eddies = eddies  # The whole eddies file
 
+        if not hasattr(self.depth, self.xdim):
+            self.depth = self.depth.expand_dims(
+                {self.xdim: self.dens.sizes[self.xdim], self.ydim: self.dens.sizes[self.ydim]}
+            ).broadcast_like(self.dens)
+
+    @functools.cached_property
+    def _dist(self):
+        lon_name = xcoords.get_lon(self.dens).name
+        lat_name = xcoords.get_lat(self.dens).name
+        dist = np.sqrt(
+            (self.dens[lon_name] - self.lon) ** 2 + (self.dens[lat_name] - self.lat) ** 2
+        ).values
+        return dist
+
     @property
     def _i(self):
         lon_name = xcoords.get_lon(self.dens).name
-        lat_name = xcoords.get_lat(self.dens).name
-        ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
-        return ij[0][0]
+        # lat_name = xcoords.get_lat(self.dens).name
+        # ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
+        # return ij[0][0]
+        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
 
     @property
     def _j(self):
         lon_name = xcoords.get_lon(self.dens).name
-        lat_name = xcoords.get_lat(self.dens).name
-        ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
-        return ij[1][0]
+        # lat_name = xcoords.get_lat(self.dens).name
+        # ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
+        # print((self.lon, self.lat))
+        # print(ij[1][0])
+        # print(np.unravel_index(np.argmin(dist), self.dens[lon_name].shape))
+        # return ij[1][0]
+        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
 
     @functools.cached_property
     def depth_vector(self):
         depth = self.depth.isel({self.xdim: self._j, self.ydim: self._i})
-        # return np.linspace(depth.min().values, depth.max().values, self.nz)
         return np.linspace(depth.values[0], depth.values[-1], self.nz)
 
     @functools.cached_property
@@ -92,24 +110,28 @@ class Anomaly:
         result = snum.points_in_polygon(points, np.array([xx, yy]).T)
         return result
 
-    @functools.cached_property
-    def _xy_inside(self):
+    def _xy(self, r):
         dx, dy = sgrid.get_dx_dy(self.dens)
         dxm = np.nanmean(dx)
         dym = np.nanmean(dy)
-        nx = int(self._r * self.radius / dxm)
-        ny = int(self._r * self.radius / dym)
+        nx = int(r * self.radius / dxm)
+        ny = int(r * self.radius / dym)
         X = [self._j, self._j, min(self._j + nx, self._jmax - 1), max(self._j - nx, 0)]
         Y = [min(self._i + ny, self._imax - 1), max(self._i - ny, 0), self._i, self._i]
 
         stepx = int(2 * nx / 10)
         stepy = int(2 * ny / 10)
-        X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + stepx, stepx)
-        Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + stepy, stepy)
+        X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx)
+        Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy)
 
         X, Y = np.meshgrid(X, Y)
         X = X.flatten()
         Y = Y.flatten()
+        return X, Y
+
+    @functools.cached_property
+    def _xy_inside(self):
+        X, Y = self._xy(self._r)
         # test validy
         valids = self.is_inside(X, Y)
         X = [X[i] for i in range(len(X)) if valids[i]]
@@ -155,33 +177,24 @@ class Anomaly:
 
     @functools.cached_property
     def _xy_outside(self):
-        dx, dy = sgrid.get_dx_dy(self.dens)
-        dxm = np.nanmean(dx)
-        dym = np.nanmean(dy)
-        nx = int(self._r * self.radius / dxm)
-        ny = int(self._r * self.radius / dym)
-        X = [self._j, self._j, min(self._j + nx, self._jmax - 1), max(self._j - nx, 0)]
-        Y = [min(self._i + ny, self._imax - 1), max(self._i - ny, 0), self._i, self._i]
-
-        stepx = int(2 * nx / 10)
-        stepy = int(2 * ny / 10)
-        X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + stepx, stepx)
-        Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + stepy, stepy)
-
-        X, Y = np.meshgrid(X, Y)
-        X = X.flatten()
-        Y = Y.flatten()
-        # test validy
-        valids = self.is_valid(X, Y)
-        X = [X[i] for i in range(len(X)) if valids[i]]
-        Y = [Y[i] for i in range(len(Y)) if valids[i]]
+        test = True
+        r = self._r
+        while test:  # increase r factor if no outside point founded
+            X, Y = self._xy(r)
+            # test validy
+            valids = self.is_valid(X, Y)
+            X = [X[i] for i in range(len(X)) if valids[i]]
+            Y = [Y[i] for i in range(len(Y)) if valids[i]]
+            if len(X) > 0 and len(Y) > 0:
+                test = False
+            else:
+                r *= 2
         return (X, Y)
 
     @functools.cached_property
     def _profils_outside(self):
         X = self._xy_outside[0]
         Y = self._xy_outside[1]
-
         return self.dens.isel(
             {
                 self.xdim: xr.DataArray(
