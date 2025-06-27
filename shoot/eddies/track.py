@@ -307,7 +307,7 @@ class Track:
                     ("eddies"),
                     [(self.times[-1] - self.times[0]) / np.timedelta64(1, 'D')],
                 ),
-                "x_start": (("eddies"), [self.eddies[0].lat]),
+                "x_start": (("eddies"), [self.eddies[0].lon]),
                 "y_start": (("eddies"), [self.eddies[0].lat]),
                 "x_end": (("eddies"), [self.eddies[-1].lon]),
                 "y_end": (("eddies"), [self.eddies[-1].lat]),
