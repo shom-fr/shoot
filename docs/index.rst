@@ -8,6 +8,7 @@
 
    install
    algos
+   cli
    examples/index
 
 .. toctree::

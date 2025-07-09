@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan  9 13:24:21 2025
-
-@author: jbroust
+Eddy tracking
 """
 
 import functools
+
 import numpy as np
 import xarray as xr
 from scipy.optimize import linear_sum_assignment
-import xoa.geo as xgeo
 
+from . import geo as sgeo
 from . import eddies as seddies
 
 
 class Associate:
+    """Eddy association"""
+
     def __init__(self, track_eddies, parent_eddies, new_eddies, Dt, Tc, C=6.5 * 1e3 / 86400):
         self.parent_eddies = parent_eddies  # reference eddies
         self.new_eddies = new_eddies  # next time eddies
@@ -64,8 +65,8 @@ class Associate:
                 # print('Mij %.2f before'%M[i,j])
                 dlat = self.parent_eddies[j].glat - self.new_eddies[i].glat
                 dlon = self.parent_eddies[j].glon - self.new_eddies[i].glon
-                x = xgeo.deg2m(dlon, self.parent_eddies[j].glat)
-                y = xgeo.deg2m(dlat)
+                x = sgeo.deg2m(dlon, self.parent_eddies[j].glat)
+                y = sgeo.deg2m(dlat)
 
                 D_ij = self.search_dist(self.parent_eddies[j], self.new_eddies[i])
 
@@ -185,8 +186,8 @@ class AssociateMulti:
                     # print('Mij %.2f before'%M[i,j])
                     dlat = self.parent_eddies[k][j].glat - self.new_eddies[i].glat
                     dlon = self.parent_eddies[k][j].glon - self.new_eddies[i].glon
-                    x = xgeo.deg2m(dlon, self.parent_eddies[k][j].glat)
-                    y = xgeo.deg2m(dlat)
+                    x = sgeo.deg2m(dlon, self.parent_eddies[k][j].glat)
+                    y = sgeo.deg2m(dlat)
 
                     D_ij = self.search_dist(
                         self.parent_eddies[k][j], self.new_eddies[i], self._Dt[k]
@@ -373,7 +374,7 @@ class Tracks:
         return xr.merge([ds_eddies, ds])
 
     def save(self, path_nc):
-        "this save at .nc format"
+        """Save to netcdf"""
         self.ds.to_netcdf(path_nc)
 
     def track_init(self):
@@ -480,7 +481,8 @@ def track_eddies(eddies, nback):
 
 
 def update_tracks(ds, new_eddies, nback):
-    """update tracking based on new eddies detection
+    """Update tracking based on new eddies detection
+
     Parameters
     ----------
     ds: xarray dataset
@@ -496,7 +498,7 @@ def update_tracks(ds, new_eddies, nback):
 
     Returns
     -------
-     tracks: Tracks object
+    tracks: Tracks object
          updated track object
     """
     tracks = Tracks.reconstruct(ds, nback)

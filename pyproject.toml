@@ -3,14 +3,17 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ascit"
+name = "shoot"
 version = "0.0.0"
 description = "SHom Ocean Objects Tracker"
 requires-python = ">=3.10"
 dependencies = [
+    "cf_xarray",
     "contourpy",
-    "jax",
-    "xoa"
+    "matplotlib-base",
+    "netCDF",
+    "scipy"
+    "xarray",
 ]
 authors = [
   {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"},
@@ -19,6 +22,8 @@ authors = [
 maintainers = [
   {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"}
 ]
+dynamic = ["version"]
+readme = "README.rst"
 
 [project.optional-dependencies]
 docs = [
@@ -32,8 +37,21 @@ docs = [
   "sphinxcontrib-programoutput",
 ]
 
+[project.entry-points.console_scripts]
+shoot = "shoot.cli:main"
+
+[build-system]
+requires = ["setuptools>=64", "wheel", "setuptools-scm[toml]>=8"]
+build-backend = "setuptools.build_meta"
+
 [tool.setuptools]
 packages = ["shoot"]
+include-package-data = true
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0"
+write_to = "shoot/_version.py"
+tag_regex= "^(?P<prefix>v)?(?P<version>[^\\+]+)(?P<suffix>.*)?$"
 
 [tool.black]
 line-length = 100

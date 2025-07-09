@@ -15,8 +15,6 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import json
 
-import xoa.coords as xcoords
-
 from . import num as snum
 from . import dyn as sdyn
 from . import grid as sgrid
@@ -24,6 +22,7 @@ from . import fit as sfit
 from . import streamline as strl
 from . import contours as scontours
 from . import plot as splot
+from . import cf as scf
 
 
 COLORS = {"anticyclone": "tab:red", "cyclone": "tab:blue", "undefined": "0.5"}
@@ -70,7 +69,7 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
     jj = extrema[:, 1]
 
     # Sort cyclones and anti-cyclones
-    lat2d, lon2d = xr.broadcast(xcoords.get_lat(u), xcoords.get_lon(u))
+    lat2d, lon2d = xr.broadcast(scf.get_lat(u), scf.get_lon(u))
     xx, yy = lon2d.values, lat2d.values
     ecorio = sdyn.get_coriolis(yy[jj, ii])
     elons = xx[jj, ii]
@@ -172,8 +171,8 @@ class RawEddy2D:
         **attrs,
     ):
         self.i, self.j = i, j
-        lat = xcoords.get_lat(u)
-        lon = xcoords.get_lon(u)
+        lat = scf.get_lat(u)
+        lon = scf.get_lon(u)
         if lon.ndim == 1:
             self.glon, self.glat = float(lon[i]), float(lat[j])
         else:
@@ -580,8 +579,8 @@ class Eddies:
         dxm = np.nanmean(dx)
         dym = np.nanmean(dy)
 
-        lat = xcoords.get_lat(u)
-        lon = xcoords.get_lon(u)
+        lat = scf.get_lat(u)
+        lon = scf.get_lon(u)
         lat2d, lon2d = xr.broadcast(lat, lon)
 
         # find eddy centers
@@ -593,8 +592,8 @@ class Eddies:
         )  # window on which we look for streamlines closed contours
         wx2 = wx // 2
         wy2 = wy // 2
-        xdim = xcoords.get_xdim(u)
-        ydim = xcoords.get_ydim(u)
+        xdim = scf.get_xdim(u)
+        ydim = scf.get_ydim(u)
         nx = u.sizes[xdim]
         ny = u.sizes[ydim]
 
@@ -699,7 +698,8 @@ class Eddies:
                         contain[i] = False
 
         eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
-        return cls(u.time.values, eddies, window_center, window_fit, min_radius)
+        time = scf.get_time(u, errors="ignore")
+        return cls(time.values if time is not None else None, eddies, window_center, window_fit, min_radius)
 
     @property
     def ds_track(self):
@@ -942,9 +942,10 @@ class EvolEddies:
     @classmethod
     def reconstruct(cls, ds):
         "reconstructs an EvolEddies object from an xarray dataset"
+        time = scf.get_time(ds)
         eddies = []
-        for t in np.unique(ds.time):
-            eddies.append(Eddies.reconstruct(ds.where(ds.time == t, drop=True)))
+        for t in np.unique(time):
+            eddies.append(Eddies.reconstruct(ds.where(time == t, drop=True)))
         return cls(eddies)
 
     @classmethod
@@ -954,48 +955,47 @@ class EvolEddies:
         window_center,
         window_fit,
         min_radius,
-        u='ugos',
-        v='vgos',
-        ssh=None,
+        u=None,
+        v=None,
+        ssh=False,
         paral=False,
         nb_procs=None,
         ellipse_error=0.1,
     ):
-        "ds is a temporal dataframe"
+        """Spatio-temporal detection of eddies"""
+        # Names
+        time = scf.get_time(ds)
+        if u is None:
+            u = scf.get_u(ds).name
+        if v is None:
+            v = scf.get_v(ds).name
+        if ssh is None:
+            ssh = scf.get_ssh(ds).name
+
+        # Time loop
         eddies = []
         verbose = True
-        for i in range(len(ds.time)):
+        for i in range(len(time)):
             import psutil
 
             process = psutil.Process(os.getpid())
             print(f"Used memory : {process.memory_info().rss / 1024**2:.2f} MB")
             # print(np.datetime_as_string(ds.time[i], unit='D'))
-            dss = ds.isel(time=i)
-            if not ssh is None:
-                eddies_ssh = Eddies.detect_eddies(
-                    dss[u],
-                    dss[v],
-                    window_center,
-                    window_fit=window_fit,
-                    ssh=dss[ssh],
-                    min_radius=min_radius,
-                    paral=paral,
-                    nb_procs=nb_procs,
-                    ellipse_error=ellipse_error,
-                    verbose=verbose,
-                )
-            else:
-                eddies_ssh = Eddies.detect_eddies(
-                    dss[u],
-                    dss[v],
-                    window_center,
-                    window_fit=window_fit,
-                    min_radius=min_radius,
-                    paral=paral,
-                    nb_procs=nb_procs,
-                    verbose=verbose,
-                )
-            eddies.append(eddies_ssh)
+            dss = ds.isel({time.name: i})
+            ssh_ = dss[ssh] if ssh is not False else False
+            eddies_ = Eddies.detect_eddies(
+                dss[u],
+                dss[v],
+                window_center,
+                window_fit=window_fit,
+                ssh=ssh_,
+                min_radius=min_radius,
+                paral=paral,
+                nb_procs=nb_procs,
+                ellipse_error=ellipse_error,
+                verbose=verbose,
+            )
+            eddies.append(eddies_)
             verbose = False
         return cls(eddies)
 

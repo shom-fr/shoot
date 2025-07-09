@@ -86,7 +86,7 @@ tracked_eddies = tracks.track_eddies
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
 n = 30  # 297
 dss = ds.isel(time=n)
-dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap=cm.cm.dense)
+dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="cmo.balance")
 
 plt.quiver(
     dss.longitude.values, dss.latitude.values, dss.ugos.values, dss.vgos.values, transform=pcarr
@@ -99,7 +99,7 @@ for eddy in eddies.eddies[n].eddies:
     for e in track.eddies:
         lon.append(e.glon)
         lat.append(e.glat)
-    cm = plt.plot(lon, lat, transform=pcarr, c='gray', linewidth=2)
+    plt.plot(lon, lat, transform=pcarr, c='gray', linewidth=2)
 
 plt.title(ds.adt.long_name)
 plt.tight_layout()

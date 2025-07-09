@@ -8,9 +8,10 @@ import numpy as np
 import contourpy as cpy
 import scipy.ndimage as scin
 import xarray as xr
-import xoa.coords as xcoords
-import xoa.geo as xgeo
+
+from . import cf as scf
 from . import num as snum
+from . import geo as sgeo
 
 
 def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
@@ -27,8 +28,8 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     -------
     list(xarray.Dataset)
     """
-    lon = xcoords.get_lon(ssh)
-    lat = xcoords.get_lat(ssh)
+    lon = scf.get_lon(ssh)
+    lat = scf.get_lat(ssh)
     lat2d, lon2d = xr.broadcast(lat, lon)
 
     cont_gen = cpy.contour_generator(z=ssh.values)
@@ -97,8 +98,8 @@ def add_contour_uv(ds, u, v):
         vc = interp_to_line(v, ds.line.values)
         ds["u"] = ("npts", uc, {"long_name": "Velocity along X"})
         ds["v"] = ("npts", vc, {"long_name": "Velocity along Y"})
-        xdist = xgeo.deg2m(ds.lon - ds.lon_center, ds.lat_center).values
-        ydist = xgeo.deg2m(ds.lat - ds.lat_center).values
+        xdist = sgeo.deg2m(ds.lon - ds.lon_center, ds.lat_center).values
+        ydist = sgeo.deg2m(ds.lat - ds.lat_center).values
         am = xdist * vc - ydist * uc
         ds["am"] = ("npts", am, {"long_name": "Angular momentum", "units": "m2.s-2"})
         ds.attrs["mean_velocity"] = float(np.sqrt(ds.u**2 + ds.v**2).mean())
@@ -110,8 +111,8 @@ def add_contour_uv(ds, u, v):
 def add_contour_dx_dy(ds):
     """Add x and y metrics to contours"""
     if "dx" not in ds:
-        dx = xgeo.deg2m(np.gradient(ds.lon.values), ds.lat.values.mean())
-        dy = xgeo.deg2m(np.gradient(ds.lat.values))
+        dx = sgeo.deg2m(np.gradient(ds.lon.values), ds.lat.values.mean())
+        dy = sgeo.deg2m(np.gradient(ds.lat.values))
         ds["dx"] = ("npts", dx, {"units": "m"})
         ds["dy"] = ("npts", dy, {"units": "m"})
         ds.attrs["length"] = float(np.sqrt(dx**2 + dy**2).sum())
@@ -133,8 +134,8 @@ class ContourMeanSpeedGetter:
 
 def get_lnam_peaks(lnam, K=0.7):
     # compute lines
-    lon = xcoords.get_lon(lnam)
-    lat = xcoords.get_lat(lnam)
+    lon = scf.get_lon(lnam)
+    lat = scf.get_lat(lnam)
     lat2d, lon2d = xr.broadcast(lat, lon)
 
     lon_name, lat_name = snum.get_coord_name(lnam)
@@ -213,15 +214,15 @@ def get_lnam_peaks(lnam, K=0.7):
 
 
 def area(ds):
-    xdist = xgeo.deg2m(ds.lon - ds.lon_center, ds.lat_center).values
-    ydist = xgeo.deg2m(ds.lat - ds.lat_center).values
+    xdist = sgeo.deg2m(ds.lon - ds.lon_center, ds.lat_center).values
+    ydist = sgeo.deg2m(ds.lat - ds.lat_center).values
 
     xydist = np.sqrt(xdist**2 + ydist**2)
     xyavg = 0.5 * (xydist[:-1] + xydist[1:])
 
     dx = np.sqrt(
-        xgeo.deg2m(ds.lon[:-1] - ds.lon[1:], ds.lat_center).values ** 2
-        + xgeo.deg2m(ds.lat[:-1] - ds.lat[1:]).values ** 2
+        sgeo.deg2m(ds.lon[:-1] - ds.lon[1:], ds.lat_center).values ** 2
+        + sgeo.deg2m(ds.lat[:-1] - ds.lat[1:]).values ** 2
     )
 
     theta = np.arccos((-dx + xydist[1:] + xydist[:-1]) / (xydist[1:] + xydist[:-1]))
