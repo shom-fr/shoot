@@ -15,6 +15,7 @@ pcarr = ccrs.PlateCarree()
 
 
 def plot_ellipse(lon, lat, a, b, angle, ax=None, npts=100, **kwargs):
+    """Plot an ellipse on a map"""
     if ax is None:
         ax = plt.gca()
 

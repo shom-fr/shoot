@@ -7,19 +7,13 @@ Optimization routines
 =====================
 """
 import numpy as np
-import scipy.optimize as scio
-import xoa.coords as xcoords
-import xoa.cf as xcf
-import xoa.geo as xgeo
-import numpy as np
-import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
-from . import grid as sgrid
+
+from . import geo as sgeo
 
 
 GRAVITY = 9.81
 OMEGA = 2 * np.pi / 86400
-EARTH_RADIUS = 6371e3
 
 # %%
 # Ellipse Mean Square fit
@@ -65,8 +59,8 @@ def fit_ellipse_from_coords(lons, lats, get_fit=False):
     lon0 = lons.mean()
     lat0 = lats.mean()
 
-    x = xgeo.deg2m(lons - lon0, lat0)
-    y = xgeo.deg2m(lats - lat0)
+    x = sgeo.deg2m(lons - lon0, lat0)
+    y = sgeo.deg2m(lats - lat0)
 
     points = np.column_stack((x, y))
 
@@ -81,8 +75,8 @@ def fit_ellipse_from_coords(lons, lats, get_fit=False):
     xc, yc, a, b, theta = result.x
     error = np.mean(result.fun**2)
 
-    lat = lat0 + xgeo.m2deg(yc)
-    lon = lon0 + xgeo.m2deg(xc, lat=lat0)
+    lat = lat0 + sgeo.m2deg(yc)
+    lon = lon0 + sgeo.m2deg(xc, lat=lat0)
 
     if b > a:
         a, b = b, a

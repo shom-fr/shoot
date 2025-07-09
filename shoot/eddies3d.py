@@ -5,27 +5,11 @@ Created on Wed Jul  3 15:39:51 2024 by jbroust
 """
 
 import functools
-import warnings
 import numpy as np
-from scipy.interpolate import splprep, make_interp_spline, splev
 from scipy.optimize import linear_sum_assignment
-import multiprocessing as mp
-import itertools
-import xarray as xr
-import matplotlib.pyplot as plt
-import json
-import pandas as pd
 
-import xoa.coords as xcoords
-import xoa.geo as xgeo
 
-from . import num as snum
-from . import dyn as sdyn
-from . import grid as sgrid
-from . import fit as sfit
-from . import streamline as strl
-from . import contours as scontours
-from . import plot as splot
+from . import geo as sgeo
 from . import eddies as eddies
 
 
@@ -57,8 +41,8 @@ class Associate:
                 # print('Mij %.2f before'%M[i,j])
                 dlat = self.parent_eddies[j].glat - self.new_eddies[i].glat
                 dlon = self.parent_eddies[j].glon - self.new_eddies[i].glon
-                x = xgeo.deg2m(dlon, self.parent_eddies[j].glat)
-                y = xgeo.deg2m(dlat)
+                x = sgeo.deg2m(dlon, self.parent_eddies[j].glat)
+                y = sgeo.deg2m(dlat)
                 dxy = np.sqrt(x**2 + y**2) / 1000
                 dxy = dxy if dxy < self._max_distance else 1e6
                 M[i, j] = (

@@ -6,15 +6,12 @@ acoustic functions
 """
 
 import functools
-import math
 import numpy as np
 from scipy.signal import argrelmax, argrelmin
 import numba
 import xarray as xr
-import gsw
-import xoa.coords as xcoords
-from . import grid as sgrid
-from . import num as snum
+
+from . import cf as scf
 
 
 def _ilmax(profile):
@@ -89,12 +86,12 @@ def get_ecs(cs):
     xarray.DataArray
         Epaisseur du chenal de surface
     """
-    xdim = xcoords.get_xdim(cs, errors="raise")
-    ydim = xcoords.get_ydim(cs, errors="raise")
-    zdim = xcoords.get_zdim(cs, errors="raise")
+    xdim = scf.get_xdim(cs)
+    ydim = scf.get_ydim(cs)
+    zdim = scf.get_zdim(cs)
     nx = len(cs[xdim])
     ny = len(cs[ydim])
-    depth = xcoords.get_depth(cs)
+    depth = scf.get_depth(cs)
     ecs = xr.apply_ufunc(
         _get_ecs_wrapper_,
         cs,
@@ -133,12 +130,12 @@ def get_mcp(cs):
     xarray.DataArray
         Minimum de célérité profond
     """
-    xdim = xcoords.get_xdim(cs, errors="raise")
-    ydim = xcoords.get_ydim(cs, errors="raise")
-    zdim = xcoords.get_zdim(cs, errors="raise")
+    xdim = scf.get_xdim(cs)
+    ydim = scf.get_ydim(cs)
+    zdim = scf.get_zdim(cs)
     nx = len(cs[xdim])
     ny = len(cs[ydim])
-    depth = xcoords.get_depth(cs)
+    depth = scf.get_depth(cs)
     mcp = xr.apply_ufunc(
         _get_mcp_wrapper_,
         cs,
@@ -178,12 +175,12 @@ def get_iminc(cs):
     xarray.DataArray
         Minimum de célérité profond
     """
-    xdim = xcoords.get_xdim(cs, errors="raise")
-    ydim = xcoords.get_ydim(cs, errors="raise")
-    zdim = xcoords.get_zdim(cs, errors="raise")
+    xdim = scf.get_xdim(cs)
+    ydim = scf.get_ydim(cs)
+    zdim = scf.get_zdim(cs)
     nx = len(cs[xdim])
     ny = len(cs[ydim])
-    depth = xcoords.get_depth(cs)
+    depth = scf.get_depth(cs)
     iminc = xr.apply_ufunc(
         _get_iminc_wrapper_,
         cs,
@@ -201,7 +198,7 @@ class ProfileAcous:
 
     def __init__(self, profile):
         self.profile = profile  # it an cs xarray profile
-        self.depth = xcoords.get_depth(profile)
+        self.depth = scf.get_depth(profile)
         self.depth_dim = self.depth.dims[0]
 
     @functools.cached_property

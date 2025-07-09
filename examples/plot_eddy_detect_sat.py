@@ -10,12 +10,11 @@ Detect eddies from satellite sea level
 # -----------------
 
 # Import needed stuff.
-import os, sys
+import os
 import time
 import matplotlib.pyplot as plt
 import xarray as xr
 
-sys.path.append('/home/shom/jbroust/Documents/CODE/SHOOT_LIB/')
 from shoot.eddies import Eddies
 from shoot.plot import create_map, pcarr
 
@@ -83,7 +82,7 @@ print('it takes %.1f s' % (end - start))
 # -----
 #
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-ds.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r")
+ds.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r", alpha=0.6)
 plt.quiver(ds.longitude.values, ds.latitude.values, ds.ugos.values, ds.vgos.values, transform=pcarr)
 for eddy in eddies.eddies:
     # for eddy in eddies_ssh:
