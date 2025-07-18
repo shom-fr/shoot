@@ -778,8 +778,8 @@ class Eddies2D:
                     "time": (("obs"), np.repeat(self.time, len(self.eddies))),
                     "i_cen": (("obs"), [e.i for e in self.eddies]),
                     "j_cen": (("obs"), [e.j for e in self.eddies]),
-                    "x_cen": (("obs"), [e.glon for e in self.eddies]),
-                    "y_cen": (("obs"), [e.glat for e in self.eddies]),
+                    "x_cen": (("obs"), [e.lon for e in self.eddies]),
+                    "y_cen": (("obs"), [e.lat for e in self.eddies]),
                     "track_id": (("obs"), [e.track_id for e in self.eddies]),
                     "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
                     "eff_radius": (("obs"), [e.radius for e in self.eddies]),
@@ -937,6 +937,12 @@ class EvolEddies2D:
         else:
             self.dt = None
 
+    def clean_track(self):
+        for eddy in self.eddies:
+            for e in eddy.eddies:
+                e.track_id = None
+                e.is_parent = False
+
     @classmethod
     def merge_ds(cls, dss):
         """
@@ -950,12 +956,10 @@ class EvolEddies2D:
             return
         eddies = []
         for ds in dss:
-            eddies_tmp = EvolEddies2D.reconstruct(ds).eddies
+            eddies_tmp = EvolEddies2D.reconstruct(ds)
             # refresh track_id
-            for eddy in eddies_tmp:
-                for e in eddy.eddies:
-                    e.track_id = None
-            eddies += eddies_tmp
+            eddies_tmp.clean_track()
+            eddies += eddies_tmp.eddies
         return cls(eddies)
 
     @classmethod

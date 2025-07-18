@@ -173,7 +173,7 @@ class AssociateMulti:
 
     @functools.cached_property
     def cost(self):
-        """ "cost function between each eddy pairs"""
+        """cost function between each eddy pairs"""
         nj = np.sum([len(self.parent_eddies[k]) for k in range(len(self.parent_eddies))])
         M = np.zeros((len(self.new_eddies), nj))
         for i in range(len(self.new_eddies)):
