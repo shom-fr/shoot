@@ -8,6 +8,7 @@ import math
 import numpy as np
 import numba
 import xarray as xr
+from scipy.signal import argrelmax, argrelmin
 import xoa.coords as xcoords
 from . import grid as sgrid
 from . import num as snum
@@ -32,6 +33,7 @@ class Anomaly:
             self.depth = xcoords.get_depth(dens).squeeze()
         self.xdim = xcoords.get_xdim(self.dens, errors="raise")
         self.ydim = xcoords.get_ydim(self.dens, errors="raise")
+        self.zdim = xcoords.get_zdim(self.dens, errors="raise")
         self.nz = nz
         self._jmax = len(self.dens[self.xdim])
         self._imax = len(self.dens[self.ydim])
@@ -74,7 +76,9 @@ class Anomaly:
     @functools.cached_property
     def depth_vector(self):
         depth = self.depth.isel({self.xdim: self._j, self.ydim: self._i})
-        return np.linspace(depth.values[0], depth.values[-1], self.nz)
+        return xr.DataArray(
+            np.linspace(depth.values[0], depth.values[-1], self.nz), dims="depth_int"
+        )
 
     @functools.cached_property
     def profil_inside(self):
@@ -242,117 +246,102 @@ class Anomaly:
             }
         )
 
+    @staticmethod
+    def _interp_profils(depth, var, depth_vector):
+        if depth_vector[0] < depth_vector[-1]:
+            return np.interp(
+                depth_vector,
+                depth,
+                var,
+            )
+        else:
+            return np.interp(
+                depth_vector[::-1],
+                depth[::-1],
+                var[::-1],
+            )[::-1]
+
+    @functools.cached_property
+    def profils_inside(self):
+        return xr.apply_ufunc(
+            self._interp_profils,
+            self._depths_inside.transpose("nb_profil", self.zdim),
+            self._profils_inside.transpose("nb_profil", self.zdim),
+            self.depth_vector,
+            input_core_dims=[[self.zdim], [self.zdim], [self.depth_vector.dims[0]]],
+            output_core_dims=[[self.depth_vector.dims[0]]],
+            dask_gufunc_kwargs={
+                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
+            },
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[self.profil_inside.dtype],
+        ).compute()
+
+    @functools.cached_property
+    def profils_outside(self):
+        return xr.apply_ufunc(
+            self._interp_profils,
+            self._depths_outside.transpose("nb_profil", self.zdim),
+            self._profils_outside.transpose("nb_profil", self.zdim),
+            self.depth_vector,
+            input_core_dims=[[self.zdim], [self.zdim], [self.depth_vector.dims[0]]],
+            output_core_dims=[[self.depth_vector.dims[0]]],
+            dask_gufunc_kwargs={
+                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
+            },
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[self.profil_inside.dtype],
+        ).compute()
+
     @functools.cached_property
     def mean_profil_inside(self):
-        p = np.empty((len(self._profils_inside.nb_profil), self.nz))
-        for i in range(len(self._profils_inside.nb_profil)):
-            if self.depth_vector[0] < self.depth_vector[-1]:  # increasing case
-                p[i] = np.interp(
-                    self.depth_vector,
-                    self._depths_inside.isel(nb_profil=i),
-                    self._profils_inside.isel(nb_profil=i),
-                )
-            else:
-                p[i] = np.interp(
-                    self.depth_vector[::-1],
-                    self._depths_inside.isel(nb_profil=i)[::-1],
-                    self._profils_inside.isel(nb_profil=i)[::-1],
-                )[::-1]
-
-        # return xr.DataArray(
-        #     p.mean(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        # )
-        return xr.DataArray(
-            np.nanmean(p, axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        )
+        return self.profils_inside.mean(dim="nb_profil")
 
     @functools.cached_property
     def std_profil_inside(self):
-        p = np.empty((len(self._profils_inside.nb_profil), self.nz))
-        for i in range(len(self._profils_inside.nb_profil)):
-            if self.depth_vector[0] < self.depth_vector[-1]:
-                p[i] = np.interp(
-                    self.depth_vector,
-                    self._depths_inside.isel(nb_profil=i),
-                    self._profils_inside.isel(nb_profil=i),
-                )
-            else:
-                p[i] = np.interp(
-                    self.depth_vector[::-1],
-                    self._depths_inside.isel(nb_profil=i)[::-1],
-                    self._profils_inside.isel(nb_profil=i)[::-1],
-                )[::-1]
-        # return xr.DataArray(
-        #     p.std(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        # )
-        return xr.DataArray(
-            np.nanstd(p, axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        )
+        return self.profils_inside.std(dim="nb_profil")
 
     @functools.cached_property
     def mean_profil_outside(self):
-        p = np.empty((len(self._profils_outside.nb_profil), self.nz))
-        for i in range(len(self._profils_outside.nb_profil)):
-            if self.depth_vector[0] < self.depth_vector[-1]:
-                p[i] = np.interp(
-                    self.depth_vector,
-                    self._depths_outside.isel(nb_profil=i),
-                    self._profils_outside.isel(nb_profil=i),
-                )
-            else:
-                p[i] = np.interp(
-                    self.depth_vector[::-1],
-                    self._depths_outside.isel(nb_profil=i)[::-1],
-                    self._profils_outside.isel(nb_profil=i)[::-1],
-                )[::-1]
-        # return xr.DataArray(
-        #     p.mean(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        # )
-        return xr.DataArray(
-            np.nanmean(p, axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        )
+        return self.profils_outside.mean(dim="nb_profil")
 
     @functools.cached_property
     def std_profil_outside(self):
-        p = np.empty((len(self._profils_outside.nb_profil), self.nz))
-        for i in range(len(self._profils_outside.nb_profil)):
-            if self.depth_vector[0] < self.depth_vector[-1]:
-                p[i] = np.interp(
-                    self.depth_vector,
-                    self._depths_outside.isel(nb_profil=i),
-                    self._profils_outside.isel(nb_profil=i),
-                )
-            else:
-                p[i] = np.interp(
-                    self.depth_vector[::-1],
-                    self._depths_outside.isel(nb_profil=i)[::-1],
-                    self._profils_outside.isel(nb_profil=i)[::-1],
-                )[::-1]
-        # return xr.DataArray(
-        #     p.std(axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        # )
-        return xr.DataArray(
-            np.nanstd(p, axis=0), dims=self.depth.name, coords={self.depth.name: self.depth_vector}
-        )
+        return self.profils_outside.std(dim="nb_profil")
 
     @functools.cached_property
-    def anomaly(self):  ## Pour l'instant fait hypothèse de niveaux équirépartie
-        # return self.profil_inside - self.mean_profil_outside
+    def anomaly(self):
         return self.mean_profil_inside - self.mean_profil_outside
 
     @functools.cached_property
-    def center_anomaly(self):  ## Pour l'instant fait hypothèse de niveaux équirépartie
+    def center_anomaly(self):
         return self.profil_inside - self.mean_profil_outside
 
     @functools.cached_property
-    def core_depth(self):
+    def _icore_depth(self):
         if np.isnan(self.anomaly).all():
             return None
-        return np.abs(self.depth_vector[np.nanargmax(np.abs(self.anomaly))])
+        if self.depth_vector[0] < self.depth_vector[-1]:
+            if self.eddy.eddy_type == "anticyclone":
+                icore = argrelmin(self.anomaly.values)[0][0]  # take deepest
+            else:
+                icore = argrelmax(self.anomaly.values)[0][0]
+        else:
+            if self.eddy.eddy_type == "anticyclone":
+                icore = argrelmin(self.anomaly.values)[0][-1]  # take deepest
+            else:
+                icore = argrelmax(self.anomaly.values)[0][-1]
+        return icore
+
+    @functools.cached_property
+    def core_depth(self):
+        return np.abs(self.depth_vector[self._icore_depth])
 
     @functools.cached_property
     def intensity(self):
-        return np.nanmax(np.abs(self.anomaly))
+        return np.abs(self.anomaly[self._icore_depth])
 
 
 def compute_anomalies(eddies, dens, nz=100, r_factor=1.2):

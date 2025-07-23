@@ -33,13 +33,9 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     lat2d, lon2d = xr.broadcast(lat, lon)
 
     cont_gen = cpy.contour_generator(z=ssh.values)
-    # lines = []
-    # lons = []
-    # lats = []
     vmin, vmax = np.nanquantile(ssh, [robust, 1 - robust])
     point = np.array([lon_center, lat_center])
     dss = []
-    # for level in np.linspace(vmin, vmax, nlevels):
     if len(np.arange(vmin, vmax + 0.005, 0.005)) < nlevels:
         ran = np.arange(vmin, vmax + 0.005, 0.005)
     else:
