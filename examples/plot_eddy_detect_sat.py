@@ -14,8 +14,8 @@ import os
 import time
 import matplotlib.pyplot as plt
 import xarray as xr
+from shoot.eddies.eddies2d import Eddies2D
 
-from shoot.eddies import Eddies
 from shoot.plot import create_map, pcarr
 
 xr.set_options(display_style="text")
@@ -24,8 +24,8 @@ xr.set_options(display_style="text")
 # Read data
 # ---------
 
-root_path = '../data'
-path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc')
+root_path = "../data"
+path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
 # select one specific date for this example
 ds = xr.open_dataset(path).isel(time=0)
 
@@ -35,7 +35,6 @@ ds = xr.open_dataset(path).isel(time=0)
 
 # Parameters
 # ~~~~~~~~~~
-
 
 # Window size in km to compute the LNAM and find eddy centers : Lb
 window_center = 50
@@ -64,7 +63,7 @@ ellipse_error = 0.05  # percentage error from an ellipse
 ####
 
 start = time.time()
-eddies = Eddies.detect_eddies(
+eddies = Eddies2D.detect_eddies(
     ds.ugos,
     ds.vgos,
     window_center,
@@ -75,17 +74,28 @@ eddies = Eddies.detect_eddies(
     ellipse_error=ellipse_error,
 )
 end = time.time()
-print('it takes %.1f s' % (end - start))
+print("it takes %.1f s" % (end - start))
 
 # %%
 # Plots
 # -----
 #
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-ds.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r", alpha=0.6)
-plt.quiver(ds.longitude.values, ds.latitude.values, ds.ugos.values, ds.vgos.values, transform=pcarr)
+ds.adt.plot(
+    ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r", alpha=0.6
+)
+plt.quiver(
+    ds.longitude.values,
+    ds.latitude.values,
+    ds.ugos.values,
+    ds.vgos.values,
+    transform=pcarr,
+)
 for eddy in eddies.eddies:
     # for eddy in eddies_ssh:
     eddy.plot(transform=pcarr, lw=1)
-plt.title('w_center %i km, w_fit %ikm min_rad %ikm' % (window_center, window_fit, min_radius))
+plt.title(
+    "w_center %i km, w_fit %ikm min_rad %ikm"
+    % (window_center, window_fit, min_radius)
+)
 plt.tight_layout()

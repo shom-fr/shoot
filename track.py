@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Eddy tracking
+Created on Thu Jan  9 13:24:21 2025
+
+@author: jbroust
 """
 
 import functools
-
 import numpy as np
 import xarray as xr
 from scipy.optimize import linear_sum_assignment
+import xoa.geo as xgeo
 
-from . import geo as sgeo
-from . import eddies as seddies
+from . import eddies2d as seddies
 
 
 class Associate:
-    """Eddy association"""
-
     def __init__(self, track_eddies, parent_eddies, new_eddies, Dt, Tc, C=6.5 * 1e3 / 86400):
         self.parent_eddies = parent_eddies  # reference eddies
         self.new_eddies = new_eddies  # next time eddies
@@ -60,13 +59,13 @@ class Associate:
         M = np.zeros((len(self.new_eddies), len(self.parent_eddies)))
         for i in range(len(self.new_eddies)):
             for j in range(len(self.parent_eddies)):
-                # print('eddy 1 ', self.parent_eddies[j].glon, self.parent_eddies[j].glat, self.parent_eddies[j].eddy_type)
-                # print('eddy 2 ', self.new_eddies[i].glon, self.new_eddies[i].glat, self.new_eddies[i].eddy_type)
+                # print('eddy 1 ', self.parent_eddies[j].lon, self.parent_eddies[j].lat, self.parent_eddies[j].eddy_type)
+                # print('eddy 2 ', self.new_eddies[i].lon, self.new_eddies[i].lat, self.new_eddies[i].eddy_type)
                 # print('Mij %.2f before'%M[i,j])
-                dlat = self.parent_eddies[j].glat - self.new_eddies[i].glat
-                dlon = self.parent_eddies[j].glon - self.new_eddies[i].glon
-                x = sgeo.deg2m(dlon, self.parent_eddies[j].glat)
-                y = sgeo.deg2m(dlat)
+                dlat = self.parent_eddies[j].lat - self.new_eddies[i].lat
+                dlon = self.parent_eddies[j].lon - self.new_eddies[i].lon
+                x = xgeo.deg2m(dlon, self.parent_eddies[j].lat)
+                y = xgeo.deg2m(dlat)
 
                 D_ij = self.search_dist(self.parent_eddies[j], self.new_eddies[i])
 
@@ -174,20 +173,20 @@ class AssociateMulti:
 
     @functools.cached_property
     def cost(self):
-        """ "cost function between each eddy pairs"""
+        """cost function between each eddy pairs"""
         nj = np.sum([len(self.parent_eddies[k]) for k in range(len(self.parent_eddies))])
         M = np.zeros((len(self.new_eddies), nj))
         for i in range(len(self.new_eddies)):
             cmp = 0
             for k in range(len(self.parent_eddies)):
                 for j in range(len(self.parent_eddies[k])):
-                    # print('eddy 1 ', self.parent_eddies[j].glon, self.parent_eddies[j].glat, self.parent_eddies[j].eddy_type)
-                    # print('eddy 2 ', self.new_eddies[i].glon, self.new_eddies[i].glat, self.new_eddies[i].eddy_type)
+                    # print('eddy 1 ', self.parent_eddies[j].lon, self.parent_eddies[j].lat, self.parent_eddies[j].eddy_type)
+                    # print('eddy 2 ', self.new_eddies[i].lon, self.new_eddies[i].lat, self.new_eddies[i].eddy_type)
                     # print('Mij %.2f before'%M[i,j])
-                    dlat = self.parent_eddies[k][j].glat - self.new_eddies[i].glat
-                    dlon = self.parent_eddies[k][j].glon - self.new_eddies[i].glon
-                    x = sgeo.deg2m(dlon, self.parent_eddies[k][j].glat)
-                    y = sgeo.deg2m(dlat)
+                    dlat = self.parent_eddies[k][j].lat - self.new_eddies[i].lat
+                    dlon = self.parent_eddies[k][j].lon - self.new_eddies[i].lon
+                    x = xgeo.deg2m(dlon, self.parent_eddies[k][j].lat)
+                    y = xgeo.deg2m(dlat)
 
                     D_ij = self.search_dist(
                         self.parent_eddies[k][j], self.new_eddies[i], self._Dt[k]
@@ -308,10 +307,10 @@ class Track:
                     ("eddies"),
                     [(self.times[-1] - self.times[0]) / np.timedelta64(1, 'D')],
                 ),
-                "x_start": (("eddies"), [self.eddies[0].glat]),
-                "y_start": (("eddies"), [self.eddies[0].glat]),
-                "x_end": (("eddies"), [self.eddies[-1].glon]),
-                "y_end": (("eddies"), [self.eddies[-1].glat]),
+                "x_start": (("eddies"), [self.eddies[0].lon]),
+                "y_start": (("eddies"), [self.eddies[0].lat]),
+                "x_end": (("eddies"), [self.eddies[-1].lon]),
+                "y_end": (("eddies"), [self.eddies[-1].lat]),
                 "eddy_type": (("eddies"), [self.eddies[0].eddy_type]),
             },
         )
@@ -374,7 +373,7 @@ class Tracks:
         return xr.merge([ds_eddies, ds])
 
     def save(self, path_nc):
-        """Save to netcdf"""
+        "this save at .nc format"
         self.ds.to_netcdf(path_nc)
 
     def track_init(self):
@@ -481,8 +480,7 @@ def track_eddies(eddies, nback):
 
 
 def update_tracks(ds, new_eddies, nback):
-    """Update tracking based on new eddies detection
-
+    """update tracking based on new eddies detection
     Parameters
     ----------
     ds: xarray dataset
@@ -498,7 +496,7 @@ def update_tracks(ds, new_eddies, nback):
 
     Returns
     -------
-    tracks: Tracks object
+     tracks: Tracks object
          updated track object
     """
     tracks = Tracks.reconstruct(ds, nback)
