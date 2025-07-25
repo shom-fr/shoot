@@ -48,7 +48,9 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
                 if snum.points_in_polygon(
                     point, np.array([xx, yy]).T
                 ):  # Check if it contains the center
-                    if np.any(np.isnan(ssh)):  # Chek if it contains land points inside
+                    if np.any(
+                        np.isnan(ssh)
+                    ):  # Chek if it contains land points inside
                         nan_indexes = np.where(np.isnan(ssh))
                         nan_points = np.array(
                             [
@@ -56,13 +58,21 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
                                 for i, j in zip(nan_indexes[0], nan_indexes[1])
                             ]
                         )
-                        if np.any(snum.points_in_polygon(nan_points, np.array([xx, yy]).T)):
+                        if np.any(
+                            snum.points_in_polygon(
+                                nan_points, np.array([xx, yy]).T
+                            )
+                        ):
                             continue
                     dss.append(
                         xr.Dataset(
                             {"line": (("npts", "ncoords"), line)},
                             coords={
-                                "lon": ("npts", xx, {"long_name": "Longitude"}),
+                                "lon": (
+                                    "npts",
+                                    xx,
+                                    {"long_name": "Longitude"},
+                                ),
                                 "lat": ("npts", yy, {"long_name": "Latitude"}),
                             },
                             attrs={
@@ -97,7 +107,11 @@ def add_contour_uv(ds, u, v):
         xdist = sgeo.deg2m(ds.lon - ds.lon_center, ds.lat_center).values
         ydist = sgeo.deg2m(ds.lat - ds.lat_center).values
         am = xdist * vc - ydist * uc
-        ds["am"] = ("npts", am, {"long_name": "Angular momentum", "units": "m2.s-2"})
+        ds["am"] = (
+            "npts",
+            am,
+            {"long_name": "Angular momentum", "units": "m2.s-2"},
+        )
         ds.attrs["mean_velocity"] = float(np.sqrt(ds.u**2 + ds.v**2).mean())
         ds.attrs["mean_angular_momentum"] = float(ds.am.mean())
         ds.attrs["radius"] = float(np.mean(np.sqrt(xdist**2 + ydist**2)))
@@ -175,7 +189,12 @@ def get_lnam_peaks(lnam, K=0.7):
         # ijmax = abs(lnam).isel({lnam.dims[0]:slice(lat_min,lat_max), lnam.dims[1]:slice(lon_min,lon_max)}).argmax(lnam.dims)
         ijmax = (
             abs(lnam)
-            .isel({lnam.dims[0]: slice(jmin, jmax), lnam.dims[1]: slice(imin, imax)})
+            .isel(
+                {
+                    lnam.dims[0]: slice(jmin, jmax),
+                    lnam.dims[1]: slice(imin, imax),
+                }
+            )
             .argmax(lnam.dims)
         )
         jmax_in = ijmax[lnam.dims[0]].data  # lat
@@ -195,10 +214,14 @@ def get_lnam_peaks(lnam, K=0.7):
         # icenter = lnam.indexes[lon_name].get_loc(float(lon_center.data))
 
         jcenter = (
-            (abs(lat2d - lat_center) + abs(lon2d - lon_center)).argmin(lnam.dims)[lnam.dims[0]].data
+            (abs(lat2d - lat_center) + abs(lon2d - lon_center))
+            .argmin(lnam.dims)[lnam.dims[0]]
+            .data
         )
         icenter = (
-            (abs(lat2d - lat_center) + abs(lon2d - lon_center)).argmin(lnam.dims)[lnam.dims[1]].data
+            (abs(lat2d - lat_center) + abs(lon2d - lon_center))
+            .argmin(lnam.dims)[lnam.dims[1]]
+            .data
         )
 
         if lnam[jcenter, icenter] > 0:
@@ -221,5 +244,7 @@ def area(ds):
         + sgeo.deg2m(ds.lat[:-1] - ds.lat[1:]).values ** 2
     )
 
-    theta = np.arccos((-dx + xydist[1:] + xydist[:-1]) / (xydist[1:] + xydist[:-1]))
+    theta = np.arccos(
+        (-dx + xydist[1:] + xydist[:-1]) / (xydist[1:] + xydist[:-1])
+    )
     return np.sum(xyavg * theta)

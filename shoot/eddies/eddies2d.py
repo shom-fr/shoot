@@ -15,6 +15,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import json
 
+import xoa.geo as xgeo
+
 from .. import num as snum
 from .. import dyn as sdyn
 from .. import grid as sgrid
@@ -63,7 +65,9 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
 
     # Find local peaks
     wx, wy = sgrid.get_wx_wy(window, dxm, dym)  ## WARNING IT HAS BEEN MODIFIED
-    minima, maxima = snum.find_signed_peaks_2d(lnam.values, wx, wy, paral=paral)
+    minima, maxima = snum.find_signed_peaks_2d(
+        lnam.values, wx, wy, paral=paral
+    )
     extrema = np.vstack((minima, maxima))
     ii = extrema[:, 0]
     jj = extrema[:, 1]
@@ -79,8 +83,16 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
 
     return xr.Dataset(
         {
-            "lnam": ("neddies", elnam, {"long_name": "Local normalized angular momentum"}),
-            "coriolis": ("neddies", ecorio, {"long_name": "Coriolis parameter"}),
+            "lnam": (
+                "neddies",
+                elnam,
+                {"long_name": "Local normalized angular momentum"},
+            ),
+            "coriolis": (
+                "neddies",
+                ecorio,
+                {"long_name": "Coriolis parameter"},
+            ),
             "ow": ("neddies", eow, {"long_name": "Okubow Weiss"}),
         },
         coords={
@@ -89,7 +101,13 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
             "lon": ("neddies", elons, {"long_name": "Longitudes"}),
             "lat": ("neddies", elats, {"long_name": "Latitudes"}),
         },
-        attrs={"window": window, "wx": wx, "wy": wy, "dx_mean": dxm, "dy_mean": dym},
+        attrs={
+            "window": window,
+            "wx": wx,
+            "wy": wy,
+            "dx_mean": dxm,
+            "dy_mean": dym,
+        },
     )
 
 
@@ -97,11 +115,19 @@ class Ellipse:
     """A basic ellipse object with minimum information"""
 
     def __init__(self, lon, lat, a, b, angle, sign=0, fit=None):
-        self.lon, self.lat, self.a, self.b, self.angle, self.sign = lon, lat, a, b, angle, sign
+        self.lon, self.lat, self.a, self.b, self.angle, self.sign = (
+            lon,
+            lat,
+            a,
+            b,
+            angle,
+            sign,
+        )
         self.fit_error = fit
         self.radius = np.sqrt(self.a * self.b)
         self.length = np.pi * (
-            3 * (self.a + self.b) - np.sqrt((3 * self.a + self.b) * (self.a + 3 * self.b))
+            3 * (self.a + self.b)
+            - np.sqrt((3 * self.a + self.b) * (self.a + 3 * self.b))
         )
 
     @classmethod
@@ -125,12 +151,12 @@ class Ellipse:
 
     def to_json(self):
         obj = {
-            'lon': self.lon,
-            'lat': self.lat,
-            'a': self.a,
-            'b': self.b,
-            'angle': self.angle,
-            'eddy_type': self.eddy_type,
+            "lon": self.lon,
+            "lat": self.lat,
+            "a": self.a,
+            "b": self.b,
+            "angle": self.angle,
+            "eddy_type": self.eddy_type,
         }
         return json.dumps(obj)
 
@@ -170,7 +196,15 @@ class Ellipse:
             color = self.color
 
         return splot.plot_ellipse(
-            self.lon, self.lat, self.a, self.b, self.angle, ax=ax, npts=npts, color=color, **kwargs
+            self.lon,
+            self.lat,
+            self.a,
+            self.b,
+            self.angle,
+            ax=ax,
+            npts=npts,
+            color=color,
+            **kwargs,
         )
 
 
@@ -232,7 +266,11 @@ class RawEddy2D:
     def contours(self):
         # Closed contours
         dss = scontours.get_closed_contours(
-            self.glon, self.glat, self.ssh, nlevels=self.nlevels, robust=self.robust
+            self.glon,
+            self.glat,
+            self.ssh,
+            nlevels=self.nlevels,
+            robust=self.robust,
         )
         # Fit ellipses, add currents and filter
         valid_contours = []
@@ -240,7 +278,8 @@ class RawEddy2D:
             ellipse = Ellipse.from_coords(ds.lon, ds.lat)
             # check if ellipse center fall inside the eddy contour
             if not snum.points_in_polygon(
-                np.array([ellipse.lon, ellipse.lat]), np.array([ds.lon, ds.lat]).T
+                np.array([ellipse.lon, ellipse.lat]),
+                np.array([ds.lon, ds.lat]).T,
             ):
                 continue
             if ellipse.fit_error < self.max_ellipse_error:
@@ -283,15 +322,19 @@ class RawEddy2D:
             if ds.length > dsb.length:
                 dsb = ds
         # interpolation step using splrep
-        ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
+        ok = np.where(
+            np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10
+        )[0]
         ok = np.concatenate([ok, [len(dsb.lon) - 1]])
         try:
-            tck, u = splprep([dsb.lon[ok], dsb.lat[ok]], s=0, per=1)  # avoid repeated values
+            tck, u = splprep(
+                [dsb.lon[ok], dsb.lat[ok]], s=0, per=1
+            )  # avoid repeated values
         except ValueError:
             print("certainement un problème de redondance des points")
         xy_int = splev(np.linspace(0, 1, 50), tck)
-        dsb['lon_int'] = xy_int[0]
-        dsb['lat_int'] = xy_int[1]
+        dsb["lon_int"] = xy_int[0]
+        dsb["lat_int"] = xy_int[1]
         return dsb
 
     @property
@@ -350,15 +393,22 @@ class RawEddy2D:
         dsv = self.contours[0]
         for ds in self.contours:
             if ds.mean_velocity > dsv.mean_velocity:
-                if Ellipse.from_coords(ds.lon, ds.lat).fit_error > self.max_ellipse_error / 5:
+                if (
+                    Ellipse.from_coords(ds.lon, ds.lat).fit_error
+                    > self.max_ellipse_error / 5
+                ):
                     continue
                 dsv = ds
-        ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
+        ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[
+            0
+        ]
         ok = np.concatenate([ok, [len(dsv.lon) - 1]])
-        tck, u = splprep([dsv.lon[ok], dsv.lat[ok]], s=0)  # avoid repeated values
+        tck, u = splprep(
+            [dsv.lon[ok], dsv.lat[ok]], s=0
+        )  # avoid repeated values
         xy_int = splev(np.linspace(0, 1, 50), tck)
-        dsv['lon_int'] = xy_int[0]
-        dsv['lat_int'] = xy_int[1]
+        dsv["lon_int"] = xy_int[0]
+        dsv["lat_int"] = xy_int[1]
         return dsv
 
     @property
@@ -390,14 +440,18 @@ class RawEddy2D:
         return snum.points_in_polygon(points, self.boundary_contour)
 
     def contains_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
+        points = np.array(
+            [eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]
+        ).T
         valid = snum.points_in_polygon(
             points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T
         )
         return valid.all()
 
     def intersects_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
+        points = np.array(
+            [eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]
+        ).T
         valid = snum.points_in_polygon(
             points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T
         )
@@ -417,12 +471,17 @@ class RawEddy2D:
             #     self.boundary_contour.lon, self.boundary_contour.lat, lw=lw, **kw
             # )
             out["boundary"] = ax.plot(
-                self.boundary_contour.lon_int, self.boundary_contour.lat_int, lw=lw, **kw
+                self.boundary_contour.lon_int,
+                self.boundary_contour.lat_int,
+                lw=lw,
+                **kw,
             )
             # out["ellipse"] = self.boundary_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             # out["ellipse"] = self.vmax_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
-            out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
+            out["velmax"] = ax.plot(
+                self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw
+            )
         return out
 
     def plot_previ(self, ax=None, lw=1, color=None, **kwargs):
@@ -435,7 +494,9 @@ class RawEddy2D:
         out = {"center": ax.scatter(self.lon, self.lat, **kw)}
         if self.ncontours:
             out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
-            out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
+            out["velmax"] = ax.plot(
+                self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw
+            )
         return out
 
 
@@ -563,7 +624,7 @@ class Eddies2D:
         window_fit = float(ds.window_fit[:-3])
         min_radius = float(ds.min_radius[:-3])
         eddies = []
-        track = False if ds.eddy_type.dims[0] == 'obs' else True
+        track = False if ds.eddy_type.dims[0] == "obs" else True
         for i in range(len(ds.obs)):
             eddies.append(Eddy.reconstruct(ds.isel(obs=i), track))
             if i == 0:
@@ -610,7 +671,9 @@ class Eddies2D:
         lat2d, lon2d = xr.broadcast(lat, lon)
 
         # find eddy centers
-        centers = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=False)
+        centers = find_eddy_centers(
+            u, v, window_center, dx=dxm, dy=dym, paral=False
+        )
 
         # Fit window
         wx, wy = sgrid.get_wx_wy(
@@ -685,19 +748,29 @@ class Eddies2D:
 
             if paral:
                 with mp.Pool(nb_procs) as p:
-                    eddies_tmp = p.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
+                    eddies_tmp = p.starmap(
+                        Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius))
+                    )
             else:
-                eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
+                eddies_tmp = [
+                    Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp
+                ]
 
             ind_good = []
             for i, eddy in enumerate(eddies_tmp):
                 if not eddy is None:
-                    if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
+                    if (
+                        wx2c + int(wx2c / 2) >= 2 * wx2
+                    ):  # no more chance to be conserved
                         eddies.append(eddy)
                     else:
                         if (
-                            len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line)
-                            and (eddy.vmax_contour.line == eddy.boundary_contour.line).all()
+                            len(eddy.vmax_contour.line)
+                            == len(eddy.boundary_contour.line)
+                            and (
+                                eddy.vmax_contour.line
+                                == eddy.boundary_contour.line
+                            ).all()
                         ):
                             ind_good.append(i)
                         else:
@@ -718,20 +791,29 @@ class Eddies2D:
                     continue
                 # if eddies[i].contains_eddy(eddies[j]): #avoid full inclusion
                 if eddies[i].intersects_eddy(eddies[j]):  # avoid intersection
-                    if eddies[i].vmax_contour.mean_velocity > eddies[j].vmax_contour.mean_velocity:
+                    if (
+                        eddies[i].vmax_contour.mean_velocity
+                        > eddies[j].vmax_contour.mean_velocity
+                    ):
                         contain[j] = False
                     else:
                         contain[i] = False
 
         eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
         time = scf.get_time(u, errors="ignore")
-        return cls(time.values if time is not None else None, eddies, window_center, window_fit, min_radius)
+        return cls(
+            time.values if time is not None else None,
+            eddies,
+            window_center,
+            window_fit,
+            min_radius,
+        )
 
     @property
     def ds_track(self):
 
         if not hasattr(
-            self.eddies[0], 'boundary_contour'
+            self.eddies[0], "boundary_contour"
         ):  # check whether we have Raw2DEddy or Eddy object
             return xr.Dataset(
                 {
@@ -742,10 +824,22 @@ class Eddies2D:
                     "y_cen": (("obs"), [e.lat for e in self.eddies]),
                     "track_id": (("obs"), [e.track_id for e in self.eddies]),
                     "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
-                    "eff_radius": (("obs"), [e.eff_radius for e in self.eddies]),
-                    "eff_length": (("obs"), [e.eff_length for e in self.eddies]),
-                    "vmax_radius": (("obs"), [e.vmax_radius for e in self.eddies]),
-                    "vmax_length": (("obs"), [e.vmax_length for e in self.eddies]),
+                    "eff_radius": (
+                        ("obs"),
+                        [e.eff_radius for e in self.eddies],
+                    ),
+                    "eff_length": (
+                        ("obs"),
+                        [e.eff_length for e in self.eddies],
+                    ),
+                    "vmax_radius": (
+                        ("obs"),
+                        [e.vmax_radius for e in self.eddies],
+                    ),
+                    "vmax_length": (
+                        ("obs"),
+                        [e.vmax_length for e in self.eddies],
+                    ),
                     "vmax": (("obs"), [e.vmax for e in self.eddies]),
                     "ro": (("obs"), [e.ro for e in self.eddies]),
                     "radius": (("obs"), [e.radius for e in self.eddies]),
@@ -754,7 +848,10 @@ class Eddies2D:
                     "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
                     "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
                     "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
-                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "angle_ell": (
+                        ("obs"),
+                        [e.ellipse.angle for e in self.eddies],
+                    ),
                     "x_eff_contour": (
                         ("obs", "nb_sample"),
                         [e.x_eff for e in self.eddies],
@@ -773,9 +870,9 @@ class Eddies2D:
                     ),
                 },
                 attrs={
-                    'window_center': '%i km' % self.window_center,
-                    'window_fit': '%i km' % self.window_fit,
-                    'min_radius': '%i km' % self.min_radius,
+                    "window_center": "%i km" % self.window_center,
+                    "window_fit": "%i km" % self.window_fit,
+                    "min_radius": "%i km" % self.min_radius,
                     "project": "SHOOT",
                     "institution": "SHOM",
                     "contact": "jean.baptiste.roustan@shom.fr",
@@ -791,11 +888,26 @@ class Eddies2D:
                     "y_cen": (("obs"), [e.lat for e in self.eddies]),
                     "track_id": (("obs"), [e.track_id for e in self.eddies]),
                     "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
-                    "eff_radius": (("obs"), [e.boundary_contour.radius for e in self.eddies]),
-                    "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
-                    "vmax_radius": (("obs"), [e.vmax_contour.radius for e in self.eddies]),
-                    "vmax_length": (("obs"), [e.vmax_contour.length for e in self.eddies]),
-                    "vmax": (("obs"), [e.vmax_contour.mean_velocity for e in self.eddies]),
+                    "eff_radius": (
+                        ("obs"),
+                        [e.boundary_contour.radius for e in self.eddies],
+                    ),
+                    "eff_length": (
+                        ("obs"),
+                        [e.boundary_contour.length for e in self.eddies],
+                    ),
+                    "vmax_radius": (
+                        ("obs"),
+                        [e.vmax_contour.radius for e in self.eddies],
+                    ),
+                    "vmax_length": (
+                        ("obs"),
+                        [e.vmax_contour.length for e in self.eddies],
+                    ),
+                    "vmax": (
+                        ("obs"),
+                        [e.vmax_contour.mean_velocity for e in self.eddies],
+                    ),
                     "ro": (("obs"), [e.ro for e in self.eddies]),
                     "radius": (("obs"), [e.radius for e in self.eddies]),
                     "length": (("obs"), [e.length for e in self.eddies]),
@@ -803,7 +915,10 @@ class Eddies2D:
                     "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
                     "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
                     "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
-                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "angle_ell": (
+                        ("obs"),
+                        [e.ellipse.angle for e in self.eddies],
+                    ),
                     "x_eff_contour": (
                         ("obs", "nb_sample"),
                         [e.boundary_contour.lon_int for e in self.eddies],
@@ -822,9 +937,9 @@ class Eddies2D:
                     ),
                 },
                 attrs={
-                    'window_center': '%i km' % self.window_center,
-                    'window_fit': '%i km' % self.window_fit,
-                    'min_radius': '%i km' % self.min_radius,
+                    "window_center": "%i km" % self.window_center,
+                    "window_fit": "%i km" % self.window_fit,
+                    "min_radius": "%i km" % self.min_radius,
                     "project": "SHOOT",
                     "institution": "SHOM",
                     "contact": "jean.baptiste.roustan@shom.fr",
@@ -835,7 +950,7 @@ class Eddies2D:
     def ds(self):
 
         if not hasattr(
-            self.eddies[0], 'boundary_contour'
+            self.eddies[0], "boundary_contour"
         ):  # check whether we have Raw2DEddy or Eddy object
             return xr.Dataset(
                 {
@@ -847,10 +962,22 @@ class Eddies2D:
                     "track_id": (("obs"), [e.track_id for e in self.eddies]),
                     "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
                     "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
-                    "eff_radius": (("obs"), [e.eff_radius for e in self.eddies]),
-                    "eff_length": (("obs"), [e.eff_length for e in self.eddies]),
-                    "vmax_radius": (("obs"), [e.vmax_radius for e in self.eddies]),
-                    "vmax_length": (("obs"), [e.vmax_length for e in self.eddies]),
+                    "eff_radius": (
+                        ("obs"),
+                        [e.eff_radius for e in self.eddies],
+                    ),
+                    "eff_length": (
+                        ("obs"),
+                        [e.eff_length for e in self.eddies],
+                    ),
+                    "vmax_radius": (
+                        ("obs"),
+                        [e.vmax_radius for e in self.eddies],
+                    ),
+                    "vmax_length": (
+                        ("obs"),
+                        [e.vmax_length for e in self.eddies],
+                    ),
                     "vmax": (("obs"), [e.vmax for e in self.eddies]),
                     "ro": (("obs"), [e.ro for e in self.eddies]),
                     "radius": (("obs"), [e.radius for e in self.eddies]),
@@ -859,7 +986,10 @@ class Eddies2D:
                     "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
                     "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
                     "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
-                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "angle_ell": (
+                        ("obs"),
+                        [e.ellipse.angle for e in self.eddies],
+                    ),
                     "x_eff_contour": (
                         ("obs", "nb_sample"),
                         [e.x_eff for e in self.eddies],
@@ -878,9 +1008,9 @@ class Eddies2D:
                     ),
                 },
                 attrs={
-                    'window_center': '%i km' % self.window_center,
-                    'window_fit': '%i km' % self.window_fit,
-                    'min_radius': '%i km' % self.min_radius,
+                    "window_center": "%i km" % self.window_center,
+                    "window_fit": "%i km" % self.window_fit,
+                    "min_radius": "%i km" % self.min_radius,
                     "project": "SHOOT",
                     "institution": "SHOM",
                     "contact": "jean.baptiste.roustan@shom.fr",
@@ -897,11 +1027,26 @@ class Eddies2D:
                     "track_id": (("obs"), [e.track_id for e in self.eddies]),
                     "is_parent": (("obs"), [e.is_parent for e in self.eddies]),
                     "eddy_type": (("obs"), [e.eddy_type for e in self.eddies]),
-                    "eff_radius": (("obs"), [e.boundary_contour.radius for e in self.eddies]),
-                    "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
-                    "vmax_radius": (("obs"), [e.vmax_contour.radius for e in self.eddies]),
-                    "vmax_length": (("obs"), [e.vmax_contour.length for e in self.eddies]),
-                    "vmax": (("obs"), [e.vmax_contour.mean_velocity for e in self.eddies]),
+                    "eff_radius": (
+                        ("obs"),
+                        [e.boundary_contour.radius for e in self.eddies],
+                    ),
+                    "eff_length": (
+                        ("obs"),
+                        [e.boundary_contour.length for e in self.eddies],
+                    ),
+                    "vmax_radius": (
+                        ("obs"),
+                        [e.vmax_contour.radius for e in self.eddies],
+                    ),
+                    "vmax_length": (
+                        ("obs"),
+                        [e.vmax_contour.length for e in self.eddies],
+                    ),
+                    "vmax": (
+                        ("obs"),
+                        [e.vmax_contour.mean_velocity for e in self.eddies],
+                    ),
                     "ro": (("obs"), [e.ro for e in self.eddies]),
                     "radius": (("obs"), [e.radius for e in self.eddies]),
                     "length": (("obs"), [e.length for e in self.eddies]),
@@ -909,7 +1054,10 @@ class Eddies2D:
                     "y_ell": (("obs"), [e.ellipse.lat for e in self.eddies]),
                     "a_ell": (("obs"), [e.ellipse.a for e in self.eddies]),
                     "b_ell": (("obs"), [e.ellipse.b for e in self.eddies]),
-                    "angle_ell": (("obs"), [e.ellipse.angle for e in self.eddies]),
+                    "angle_ell": (
+                        ("obs"),
+                        [e.ellipse.angle for e in self.eddies],
+                    ),
                     "x_eff_contour": (
                         ("obs", "nb_sample"),
                         [e.boundary_contour.lon_int for e in self.eddies],
@@ -928,9 +1076,9 @@ class Eddies2D:
                     ),
                 },
                 attrs={
-                    'window_center': '%i km' % self.window_center,
-                    'window_fit': '%i km' % self.window_fit,
-                    'min_radius': '%i km' % self.min_radius,
+                    "window_center": "%i km" % self.window_center,
+                    "window_fit": "%i km" % self.window_fit,
+                    "min_radius": "%i km" % self.min_radius,
                     "project": "SHOOT",
                     "institution": "SHOM",
                     "contact": "jean.baptiste.roustan@shom.fr",
@@ -950,7 +1098,8 @@ class EvolEddies2D:
         if len(eddies) > 1:
             self.dt = np.mean(
                 [
-                    (eddies[i].time - eddies[i - 1].time) / np.timedelta64(1, 's')
+                    (eddies[i].time - eddies[i - 1].time)
+                    / np.timedelta64(1, "s")
                     for i in range(1, len(eddies))
                 ]
             )
@@ -1022,7 +1171,9 @@ class EvolEddies2D:
             import psutil
 
             process = psutil.Process(os.getpid())
-            print(f"Used memory : {process.memory_info().rss / 1024**2:.2f} MB")
+            print(
+                f"Used memory : {process.memory_info().rss / 1024**2:.2f} MB"
+            )
             # print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel({time.name: i})
             ssh_ = dss[ssh] if ssh is not False else False
@@ -1049,25 +1200,29 @@ class EvolEddies2D:
     @property
     def ds(self):
         ds = None
-        for eddies in self.eddies:  # warning ifno eddies have been detected it crashes
+        for (
+            eddies
+        ) in self.eddies:  # warning ifno eddies have been detected it crashes
             if len(eddies.eddies) == 0:
                 continue
             if ds is None:
                 ds = eddies.ds
             else:
-                ds = xr.concat([ds, eddies.ds], dim='obs')
+                ds = xr.concat([ds, eddies.ds], dim="obs")
         return ds
 
     @property
     def ds_track(self):
         ds = None
-        for eddies in self.eddies:  # warning info eddies have been detected it crashes
+        for (
+            eddies
+        ) in self.eddies:  # warning info eddies have been detected it crashes
             if len(eddies.eddies) == 0:
                 continue
             if ds is None:
                 ds = eddies.ds_track
             else:
-                ds = xr.concat([ds, eddies.ds_track], dim='obs')
+                ds = xr.concat([ds, eddies.ds_track], dim="obs")
         return ds
 
     def save(self, path_nc):

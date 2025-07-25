@@ -19,7 +19,7 @@ def psi(u, v):
 
     # get lat, lon
     lat, lon = scf.get_lat(u), scf.get_lon(u)
-    lat2d, lon2d = xr.broadcast(lon, lat)
+    lat2d, lon2d = xr.broadcast(lat, lon)
 
     lon_ref = lon.mean()  # lon[ci]#lon.mean()
     lat_ref = lat.mean()  # lat[cj]#lat.mean()

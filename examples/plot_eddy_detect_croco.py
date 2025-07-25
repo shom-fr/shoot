@@ -32,8 +32,8 @@ xcf.set_cf_specs("croco.cfg")
 # Read data
 
 # Mind that the dataarray should be 2D : single time and single depth
-root_path = '../data'
-path = os.path.join(root_path, 'gigatl1-1000m.nc')
+root_path = "../data"
+path = os.path.join(root_path, "gigatl1-1000m.nc")
 ds = xr.open_dataset(path).isel(time=0)
 
 
@@ -52,13 +52,13 @@ window_fit = 120
 
 # %%
 # Minimal radius of an eddy to retain it
-min_radius = 15
+min_radius = 10
 
 # %%
 # Ellipse error
 # preconised 1% for deep field, 5% to 10% to surface field
 
-ellipse_error = 0.01
+ellipse_error = 0.05
 # %%
 # Detection
 # ---------
@@ -71,10 +71,13 @@ eddies = Eddies2D.detect_eddies(
     window_fit=window_fit,
     min_radius=min_radius,
     paral=False,
-    ellipse_error=0.01,
+    ellipse_error=ellipse_error,
 )
 end = time.time()
-print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - start))
+print(
+    "Number of detected eddies %i in %.1f s"
+    % (len(eddies.eddies), end - start)
+)
 
 # %%
 # Plots
@@ -85,7 +88,12 @@ print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - star
 
 fig, ax = create_map(ds.lon_rho, ds.lat_rho, figsize=(8, 5))
 get_relvort(ds.u, ds.v).plot(
-    x="lon_rho", y="lat_rho", cmap=cm.cm.curl, ax=ax, add_colorbar=False, transform=pcarr
+    x="lon_rho",
+    y="lat_rho",
+    cmap=cm.cm.curl,
+    ax=ax,
+    add_colorbar=False,
+    transform=pcarr,
 )
 nj = 5
 plt.quiver(

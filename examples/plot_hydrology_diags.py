@@ -31,9 +31,9 @@ xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
-root_path = '../data'
-path = os.path.join(root_path, 'pelops_3d.nc')
 
+root_path = "../data"
+path = os.path.join(root_path, "pelops_3d.nc")
 ds_3d = xr.open_dataset(path)
 ds_2d = ds_3d.isel(s_rho=len(ds_3d.s_rho) - 1)
 
@@ -69,7 +69,7 @@ eddies = Eddies2D.detect_eddies(
     paral=True,
 )
 end = time.time()
-print('it takes %.1f s' % (end - start))
+print("it takes %.1f s" % (end - start))
 
 
 # %%
@@ -94,7 +94,12 @@ anomaly = Anomaly(eddy, eddies, ds_3d.sig0, depth=ds_3d.depth, r_factor=1.2)
 #
 fig, ax = create_map(ds_2d.lon_rho, ds_2d.lat_rho, figsize=(8, 5))
 get_relvort(ds_2d.u, ds_2d.v).plot(
-    x="lon_rho", y="lat_rho", cmap=cm.cm.curl, ax=ax, add_colorbar=False, transform=pcarr
+    x="lon_rho",
+    y="lat_rho",
+    cmap=cm.cm.curl,
+    ax=ax,
+    add_colorbar=False,
+    transform=pcarr,
 )
 
 for eddy in eddies.eddies:
@@ -103,7 +108,7 @@ ax.scatter(
     anomaly._profils_outside.lon_rho,
     anomaly._profils_outside.lat_rho,
     s=10,
-    marker='o',
+    marker="o",
     transform=pcarr,
     label="inside",
 )
@@ -112,9 +117,9 @@ cmb = ax.scatter(
     anomaly._profils_inside.lon_rho,
     anomaly._profils_inside.lat_rho,
     s=10,
-    marker='*',
+    marker="*",
     transform=pcarr,
-    label='outside',
+    label="outside",
 )
 
 plt.title("Eddy detection")
@@ -126,32 +131,36 @@ plt.legend()
 
 plt.figure(figsize=(10, 5))
 plt.subplot(121)
-plt.plot(anomaly.anomaly, anomaly.depth_vector, label='averaged profile')
+plt.plot(anomaly.anomaly, anomaly.depth_vector, label="averaged profile")
 plt.plot(anomaly.center_anomaly, anomaly.depth_vector, label="center profile")
-plt.xlabel(r'$\Delta\sigma_0$ [kg/m3]')
+plt.xlabel(r"$\Delta\sigma_0$ [kg/m3]")
 # plt.xlabel(r'$\Delta cs$ [m/s]')
-plt.ylabel('Depth [m]')
+plt.ylabel("Depth [m]")
 plt.ylim(-2000, 0)
 plt.legend()
 ax = plt.subplot(122)
-ax.plot(anomaly.mean_profil_inside, anomaly.depth_vector, c='b', label='inside')
+ax.plot(
+    anomaly.mean_profil_inside, anomaly.depth_vector, c="b", label="inside"
+)
 ax.fill_betweenx(
     anomaly.depth_vector,
     anomaly.mean_profil_inside - anomaly.std_profil_inside,
     anomaly.mean_profil_inside + anomaly.std_profil_inside,
     alpha=0.2,
-    color='b',
+    color="b",
 )
-ax.plot(anomaly.mean_profil_outside, anomaly.depth_vector, c='k', label='outside')
+ax.plot(
+    anomaly.mean_profil_outside, anomaly.depth_vector, c="k", label="outside"
+)
 ax.fill_betweenx(
     anomaly.depth_vector,
     anomaly.mean_profil_outside - anomaly.std_profil_outside,
     anomaly.mean_profil_outside + anomaly.std_profil_outside,
     alpha=0.2,
-    color='k',
+    color="k",
 )
 plt.legend()
-plt.xlabel(r'$\sigma_0$ [kg/m3]')
+plt.xlabel(r"$\sigma_0$ [kg/m3]")
 # plt.xlabel(r'$cs$ [m/s]')
 # plt.ylabel('Depth [m]')
 plt.yticks([], [])

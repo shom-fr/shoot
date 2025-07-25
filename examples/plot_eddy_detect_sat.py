@@ -24,7 +24,7 @@ xr.set_options(display_style="text")
 # Read data
 # ---------
 
-root_path = "../data"
+root_path = "./data"
 path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
 # select one specific date for this example
 ds = xr.open_dataset(path).isel(time=0)

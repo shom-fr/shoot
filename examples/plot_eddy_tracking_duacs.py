@@ -23,8 +23,8 @@ from shoot.plot import create_map, pcarr
 
 # %%
 # Read data
-root_path = '../data'
-path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.nc')
+root_path = "../data"
+path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
 ds = xr.open_dataset(path)
 
 # %%
@@ -43,7 +43,7 @@ window_fit = 120  # 100  # 120
 
 # %%
 # Minimal radius of an eddy to retain it
-min_radius = 20
+min_radius = 10
 
 # %%
 # Ellipse error
@@ -59,13 +59,16 @@ eddies = EvolEddies2D.detect_eddies(
     window_center,
     window_fit,
     min_radius,
-    ssh='adt',
-    u='ugos',
-    v='vgos',
+    ssh="adt",
+    u="ugos",
+    v="vgos",
     ellipse_error=ellipse_error,
 )
 end = time.time()
-print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - start))
+print(
+    "Temps de calcul pour %i pas de temps : %.2f s"
+    % (len(ds.time), end - start)
+)
 # %%
 # Tracking
 # ~~~~~~~~
@@ -89,17 +92,21 @@ dss = ds.isel(time=n)
 dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="cmo.balance")
 
 plt.quiver(
-    dss.longitude.values, dss.latitude.values, dss.ugos.values, dss.vgos.values, transform=pcarr
+    dss.longitude.values,
+    dss.latitude.values,
+    dss.ugos.values,
+    dss.vgos.values,
+    transform=pcarr,
 )
 for eddy in eddies.eddies[n].eddies:
     eddy.plot(transform=pcarr, lw=1)
-    plt.text(eddy.glon, eddy.glat, eddy.track_id, c='w', transform=pcarr)
+    plt.text(eddy.glon, eddy.glat, eddy.track_id, c="w", transform=pcarr)
     track = tracked_eddies[eddy.track_id]
     lon, lat = [], []
     for e in track.eddies:
         lon.append(e.glon)
         lat.append(e.glat)
-    plt.plot(lon, lat, transform=pcarr, c='gray', linewidth=2)
+    plt.plot(lon, lat, transform=pcarr, c="gray", linewidth=2)
 
 plt.title(ds.adt.long_name)
 plt.tight_layout()
