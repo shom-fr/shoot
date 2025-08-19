@@ -1134,7 +1134,8 @@ class EvolEddies2D:
     @classmethod
     def reconstruct(cls, ds):
         "reconstructs an EvolEddies object from an xarray dataset"
-        time = scf.get_time(ds)
+        # time = scf.get_time(ds)
+        time = ds.time
         eddies = []
         for t in np.unique(time):
             eddies.append(Eddies2D.reconstruct(ds.where(time == t, drop=True)))
