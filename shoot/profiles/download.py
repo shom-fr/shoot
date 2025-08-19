@@ -39,11 +39,14 @@ class Download:
         for dtype in self.data_types:
             for i, year in enumerate(self.years):
                 if i == 0:
-                    months = np.arange(self.months[0], 13)
-                elif i == len(self.years) - 1:
-                    months = np.arange(1, self.months[-1] + 1)
+                    first_month = self.months[0]
                 else:
-                    months = np.arange(1, 13)
+                    first_month = 1
+                if i == len(self.years) - 1:
+                    last_month = self.months[-1] + 1
+                else:
+                    last_month = 13
+                months = np.arange(first_month, last_month)
                 path_out = os.path.join(self.path, "%s" % year)
                 if not os.path.exists(path_out):
                     os.makedirs(path_out)
@@ -55,6 +58,7 @@ class Download:
                     + str(year)
                     + "######"
                 )
+                print("range de mois", months)
                 for m in months:
                     cm.get(
                         dataset_id="cmems_obs-ins_glo_phy-temp-sal_my_cora_irr",
