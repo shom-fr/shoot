@@ -135,6 +135,15 @@ class Profiles:
         )
         return ds
 
+    def save(self):
+        self.ds.to_netcdf(
+            os.path.join(
+                self.root_path,
+                "profil_%s_%i_%i.nc"
+                % (self.region, self.years[0], self.years[-1]),
+            )
+        )
+
     def associate(self, eddies, nlag=2):
         """
         This method attributes profile to eddies (EvolEddies2D object) and add info to profiles
