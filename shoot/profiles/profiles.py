@@ -135,12 +135,19 @@ class Profiles:
         )
         return ds
 
-    def save(self):
+    def save(self, name=None, path=None):
+        if not path:
+            path = self.root_path
+        if not name:
+            name = "profil_%s_%i_%i.nc" % (
+                self.region,
+                self.years[0],
+                self.years[-1],
+            )
         self.ds.to_netcdf(
             os.path.join(
-                self.root_path,
-                "profil_%s_%i_%i.nc"
-                % (self.region, self.years[0], self.years[-1]),
+                path,
+                name,
             )
         )
 
