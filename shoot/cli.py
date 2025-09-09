@@ -224,17 +224,25 @@ def main_eddies_detect(parser, args):
             cmap="Spectral_r",
             alpha=0.6,
         )
-        plt.quiver(
-            ds.cf["longitude"].values,
-            ds.cf["latitude"].values,
-            u.values,
-            v.values,
-            transform=splot.pcarr,
-        )
+
         if args.all:
+            plt.quiver(
+                ds.cf["longitude"].values,
+                ds.cf["latitude"].values,
+                u[0].values,
+                v[0].values,
+                transform=splot.pcarr,
+            )
             for eddy in eddies.eddies[0].eddies:
                 eddy.plot(transform=splot.pcarr, lw=1)
         else:
+            plt.quiver(
+                ds.cf["longitude"].values,
+                ds.cf["latitude"].values,
+                u.values,
+                v.values,
+                transform=splot.pcarr,
+            )
             for eddy in eddies.eddies:
                 eddy.plot(transform=splot.pcarr, lw=1)
         plt.title(
@@ -327,6 +335,7 @@ def add_arguments_eddies_track(parser):
         "--update",
         help="Update tracking based on the already traked file",
         nargs=1,
+        type=str,
     )
     parser.add_argument(
         "-b",
@@ -408,7 +417,7 @@ def _eddies_update(parser, args, logger, ds):
 
     # load past tracks
     logger.debug("Loading already tracked file")
-    ds_track = xr.open_dataset(args.update)
+    ds_track = xr.open_dataset(args.update[0])
     # update
     tracks_refresh = strack.update_tracks(ds_track, new_eddies, args.nbackward)
     logger.debug("Update the track finished")

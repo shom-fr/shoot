@@ -457,7 +457,9 @@ class RawEddy2D:
         )
         return valid.any()
 
-    def plot(self, ax=None, lw=1, color=None, **kwargs):
+    def plot(
+        self, ax=None, lw=1, color=None, vmax=False, boundary=False, **kwargs
+    ):
         """Quickly plot the eddy"""
         if ax is None:
             ax = plt.gca()
@@ -470,18 +472,22 @@ class RawEddy2D:
             # out["boundary"] = ax.plot(
             #     self.boundary_contour.lon, self.boundary_contour.lat, lw=lw, **kw
             # )
-            out["boundary"] = ax.plot(
-                self.boundary_contour.lon_int,
-                self.boundary_contour.lat_int,
-                lw=lw,
-                **kw,
-            )
-            # out["ellipse"] = self.boundary_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
-            # out["ellipse"] = self.vmax_contour.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
-            out["velmax"] = ax.plot(
-                self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw
-            )
+            if vmax:
+                out["velmax"] = ax.plot(
+                    self.vmax_contour.lon,
+                    self.vmax_contour.lat,
+                    "--",
+                    lw=lw,
+                    **kw,
+                )
+            if boundary:
+                out["boundary"] = ax.plot(
+                    self.boundary_contour.lon_int,
+                    self.boundary_contour.lat_int,
+                    lw=lw,
+                    **kw,
+                )
         return out
 
     def plot_previ(self, ax=None, lw=1, color=None, **kwargs):

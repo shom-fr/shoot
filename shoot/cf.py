@@ -85,7 +85,10 @@ def get_depth(obj):
 
 def get_time(obj, errors="ignore"):
     """Get time coordinate data array"""
-    return get_cf_item(obj.cf.coords, "time", errors=errors)
+    try:
+        return get_cf_item(obj.cf.coords, "time")
+    except ShootError:
+        return get_cf_item(obj.cf, "time", errors=errors)
 
 
 def get_xdim(da):
