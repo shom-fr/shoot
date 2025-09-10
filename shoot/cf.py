@@ -17,6 +17,7 @@ STANDARD_NAMES = {
         "surface_geostrophic_eastward_sea_water_velocity",
         "surface_geostrophic_sea_water_x_velocity",
         "surface_geostrophic_eastward_sea_water_velocity_assuming_mean_sea_level_for_geoid",
+        "sea_water_x_velocity_at_u_location",
     ],
     "v": [
         "sea_water_y_velocity",
@@ -26,6 +27,7 @@ STANDARD_NAMES = {
         "surface_geostrophic_northward_sea_water_velocity",
         "surface_geostrophic_sea_water_y_velocity",
         "surface_geostrophic_northward_sea_water_velocity_assuming_mean_sea_level_for_geoid",
+        "sea_water_x_velocity_at_u_location",
     ],
     "ssh": [
         "sea_surface_height_above_geoid",
@@ -33,7 +35,12 @@ STANDARD_NAMES = {
         "sea_surface_height_above_mean_sea_level",
         "sea_surface_height_above_reference_ellipsoid",
     ],
-    "depth": ["depth", "depth_below_geoid", "altitude"],
+    "depth": [
+        "depth",
+        "depth_below_geoid",
+        "altitude",
+        "Depth",
+    ],
 }
 
 
@@ -67,20 +74,21 @@ def get_cf_item(container, targets, name=None, errors="raise"):
 
 def get_lon(obj):
     """Get longitude coordinate data array"""
-    return get_cf_item(obj.cf, "longitude")
+    return get_cf_item(obj.cf, ["longitude", "lon_rho"])
 
 
 def get_lat(obj):
     """Get latitude coordinate data array"""
-    return get_cf_item(obj.cf, "latitude")
+    return get_cf_item(obj.cf, ["latitude", "lat_rho"])
 
 
-def get_depth(obj):
+def get_depth(obj, errors="ignore"):
     """Get depth coodinate data array"""
-    try:
-        get_cf_item(obj.cf, "vertical")
-    except ShootError:
-        return _get_from_standard_names_(obj.cf, "depth")
+    # try:
+    #     get_cf_item(obj.cf, "vertical")
+    # except ShootError:
+    #     return _get_from_standard_names_(obj.cf, "depth", errors=errors)
+    return _get_from_standard_names_(obj, "depth", errors=errors)
 
 
 def get_time(obj, errors="ignore"):
@@ -114,12 +122,15 @@ def get_ydim(da):
 def get_zdim(da):
     """Get the z dimension name of a data array"""
     if "Z" in da.cf.axes:
-        return get_cf_item(da, "Z", "z dimension")
+        try:
+            return get_cf_item(da, "Z", "z dimension")
+        except ShootError:
+            ...
     for dim in da.dims:
         dim = dim.lower()
         if (
             dim.startswith("z")
-            or dim.startwith("s_")
+            or dim.startswith("s_")
             or dim.startswith("dep")
             or dim.startswith("lev")
         ):

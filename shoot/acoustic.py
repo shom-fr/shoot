@@ -283,14 +283,18 @@ class AcousEddy:
     def ecs_insides(self):
         ecs = np.empty(self.anomaly._profils_inside.shape[1])
         for i in range(len(ecs)):
-            ecs[i] = ProfileAcous(self.anomaly._profils_inside.isel(nb_profil=i)).ecs
+            ecs[i] = ProfileAcous(
+                self.anomaly._profils_inside.isel(nb_profil=i)
+            ).ecs
 
         lon = self.anomaly._profils_inside.lon_rho.values
         lat = self.anomaly._profils_inside.lat_rho.values
         ecs = xr.DataArray(
             data=ecs,
             dims=["nb_profil"],
-            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
+            coords=dict(
+                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
+            ),
         )
         return ecs
 
@@ -298,14 +302,18 @@ class AcousEddy:
     def ecs_outsides(self):
         ecs = np.empty(self.anomaly._profils_outside.shape[1])
         for i in range(len(ecs)):
-            ecs[i] = ProfileAcous(self.anomaly._profils_outside.isel(nb_profil=i)).ecs
+            ecs[i] = ProfileAcous(
+                self.anomaly._profils_outside.isel(nb_profil=i)
+            ).ecs
 
         lon = self.anomaly._profils_outside.lon_rho.values
         lat = self.anomaly._profils_outside.lat_rho.values
         ecs = xr.DataArray(
             data=ecs,
             dims=["nb_profil"],
-            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
+            coords=dict(
+                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
+            ),
         )
         return ecs
 
@@ -313,14 +321,18 @@ class AcousEddy:
     def mcp_insides(self):
         mcp = np.empty(self.anomaly._profils_inside.shape[1])
         for i in range(len(mcp)):
-            mcp[i] = ProfileAcous(self.anomaly._profils_inside.isel(nb_profil=i)).mcp
+            mcp[i] = ProfileAcous(
+                self.anomaly._profils_inside.isel(nb_profil=i)
+            ).mcp
 
         lon = self.anomaly._profils_inside.lon_rho.values
         lat = self.anomaly._profils_inside.lat_rho.values
         mcp = xr.DataArray(
             data=mcp,
             dims=["nb_profil"],
-            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
+            coords=dict(
+                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
+            ),
         )
         return mcp
 
@@ -328,14 +340,18 @@ class AcousEddy:
     def mcp_outsides(self):
         mcp = np.empty(self.anomaly._profils_outside.shape[1])
         for i in range(len(mcp)):
-            mcp[i] = ProfileAcous(self.anomaly._profils_outside.isel(nb_profil=i)).mcp
+            mcp[i] = ProfileAcous(
+                self.anomaly._profils_outside.isel(nb_profil=i)
+            ).mcp
 
         lon = self.anomaly._profils_outside.lon_rho.values
         lat = self.anomaly._profils_outside.lat_rho.values
         mcp = xr.DataArray(
             data=mcp,
             dims=["nb_profil"],
-            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
+            coords=dict(
+                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
+            ),
         )
         return mcp
 
@@ -343,14 +359,18 @@ class AcousEddy:
     def iminc_insides(self):
         iminc = np.empty(self.anomaly._profils_inside.shape[1])
         for i in range(len(iminc)):
-            iminc[i] = ProfileAcous(self.anomaly._profils_inside.isel(nb_profil=i)).iminc
+            iminc[i] = ProfileAcous(
+                self.anomaly._profils_inside.isel(nb_profil=i)
+            ).iminc
 
         lon = self.anomaly._profils_inside.lon_rho.values
         lat = self.anomaly._profils_inside.lat_rho.values
         iminc = xr.DataArray(
             data=iminc,
             dims=["nb_profil"],
-            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
+            coords=dict(
+                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
+            ),
         )
         return iminc
 
@@ -358,14 +378,18 @@ class AcousEddy:
     def iminc_outsides(self):
         iminc = np.empty(self.anomaly._profils_outside.shape[1])
         for i in range(len(iminc)):
-            iminc[i] = ProfileAcous(self.anomaly._profils_outside.isel(nb_profil=i)).iminc
+            iminc[i] = ProfileAcous(
+                self.anomaly._profils_outside.isel(nb_profil=i)
+            ).iminc
 
         lon = self.anomaly._profils_outside.lon_rho.values
         lat = self.anomaly._profils_outside.lat_rho.values
         iminc = xr.DataArray(
             data=iminc,
             dims=["nb_profil"],
-            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
+            coords=dict(
+                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
+            ),
         )
         return iminc
 
