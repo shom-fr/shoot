@@ -520,7 +520,7 @@ class Tracks:
         self.eddies.add(new_eddies)
         self.times.append(new_eddies.time)
         self.track_step()
-        return self.track_eddies
+        # return self.track_eddies
 
 
 def track_eddies(eddies, nback):
@@ -542,7 +542,7 @@ def track_eddies(eddies, nback):
          directly appends anomaly object in each eddies
     """
     tracks = Tracks(eddies, nback)
-    tracks.tracking()
+    tracks = tracks.tracking()
     return tracks
 
 
@@ -567,4 +567,5 @@ def update_tracks(ds, new_eddies, nback):
          updated track object
     """
     tracks = Tracks.reconstruct(ds, nback)
-    return tracks.refresh(new_eddies)
+    tracks.refresh(new_eddies)
+    return tracks

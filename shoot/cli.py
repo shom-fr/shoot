@@ -386,22 +386,32 @@ def _eddies_update(parser, args, logger, ds):
 
     time = scf.get_time(ds)
     if time is not None:
-        logger.warning("Selecting the first time step")
-        ds = ds.isel({time.name: -1})
+        logger.warning("Selecting the last time step")
+        # ds = ds.isel({time.name: -1})
+        # print("ds.time", ds.time)
 
     # Get variables
-    u = ds[args.u_name] if args.u_name else scf.get_u(ds)
-    v = ds[args.v_name] if args.v_name else scf.get_v(ds)
+    u = (
+        ds[args.u_name].isel({time.name: -1})
+        if args.u_name
+        else scf.get_u(ds).isel({time.name: -1})
+    )
+    v = (
+        ds[args.v_name].isel({time.name: -1})
+        if args.v_name
+        else scf.get_v(ds).isel({time.name: -1})
+    )
     if not args.without_ssh:
         ssh = (
-            ds[args.ssh_name]
+            ds[args.ssh_name].isel({time.name: -1})
             if args.ssh_name
-            else scf.get_ssh(ds, errors="warn")
+            else scf.get_ssh(ds, errors="warn").isel({time.name: -1})
         )
     else:
         ssh = None
 
     logger.debug("Starting detection at last day")
+    print("u", u)
     new_eddies = seddies.Eddies2D.detect_eddies(
         u,
         v,
@@ -483,21 +493,43 @@ def main_eddies_track(parser, args):
             transform=splot.pcarr,
         )
 
-        for eddy in eddies.eddies[-1].eddies:
-            eddy.plot(transform=splot.pcarr, lw=1)
-            plt.text(
-                eddy.glon,
-                eddy.glat,
-                eddy.track_id,
-                c="w",
-                transform=splot.pcarr,
-            )
-            track = tracks.track_eddies[eddy.track_id]
-            lon, lat = [], []
-            for e in track.eddies:
-                lon.append(e.glon)
-                lat.append(e.glat)
-            plt.plot(lon, lat, transform=splot.pcarr, c="gray", linewidth=2)
+        if args.update:
+            for eddy in eddies.eddies:
+                eddy.plot(transform=splot.pcarr, lw=1)
+                plt.text(
+                    eddy.glon,
+                    eddy.glat,
+                    eddy.track_id,
+                    c="w",
+                    transform=splot.pcarr,
+                )
+                track = tracks.track_eddies[eddy.track_id]
+                lon, lat = [], []
+                for e in track.eddies:
+                    lon.append(e.lon)
+                    lat.append(e.lat)
+                plt.plot(
+                    lon, lat, transform=splot.pcarr, c="gray", linewidth=2
+                )
+
+        else:
+            for eddy in eddies.eddies[-1].eddies:
+                eddy.plot(transform=splot.pcarr, lw=1)
+                plt.text(
+                    eddy.glon,
+                    eddy.glat,
+                    eddy.track_id,
+                    c="w",
+                    transform=splot.pcarr,
+                )
+                track = tracks.track_eddies[eddy.track_id]
+                lon, lat = [], []
+                for e in track.eddies:
+                    lon.append(e.lon)
+                    lat.append(e.lat)
+                plt.plot(
+                    lon, lat, transform=splot.pcarr, c="gray", linewidth=2
+                )
 
         plt.title(
             f"w_center {args.window_center} km, w_fit {args.window_fit}km, min_rad {args.min_radius}km"
