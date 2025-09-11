@@ -17,17 +17,13 @@ import time
 import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
-import xoa.cf as xcf
+
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.hydrology import Anomaly, compute_anomalies
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
 
 xr.set_options(display_style="text")
-
-# %%
-# Load croco-specific naming conventions to find dims, coords and variables
-xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
@@ -55,7 +51,6 @@ ellipse_error = 0.05
 # %%
 # Detection
 # ~~~~~~~~~
-
 
 start = time.time()
 

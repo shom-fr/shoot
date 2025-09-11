@@ -14,15 +14,15 @@ import os
 import xarray as xr
 import time
 
-from shoot.eddies import EvolEddies
-from shoot.track import track_eddies
+from shoot.eddies import EvolEddies2D
+from shoot.eddies.track import track_eddies
 
 xr.set_options(display_style="text")
 
 # %%
 # Read data
-root_path = '../data'
-path = os.path.join(root_path, 'jan2024_ionian_sea_duacs.n')
+root_path = "../data"
+path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
 # partition into 2 dataset continuous in time
 ds1 = xr.open_dataset(path).isel(time=slice(0, 10))
 ds2 = xr.open_dataset(path).isel(time=slice(10, 20))
@@ -46,7 +46,6 @@ min_radius = 20
 
 # %%
 # Ellipse error
-
 ellipse_error = 0.05
 
 # %%
@@ -54,11 +53,21 @@ ellipse_error = 0.05
 # ~~~~~~~~~
 
 start = time.time()
-eddies1 = EvolEddies.detect_eddies(
-    ds1, window_center, window_fit, min_radius, ssh='adt', ellipse_error=ellipse_error
+eddies1 = EvolEddies2D.detect_eddies(
+    ds1,
+    window_center,
+    window_fit,
+    min_radius,
+    ssh="adt",
+    ellipse_error=ellipse_error,
 )
-eddies2 = EvolEddies.detect_eddies(
-    ds2, window_center, window_fit, min_radius, ssh='adt', ellipse_error=ellipse_error
+eddies2 = EvolEddies2D.detect_eddies(
+    ds2,
+    window_center,
+    window_fit,
+    min_radius,
+    ssh="adt",
+    ellipse_error=ellipse_error,
 )
 end = time.time()
 time_detect = end - start
@@ -77,15 +86,15 @@ end = time.time()
 print("duree totale du calcul sur 1 mois : %.1f s" % (end - start))
 
 # %% Save partial tracking
-tracks1.save(root_path + '/eddies_med_test1.nc')
-tracks2.save(root_path + '/eddies_med_test2.nc')
+tracks1.save(root_path + "/eddies_med_test1.nc")
+tracks2.save(root_path + "/eddies_med_test2.nc")
 
 # %% load and merge
-ds1 = xr.open_dataset(root_path + '/eddies_med_test1.nc')
-ds2 = xr.open_dataset(root_path + '/eddies_med_test2.nc')
+ds1 = xr.open_dataset(root_path + "/eddies_med_test1.nc")
+ds2 = xr.open_dataset(root_path + "/eddies_med_test2.nc")
 
 # %% Merged step
-eddies = EvolEddies.merge_ds([ds1, ds2])
+eddies = EvolEddies2D.merge_ds([ds1, ds2])
 eddies
 print(len(eddies.eddies))
 
@@ -94,7 +103,7 @@ tracks = track_eddies(eddies, 10)
 
 # %% Save the full tracking
 
-tracks.save(root_path + '/eddies_mest_test_merged.nc')
+tracks.save(root_path + "/eddies_mest_test_merged.nc")
 
 # %% Test the merged dataset
-ds_merged = xr.open_dataset(root_path + '/eddies_mest_test_merged.nc')
+ds_merged = xr.open_dataset(root_path + "/eddies_mest_test_merged.nc")

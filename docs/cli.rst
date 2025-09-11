@@ -7,7 +7,7 @@ Commandline interface to shoot.
     :module: shoot.cli
     :func: get_parser
     :prog: shoot
-    :nosubcommands:
+    :subcommands:eddies
 
 
 :command:`shoot eddies`
@@ -18,3 +18,36 @@ Commandline interface to shoot.
     :func: get_parser
     :prog: shoot
     :path: eddies
+    :subcommands:track detect diags
+
+
+:command:`shoot eddies detect`
+=======================
+
+.. argparse::
+    :module: shoot.cli
+    :func: get_parser
+    :prog: shoot
+    :path: eddies detect
+    :nosubcommands:
+
+:command:`shoot eddies track`
+=======================
+
+.. argparse::
+    :module: shoot.cli
+    :func: get_parser
+    :prog: shoot
+    :path: eddies track
+    :nosubcommands:
+
+:command:`shoot diags`
+=======================
+
+.. argparse::
+    :module: shoot.cli
+    :func: get_parser
+    :prog: shoot
+    :path: eddies diags
+    :nosubcommands:
+

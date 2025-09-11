@@ -33,6 +33,8 @@ shoot requires ``python>3`` and depends on the following packages:
      - Contourpy is a library for computing contours on grids
    * - `cartopy <https://scitools.org.uk/cartopy/docs/latest/>`_
      - Cartopy is a package for geospatial data processing 
+   * - `gsw <https://teos-10.github.io/GSW-Python/>`_
+     - Gsw is a package for thermodynamic equation of Seawater 
 
 
 From sources

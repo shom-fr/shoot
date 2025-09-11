@@ -542,7 +542,7 @@ def track_eddies(eddies, nback):
          directly appends anomaly object in each eddies
     """
     tracks = Tracks(eddies, nback)
-    tracks = tracks.tracking()
+    tracks.tracking()
     return tracks
 
 

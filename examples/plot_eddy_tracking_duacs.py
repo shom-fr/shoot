@@ -76,6 +76,7 @@ print(
 nbackward = 10  # number of admitted time step without detection
 
 tracks = track_eddies(eddies, nbackward)  # 10*dt
+print(tracks)
 tracked_eddies = tracks.track_eddies
 
 # sauvegarde du tracking complet
@@ -89,7 +90,7 @@ tracked_eddies = tracks.track_eddies
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
 n = 30  # 297
 dss = ds.isel(time=n)
-dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="cmo.balance")
+dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="cmo.dense")
 
 plt.quiver(
     dss.longitude.values,

@@ -16,7 +16,6 @@ import cmocean as cm
 import time
 import matplotlib.pyplot as plt
 import xarray as xr
-import xoa.cf as xcf
 
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.plot import create_map, pcarr
@@ -24,9 +23,6 @@ from shoot.dyn import get_relvort
 
 xr.set_options(display_style="text")
 
-# %%
-# Load croco-specific naming conventions to find dims, coords and variables
-xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
@@ -105,6 +101,6 @@ plt.quiver(
 )
 
 for eddy in eddies.eddies:
-    eddy.plot(transform=pcarr, lw=1)
+    eddy.plot(transform=pcarr, lw=1, boundary=True)
 plt.title("Relative vorticity at 1000m")
 plt.tight_layout()

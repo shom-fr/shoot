@@ -10,7 +10,6 @@ Library
     shoot.contours
     shoot.dyn
     shoot.eddies
-    shoot.track
     shoot.fit
     shoot.grid
     shoot.num
