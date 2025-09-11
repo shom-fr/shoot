@@ -1,10 +1,6 @@
-[build-system]
-requires = ["setuptools >= 61.0"]
-build-backend = "setuptools.build_meta"
 
 [project]
 name = "shoot"
-version = "0.0.0"
 description = "SHom Ocean Objects Tracker"
 requires-python = ">=3.10"
 dependencies = [
@@ -13,7 +9,7 @@ dependencies = [
     "contourpy",
     "matplotlib-base",
     "netCDF",
-    "scipy"
+    "scipy",
     "xarray",
 ]
 authors = [
@@ -28,6 +24,7 @@ readme = "README.rst"
 
 [project.optional-dependencies]
 docs = [
+  "gsw",
   "cartopy",
   "matplotlib",
   "owslib",
