@@ -613,6 +613,18 @@ class Eddy:
         out["velmax"] = ax.plot(self.x_vmax, self.y_vmax, "--", lw=lw, **kw)
         return out
 
+    def plot_previ(self, ax=None, lw=1, color=None, **kwargs):
+        """Quickly plot the eddy"""
+        if ax is None:
+            ax = plt.gca()
+        if color is None:
+            color = self.color
+        kw = dict(color=color, **kwargs)
+        out = {"center": ax.scatter(self.lon, self.lat, **kw)}
+        out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
+        out["velmax"] = ax.plot(self.x_vmax, self.y_vmax, "--", lw=lw, **kw)
+        return out
+
 
 class Eddies2D:
     """This class contains a list of detected eddies at one time"""

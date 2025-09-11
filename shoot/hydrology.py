@@ -19,12 +19,12 @@ class Anomaly:
         self.lon = eddy.lon
         self.lat = eddy.lat
         self.eddy = eddy
-        if hasattr(eddy, 'boundary_contour'):
+        if hasattr(eddy, "boundary_contour"):
             self.radius = (
                 eddy.boundary_contour.radius
             )  # eddy.vmax_contour.radius  # eddy.radius in meters
         else:
-            self.radius = eddy.radius * 1000  # convert to meters
+            self.radius = eddy.eff_radius  # boundary contour radius in meters
 
         self.dens = dens.squeeze()
         if not depth is None:
@@ -42,7 +42,10 @@ class Anomaly:
 
         if not hasattr(self.depth, self.xdim):
             self.depth = self.depth.expand_dims(
-                {self.xdim: self.dens.sizes[self.xdim], self.ydim: self.dens.sizes[self.ydim]}
+                {
+                    self.xdim: self.dens.sizes[self.xdim],
+                    self.ydim: self.dens.sizes[self.ydim],
+                }
             ).broadcast_like(self.dens)
 
     @functools.cached_property
@@ -50,7 +53,8 @@ class Anomaly:
         lon_name = xcoords.get_lon(self.dens).name
         lat_name = xcoords.get_lat(self.dens).name
         dist = np.sqrt(
-            (self.dens[lon_name] - self.lon) ** 2 + (self.dens[lat_name] - self.lat) ** 2
+            (self.dens[lon_name] - self.lon) ** 2
+            + (self.dens[lat_name] - self.lat) ** 2
         ).values
         return dist
 
@@ -60,7 +64,9 @@ class Anomaly:
         # lat_name = xcoords.get_lat(self.dens).name
         # ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
         # return ij[0][0]
-        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
+        return np.unravel_index(
+            np.argmin(self._dist), self.dens[lon_name].shape
+        )[0]
 
     @property
     def _j(self):
@@ -71,13 +77,16 @@ class Anomaly:
         # print(ij[1][0])
         # print(np.unravel_index(np.argmin(dist), self.dens[lon_name].shape))
         # return ij[1][0]
-        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
+        return np.unravel_index(
+            np.argmin(self._dist), self.dens[lon_name].shape
+        )[1]
 
     @functools.cached_property
     def depth_vector(self):
         depth = self.depth.isel({self.xdim: self._j, self.ydim: self._i})
         return xr.DataArray(
-            np.linspace(depth.values[0], depth.values[-1], self.nz), dims="depth_int"
+            np.linspace(depth.values[0], depth.values[-1], self.nz),
+            dims="depth_int",
         )
 
     @functools.cached_property
@@ -92,20 +101,24 @@ class Anomaly:
         else:  # decreasing order bad for np.interp
             return np.interp(
                 self.depth_vector[::-1],
-                self.depth.isel({self.xdim: self._j, self.ydim: self._i})[::-1],
+                self.depth.isel({self.xdim: self._j, self.ydim: self._i})[
+                    ::-1
+                ],
                 inside[::-1],
             )[::-1]
 
     def is_inside(self, x, y):
         lon = [
-            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi})
+            for xi, yi in zip(x, y)
         ]
         lat = [
-            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi})
+            for xi, yi in zip(x, y)
         ]
         points = np.array([lon, lat]).T
 
-        if hasattr(self.eddy, 'x_vmax'):
+        if hasattr(self.eddy, "x_vmax"):
             xx = self.eddy.x_vmax
             yy = self.eddy.y_vmax
         else:
@@ -120,13 +133,27 @@ class Anomaly:
         dym = np.nanmean(dy)
         nx = int(r * self.radius / dxm)
         ny = int(r * self.radius / dym)
-        X = [self._j, self._j, min(self._j + nx, self._jmax - 1), max(self._j - nx, 0)]
-        Y = [min(self._i + ny, self._imax - 1), max(self._i - ny, 0), self._i, self._i]
+        X = [
+            self._j,
+            self._j,
+            min(self._j + nx, self._jmax - 1),
+            max(self._j - nx, 0),
+        ]
+        Y = [
+            min(self._i + ny, self._imax - 1),
+            max(self._i - ny, 0),
+            self._i,
+            self._i,
+        ]
 
         stepx = int(2 * nx / 10)
         stepy = int(2 * ny / 10)
-        X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx)
-        Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy)
+        X = np.arange(
+            max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx
+        )
+        Y = np.arange(
+            max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy
+        )
 
         X, Y = np.meshgrid(X, Y)
         X = X.flatten()
@@ -162,21 +189,25 @@ class Anomaly:
 
     def is_valid(self, x, y):
         lon = [
-            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi})
+            for xi, yi in zip(x, y)
         ]
         lat = [
-            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi})
+            for xi, yi in zip(x, y)
         ]
         points = np.array([lon, lat]).T
         result = np.ones(len(x)) * True
         for eddy in self.eddies.eddies:
-            if hasattr(eddy, 'x_eff'):
+            if hasattr(eddy, "x_eff"):
                 xx = eddy.x_eff
                 yy = eddy.y_eff
             else:
                 xx = eddy.boundary_contour.lon
                 yy = eddy.boundary_contour.lat
-            result *= np.invert(snum.points_in_polygon(points, np.array([xx, yy]).T))
+            result *= np.invert(
+                snum.points_in_polygon(points, np.array([xx, yy]).T)
+            )
         return result
 
     @functools.cached_property
@@ -268,10 +299,16 @@ class Anomaly:
             self._depths_inside.transpose("nb_profil", self.zdim),
             self._profils_inside.transpose("nb_profil", self.zdim),
             self.depth_vector,
-            input_core_dims=[[self.zdim], [self.zdim], [self.depth_vector.dims[0]]],
+            input_core_dims=[
+                [self.zdim],
+                [self.zdim],
+                [self.depth_vector.dims[0]],
+            ],
             output_core_dims=[[self.depth_vector.dims[0]]],
             dask_gufunc_kwargs={
-                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
+                "output_sizes": {
+                    self.depth_vector.dims[0]: len(self.depth_vector)
+                }
             },
             vectorize=True,
             dask="parallelized",
@@ -285,10 +322,16 @@ class Anomaly:
             self._depths_outside.transpose("nb_profil", self.zdim),
             self._profils_outside.transpose("nb_profil", self.zdim),
             self.depth_vector,
-            input_core_dims=[[self.zdim], [self.zdim], [self.depth_vector.dims[0]]],
+            input_core_dims=[
+                [self.zdim],
+                [self.zdim],
+                [self.depth_vector.dims[0]],
+            ],
             output_core_dims=[[self.depth_vector.dims[0]]],
             dask_gufunc_kwargs={
-                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
+                "output_sizes": {
+                    self.depth_vector.dims[0]: len(self.depth_vector)
+                }
             },
             vectorize=True,
             dask="parallelized",

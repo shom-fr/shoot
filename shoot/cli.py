@@ -7,14 +7,22 @@ import argparse
 import logging
 
 import xarray as xr
+import numpy as np
 import cf_xarray  # noqa
 import matplotlib.pyplot as plt
+import gsw
+import cmocean
+from matplotlib.colors import ListedColormap, BoundaryNorm
 
 from . import log as slog
 from .eddies import eddies2d as seddies
 from .eddies import track as strack
+from . import hydrology as shydrology
+from . import acoustic as sacoustic
+
 from . import cf as scf
 from . import plot as splot
+
 
 # %% Main
 
@@ -66,7 +74,7 @@ def add_parser_eddies(subparsers):
     subparsers_eddies = parser_eddies.add_subparsers(help="sub-command help")
     add_parser_eddies_detect(subparsers_eddies)
     add_parser_eddies_track(subparsers_eddies)
-    # add_parser_eddies_detect_and_track(subparsers_eddies)
+    add_parser_eddies_diags(subparsers_eddies)
 
     return parser_eddies
 
@@ -535,5 +543,155 @@ def main_eddies_track(parser, args):
             f"w_center {args.window_center} km, w_fit {args.window_fit}km, min_rad {args.min_radius}km"
         )
         plt.tight_layout()
+        plt.savefig(args.to_figure)
+        logger.info(f"Detections plot saved to: {args.to_figure}")
+
+
+# %% Eddies diags
+
+
+def add_parser_eddies_diags(subparsers):
+    parser_eddies_diags = subparsers.add_parser(
+        "diags",
+        help="makes diags on already tracked/detected files",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    add_arguments_eddies_diags(parser_eddies_diags)
+    parser_eddies_diags.set_defaults(func=main_eddies_diags)
+    return parser_eddies_diags
+
+
+def add_arguments_eddies_diags(parser):
+    parser.add_argument(
+        "nc_data_files",
+        help="input netcdf 3d data and already tracked eddies files",
+        nargs=2,
+        type=str,
+    )
+    parser.add_argument(
+        "--rfactor",
+        help="distance in radius to search outside profiles (>1)",
+        default=1.2,
+        type=float,
+    )
+
+    parser.add_argument(
+        "--to-figure",
+        help="save detections to this figure file",
+        default="diags.png",
+    )
+
+    parser.add_argument(
+        "-d",
+        "--date",
+        help="date (yyyy/mm/jj)",
+        nargs=1,
+        type=str,
+    )
+
+    parser.add_argument(
+        "--acoustic", help="Acoustic impact diag", action="store_true"
+    )
+    parser.add_argument(
+        "--density", help="Acoustic impact diag", action="store_true"
+    )
+
+
+def _sel_eddies(eddies, date):
+    ind_time = np.where(
+        (eddies.time.values >= np.datetime64(date))
+        & (eddies.time.values < np.datetime64(date) + np.timedelta64(1, "D"))
+    )[0]
+    eddies = eddies.isel(obs=ind_time)
+    return eddies
+
+
+def main_eddies_diags(parser, args):
+    logger = logging.getLogger(__name__)
+
+    # Open files
+    ds_eddies = xr.open_dataset(args.nc_data_files[1])
+    ds_3d = xr.open_mfdataset(args.nc_data_files[0])
+
+    # Compute the sound celerity
+    if not hasattr(ds_3d, "cs") and args.acoustic:
+        ct = gsw.conversions.CT_from_pt(
+            scf.get_salt(ds_3d), scf.get_temp(ds_3d)
+        )
+        pres = gsw.conversions.p_from_z(
+            scf.get_depth(ds_3d), scf.get_lat(ds_3d)
+        )
+        ds_3d["cs"] = gsw.density.sound_speed(ds_3d.salt, ct, pres)
+
+    # time range
+    time = ds_3d.time  # scf.get_time(ds_3d)
+    try:
+        # select in data file
+        if args.date:
+            date = args.date
+            ds_3d = ds_3d.sel({time.name: date})
+        else:
+            logger.info("select last date")
+            ds_3d = ds_3d.isel({time.name: -1})
+            # select in track file
+        ds_eddies = _sel_eddies(ds_eddies, date)
+    except ValueError:
+        ...
+
+    # eddies reconstruction
+    eddies_r = seddies.Eddies2D.reconstruct(ds_eddies)
+
+    if args.density:
+        print("TO BE IMPLEMENTED")
+
+    if args.acoustic:
+        # anomaly construction
+        shydrology.compute_anomalies(eddies_r, ds_3d.cs, r_factor=args.rfactor)
+
+        # acoustic points
+        sacoustic.acoustic_points(eddies_r)
+
+        # plot
+        fig, ax = splot.create_map(
+            ds_3d.lon_rho, ds_3d.lat_rho, figsize=(8, 5)
+        )
+        ds_3d.zeta.plot(
+            x="lon_rho",
+            y="lat_rho",
+            cmap="cmo.dense",
+            ax=ax,
+            add_colorbar=False,
+            transform=splot.pcarr,
+        )
+
+        colors = ["k", "#009E73", "#E69F00"]
+        labels = ["peu impactant", "impactant", "trés impactant"]
+        cmap = ListedColormap(colors)
+        norm = BoundaryNorm([0, 1, 2, 3], cmap.N)
+
+        for eddy in eddies_r.eddies:
+            # if eddy.acoustic_impact < 1 :
+            #     continue
+
+            eddy.plot_previ(transform=splot.pcarr, lw=1)
+            cmb = ax.scatter(
+                eddy.ellipse.lon,
+                eddy.ellipse.lat,
+                s=50,
+                marker="o",
+                c=eddy.acoustic_impact,
+                cmap=cmap,
+                norm=norm,
+                transform=splot.pcarr,
+            )
+
+        cbar = plt.colorbar(cmb, ticks=[0.5, 1.5, 2.5])
+        cbar.ax.set_yticklabels(labels)
+        for label in cbar.ax.get_yticklabels():
+            label.set_rotation(-90)
+            label.set_va("center")
+        plt.title("SSH")
+        plt.tight_layout()
+
         plt.savefig(args.to_figure)
         logger.info(f"Detections plot saved to: {args.to_figure}")

@@ -41,6 +41,10 @@ STANDARD_NAMES = {
         "altitude",
         "Depth",
     ],
+    "salt": [
+        "sea_water_salinity",
+    ],
+    "temp": ["sea_water_potential_temperature"],
 }
 
 
@@ -156,3 +160,13 @@ def get_v(ds, errors="raise"):
 def get_ssh(ds, errors="warn"):
     """Get the sea level"""
     return _get_from_standard_names_(ds, "ssh", errors)
+
+
+def get_salt(ds, errors="warn"):
+    """Get the sea level"""
+    return _get_from_standard_names_(ds, "salt", errors)
+
+
+def get_temp(ds, errors="warn"):
+    """Get the sea level"""
+    return _get_from_standard_names_(ds, "temp", errors)
