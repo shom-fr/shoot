@@ -147,7 +147,7 @@ class BiMod:
                     area += intersection.area / rpoly.area
                     nb_eddy += 1
                     break
-        return area / nb_eddy
+        return area / nb_eddy if nb_eddy > 0 else np.nan
 
     @property
     def dist(self):
@@ -165,4 +165,4 @@ class BiMod:
                     ddist += np.sqrt(x**2 + y**2) / 1000
                     nb_eddy += 1
                     break
-        return ddist / nb_eddy
+        return ddist / nb_eddy if nb_eddy > 0 else np.nan

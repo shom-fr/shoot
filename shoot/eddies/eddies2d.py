@@ -434,10 +434,13 @@ class RawEddy2D:
         return COLORS.get(self.eddy_type, COLORS["undefined"])
 
     def contains_points(self, lons, lats):
-        if not self.is_valid():
-            return np.zeros(lons.shape, dtype="?")
+        # if not self.is_valid():
+        #     return np.zeros(lons.shape, dtype="?")
         points = np.array([lons, lats]).T
-        return snum.points_in_polygon(points, self.boundary_contour)
+        return snum.points_in_polygon(
+            points,
+            np.array([self.boundary_contour.lon, self.boundary_contour.lat]).T,
+        )
 
     def contains_eddy(self, eddy):
         points = np.array(
@@ -970,7 +973,7 @@ class Eddies2D:
         if not hasattr(
             self.eddies[0], "boundary_contour"
         ):  # check whether we have Raw2DEddy or Eddy object
-            return xr.Dataset(
+            ds = xr.Dataset(
                 {
                     "time": (("obs"), np.repeat(self.time, len(self.eddies))),
                     "i_cen": (("obs"), [e.i for e in self.eddies]),
@@ -1035,7 +1038,7 @@ class Eddies2D:
                 },
             )
         else:
-            return xr.Dataset(
+            ds = xr.Dataset(
                 {
                     "time": (("obs"), np.repeat(self.time, len(self.eddies))),
                     "i_cen": (("obs"), [e.i for e in self.eddies]),
@@ -1102,6 +1105,9 @@ class Eddies2D:
                     "contact": "jean.baptiste.roustan@shom.fr",
                 },
             )
+        if hasattr(self.eddies[0], "p_id"):
+            ds = ds.assign(p_id=(("obs",), [e.p_id for e in self.eddies]))
+        return ds
 
     def save(self, path_nc):
         "this save at .nc format"
