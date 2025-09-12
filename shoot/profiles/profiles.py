@@ -166,10 +166,10 @@ class Profiles:
             prf = self.ds.isel(profil=ind_prf)
 
             for e in eddy.eddies:  # list of Raw2dEddies object
-                e.p_id = None
+                e.p_id = []
                 inside = e.contains_points(prf.lon, prf.lat)
                 for i, b in enumerate(inside):
                     if b:
-                        e.p_id = prf.isel(profil=i).p_id.values
+                        e.p_id.append(prf.isel(profil=i).p_id.values)
                         eddy_pos[prf.isel(profil=i).p_id.values] = e.track_id
         self.ds = self.ds.assign(eddy_pos=("profil", eddy_pos))

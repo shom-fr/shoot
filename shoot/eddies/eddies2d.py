@@ -955,7 +955,7 @@ class Eddies2D:
         if not hasattr(
             self.eddies[0], "boundary_contour"
         ):  # check whether we have Raw2DEddy or Eddy object
-            return xr.Dataset(
+            ds = xr.Dataset(
                 {
                     "time": (("obs"), np.repeat(self.time, len(self.eddies))),
                     "i_cen": (("obs"), [e.i for e in self.eddies]),
@@ -1020,7 +1020,7 @@ class Eddies2D:
                 },
             )
         else:
-            return xr.Dataset(
+            ds = xr.Dataset(
                 {
                     "time": (("obs"), np.repeat(self.time, len(self.eddies))),
                     "i_cen": (("obs"), [e.i for e in self.eddies]),
@@ -1087,6 +1087,9 @@ class Eddies2D:
                     "contact": "jean.baptiste.roustan@shom.fr",
                 },
             )
+        if hasattr(self.eddies[0], "p_id"):
+            ds = ds.assign(p_id=(("obs",), [e.p_id for e in self.eddies]))
+        return ds
 
     def save(self, path_nc):
         "this save at .nc format"
