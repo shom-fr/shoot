@@ -81,9 +81,7 @@ print("it takes %.1f s" % (end - start))
 # -----
 #
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-ds.adt.plot(
-    ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r", alpha=0.6
-)
+ds.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r", alpha=0.6)
 plt.quiver(
     ds.longitude.values,
     ds.latitude.values,
@@ -94,8 +92,5 @@ plt.quiver(
 for eddy in eddies.eddies:
     # for eddy in eddies_ssh:
     eddy.plot(transform=pcarr, lw=1)
-plt.title(
-    "w_center %i km, w_fit %ikm min_rad %ikm"
-    % (window_center, window_fit, min_radius)
-)
+plt.title("w_center %i km, w_fit %ikm min_rad %ikm" % (window_center, window_fit, min_radius))
 plt.tight_layout()

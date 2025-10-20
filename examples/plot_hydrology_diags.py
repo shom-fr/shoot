@@ -134,9 +134,7 @@ plt.ylabel("Depth [m]")
 plt.ylim(-2000, 0)
 plt.legend()
 ax = plt.subplot(122)
-ax.plot(
-    anomaly.mean_profil_inside, anomaly.depth_vector, c="b", label="inside"
-)
+ax.plot(anomaly.mean_profil_inside, anomaly.depth_vector, c="b", label="inside")
 ax.fill_betweenx(
     anomaly.depth_vector,
     anomaly.mean_profil_inside - anomaly.std_profil_inside,
@@ -144,9 +142,7 @@ ax.fill_betweenx(
     alpha=0.2,
     color="b",
 )
-ax.plot(
-    anomaly.mean_profil_outside, anomaly.depth_vector, c="k", label="outside"
-)
+ax.plot(anomaly.mean_profil_outside, anomaly.depth_vector, c="k", label="outside")
 ax.fill_betweenx(
     anomaly.depth_vector,
     anomaly.mean_profil_outside - anomaly.std_profil_outside,
