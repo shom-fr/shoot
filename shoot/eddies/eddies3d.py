@@ -9,8 +9,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 
-from . import geo as sgeo
-from . import eddies as eddies
+from .. import geo as sgeo
+from . import eddies2d
 
 
 class Associate:
@@ -73,7 +73,7 @@ class Eddies3D:
     def __init__(self, u, v, eddies3d, nb_eddies):
         self.u = u
         self.v = v
-        self.eddies3d = eddies3d  # dictionnary with Eddies at each depth
+        self.eddies3d = eddies3d  # dictionnary with Eddies2D at each depth
         self.nb_eddies = nb_eddies
 
     @classmethod
@@ -98,7 +98,7 @@ class Eddies3D:
         for z in range(len(depth) - 1, -1, -1):
             uz = u.isel(depth=z)
             vz = v.isel(depth=z)
-            eddies_z = eddies.Eddies.detect_eddies(
+            eddies_z = eddies2d.Eddies2D.detect_eddies(
                 uz, vz, window_center, window_fit=window_fit, min_radius=min_radius, paral=paral
             )
             if z == len(depth) - 1:
