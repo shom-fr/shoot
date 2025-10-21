@@ -89,10 +89,7 @@ eddies = EvolEddies2D.detect_eddies(
     ellipse_error=ellipse_error,
 )
 end = time.time()
-print(
-    "Temps de calcul pour %i pas de temps : %.2f s"
-    % (len(ds.time), end - start)
-)
+print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - start))
 # %%
 # Tracking
 # ~~~~~ $
@@ -101,6 +98,16 @@ nbackward = 10  # number of admitted time step without detection
 
 tracks = track_eddies(eddies, nbackward)  # 10*dt
 tracked_eddies = tracks.track_eddies
+
+# %% save
+eddies.save('/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/jan2024_ionian_tracked.nc')
+
+# %% load already tracked eddies
+
+eddies = EvolEddies2D.reconstruct(
+    xr.open_dataset('/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/jan2024_ionian_tracked.nc')
+)
+
 
 # %%
 # Associate to floats
