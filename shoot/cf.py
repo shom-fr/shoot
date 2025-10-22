@@ -78,22 +78,16 @@ def get_cf_item(container, targets, name=None, errors="raise"):
 
 def get_lon(obj):
     """Get longitude coordinate data array"""
-    # return get_cf_item(obj.cf, ["longitude", "lon_rho"])
     return get_cf_item(obj.cf, "longitude")
 
 
 def get_lat(obj):
     """Get latitude coordinate data array"""
-    # return get_cf_item(obj.cf, ["latitude", "lat_rho"])
     return get_cf_item(obj.cf, "latitude")
 
 
 def get_depth(obj, errors="ignore"):
     """Get depth coodinate data array"""
-    # try:
-    #     get_cf_item(obj.cf, "vertical")
-    # except ShootError:
-    #     return _get_from_standard_names_(obj.cf, "depth", errors=errors)
     return _get_from_standard_names_(obj, "depth", errors=errors)
 
 

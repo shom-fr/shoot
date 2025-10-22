@@ -11,7 +11,7 @@ import xoa.coords as xcoords
 import xarray as xr
 
 
-@numba.njit  # this version can't be paralellized : today's reference
+@numba.njit
 def _find_signed_peaks_2d_ref(data, wx, wy):
     ny, nx = data.shape
     mask = np.isnan(data)
@@ -56,18 +56,12 @@ def _find_signed_peaks_2d_ref(data, wx, wy):
     return minima, maxima
 
 
-@numba.njit(
-    parallel=True
-)  # PB : parcoure tout le domaine mais voit pas les extrema à droite du domaine
+@numba.njit(parallel=True)
 def _find_signed_peaks_2d_paral_save(data, wx, wy):
     ny, nx = data.shape
     mask = np.isnan(data)
-    # nmax = (nx//wx)*(ny//wy)
-    maxima = np.ones((nx, ny, 2), dtype=np.int64) * -1  # np.ones((nmax,2),dtype=np.int64)*-1#
-    minima = (
-        np.ones((nx, ny, 2), dtype=np.int64) * -1
-    )  # np.ones((nmax,2),dtype=np.int64)*-1#np.ones((ny,nx,2),dtype=np.int64)*-1
-    # cmp_min, cmp_max = 0,0
+    maxima = np.ones((nx, ny, 2), dtype=np.int64) * -1
+    minima = np.ones((nx, ny, 2), dtype=np.int64) * -1
     wx2 = wx // 2
     wy2 = wy // 2
 
@@ -107,18 +101,13 @@ def _find_signed_peaks_2d_paral_save(data, wx, wy):
     return minima, maxima
 
 
-@numba.njit(
-    parallel=True
-)  # PB : parcoure tout le domaine mais voit pas les extrema à droite du domaine
+@numba.njit(parallel=True)
 def _find_signed_peaks_2d_paral(data, wx, wy):
     ny, nx = data.shape
     mask = np.isnan(data)
-    # nmax = (nx//wx)*(ny//wy)
+
     maxima = np.ones((nx, ny, 2), dtype=np.int64) * -1  # np.ones((nmax,2),dtype=np.int64)*-1#
-    minima = (
-        np.ones((nx, ny, 2), dtype=np.int64) * -1
-    )  # np.ones((nmax,2),dtype=np.int64)*-1#np.ones((ny,nx,2),dtype=np.int64)*-1
-    # cmp_min, cmp_max = 0,0
+    minima = np.ones((nx, ny, 2), dtype=np.int64) * -1
     wx2 = wx // 2
     wy2 = wy // 2
 

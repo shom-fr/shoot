@@ -29,11 +29,7 @@ def _ecs(profile, depth):
     ilmaxs = _ilmax(profile)
     try:
         # return profile.depth[ilmaxs[-1]]
-        return (
-            depth[ilmaxs[-1]]
-            if profile[ilmaxs[-1]] > profile[-1]
-            else 0 * depth[ilmaxs[-1]]
-        )
+        return depth[ilmaxs[-1]] if profile[ilmaxs[-1]] > profile[-1] else 0 * depth[ilmaxs[-1]]
     except IndexError:
         return np.nan * depth[-1]
 
@@ -60,7 +56,6 @@ def _mcp(profile, depth):
     ilmins = _ilmin(profile)
     try:
         return depth[ilmins[0]]
-        # return profile.depth.isel(s_rho=ilmins[0])
     except IndexError:
         return np.nan * depth[-1]
 
@@ -70,7 +65,6 @@ def _get_ecs_(cs, depth, ecs, xdim, ydim, nx, ny):
     for j in numba.prange(ny):
         for i in range(nx):
             ecs[j, i] = _ecs(cs[:, j, i], depth[:, j, i])
-            # ecs[j, i] = _ecs(cs.isel({xdim: i, ydim: j}))
     return ecs
 
 
@@ -106,7 +100,7 @@ def get_ecs(cs):
         vectorize=False,
         kwargs={"xdim": xdim, "ydim": ydim, "nx": nx, "ny": ny},
     )
-    return ecs  # .transpose(*cs.dims)
+    return ecs
 
 
 ## MCP
@@ -114,7 +108,6 @@ def _get_mcp_(cs, depth, mcp, xdim, ydim, nx, ny):
     for j in numba.prange(ny):
         for i in range(nx):
             mcp[j, i] = _mcp(cs[:, j, i], depth[:, j, i])
-            # ecs[j, i] = _ecs(cs.isel({xdim: i, ydim: j}))
     return mcp
 
 
@@ -150,7 +143,7 @@ def get_mcp(cs):
         vectorize=False,
         kwargs={"xdim": xdim, "ydim": ydim, "nx": nx, "ny": ny},
     )
-    return mcp  # .transpose(*cs.dims)
+    return mcp
 
 
 # IMINC
@@ -159,7 +152,6 @@ def _get_iminc_(cs, depth, iminc, xdim, ydim, nx, ny):
     for j in numba.prange(ny):
         for i in range(nx):
             iminc[j, i] = _iminc(cs[:, j, i], depth[:, j, i])
-            # ecs[j, i] = _ecs(cs.isel({xdim: i, ydim: j}))
     return iminc
 
 
@@ -195,7 +187,7 @@ def get_iminc(cs):
         vectorize=False,
         kwargs={"xdim": xdim, "ydim": ydim, "nx": nx, "ny": ny},
     )
-    return iminc  # .transpose(*cs.dims)
+    return iminc
 
 
 class ProfileAcous:
@@ -235,39 +227,27 @@ class AcousEddy:
 
     @functools.cached_property
     def ecs_inside(self):
-        return ProfileAcous(
-            self.anomaly.mean_profil_inside, self.anomaly.depth_vector
-        ).ecs
+        return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).ecs
 
     @functools.cached_property
     def iminc_inside(self):
-        return ProfileAcous(
-            self.anomaly.mean_profil_inside, self.anomaly.depth_vector
-        ).iminc
+        return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).iminc
 
     @functools.cached_property
     def mcp_inside(self):
-        return ProfileAcous(
-            self.anomaly.mean_profil_inside, self.anomaly.depth_vector
-        ).mcp
+        return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).mcp
 
     @functools.cached_property
     def ecs_outside(self):
-        return ProfileAcous(
-            self.anomaly.mean_profil_outside, self.anomaly.depth_vector
-        ).ecs
+        return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).ecs
 
     @functools.cached_property
     def iminc_outside(self):
-        return ProfileAcous(
-            self.anomaly.mean_profil_outside, self.anomaly.depth_vector
-        ).iminc
+        return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).iminc
 
     @functools.cached_property
     def mcp_outside(self):
-        return ProfileAcous(
-            self.anomaly.mean_profil_outside, self.anomaly.depth_vector
-        ).mcp
+        return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).mcp
 
     @staticmethod
     def _distance(e1, e2):
@@ -304,16 +284,12 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).ecs
 
-        # lon = self.anomaly.profils_inside.lon_rho.values
-        # lat = self.anomaly.profils_inside.lat_rho.values
         lon = scf.get_lon(self.anomaly.profils_inside).values
         lat = scf.get_lat(self.anomaly.profils_inside).values
         ecs = xr.DataArray(
             data=ecs,
             dims=["nb_profil"],
-            coords=dict(
-                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
-            ),
+            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
         )
         return ecs
 
@@ -326,16 +302,12 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).ecs
 
-        # lon = self.anomaly.profils_outside.lon_rho.values
-        # lat = self.anomaly.profils_outside.lat_rho.values
         lon = scf.get_lon(self.anomaly.profils_outside).values
         lat = scf.get_lat(self.anomaly.profils_outside).values
         ecs = xr.DataArray(
             data=ecs,
             dims=["nb_profil"],
-            coords=dict(
-                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
-            ),
+            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
         )
         return ecs
 
@@ -348,16 +320,12 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).mcp
 
-        # lon = self.anomaly.profils_inside.lon_rho.values
-        # lat = self.anomaly.profils_inside.lat_rho.values
         lon = scf.get_lon(self.anomaly.profils_inside).values
         lat = scf.get_lat(self.anomaly.profils_inside).values
         mcp = xr.DataArray(
             data=mcp,
             dims=["nb_profil"],
-            coords=dict(
-                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
-            ),
+            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
         )
         return mcp
 
@@ -370,16 +338,12 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).mcp
 
-        # lon = self.anomaly.profils_outside.lon_rho.values
-        # lat = self.anomaly.profils_outside.lat_rho.values
         lon = scf.get_lon(self.anomaly.profils_outside).values
         lat = scf.get_lat(self.anomaly.profils_outside).values
         mcp = xr.DataArray(
             data=mcp,
             dims=["nb_profil"],
-            coords=dict(
-                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
-            ),
+            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
         )
         return mcp
 
@@ -392,16 +356,12 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).iminc
 
-        # lon = self.anomaly.profils_inside.lon_rho.values
-        # lat = self.anomaly.profils_inside.lat_rho.values
         lon = scf.get_lon(self.anomaly.profils_inside).values
         lat = scf.get_lat(self.anomaly.profils_inside).values
         iminc = xr.DataArray(
             data=iminc,
             dims=["nb_profil"],
-            coords=dict(
-                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
-            ),
+            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
         )
         return iminc
 
@@ -414,16 +374,12 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).iminc
 
-        # lon = self.anomaly.profils_outside.lon_rho.values
-        # lat = self.anomaly.profils_outside.lat_rho.values
         lon = scf.get_lon(self.anomaly.profils_outside).values
         lat = scf.get_lat(self.anomaly.profils_outside).values
         iminc = xr.DataArray(
             data=iminc,
             dims=["nb_profil"],
-            coords=dict(
-                lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)
-            ),
+            coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
         )
         return iminc
 

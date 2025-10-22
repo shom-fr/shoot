@@ -67,9 +67,6 @@ class Associate:
         M = np.zeros((len(self.new_eddies), len(self.parent_eddies)))
         for i in range(len(self.new_eddies)):
             for j in range(len(self.parent_eddies)):
-                # print('eddy 1 ', self.parent_eddies[j].lon, self.parent_eddies[j].lat, self.parent_eddies[j].eddy_type)
-                # print('eddy 2 ', self.new_eddies[i].lon, self.new_eddies[i].lat, self.new_eddies[i].eddy_type)
-                # print('Mij %.2f before'%M[i,j])
                 dlat = self.parent_eddies[j].lat - self.new_eddies[i].lat
                 dlon = self.parent_eddies[j].lon - self.new_eddies[i].lon
                 x = xgeo.deg2m(dlon, self.parent_eddies[j].lat)
@@ -77,15 +74,10 @@ class Associate:
 
                 D_ij = self.search_dist(self.parent_eddies[j], self.new_eddies[i])
 
-                # print('Dij %.2f (km)'%(D_ij/1e3))
                 # Distance term
                 dxy = np.sqrt(x**2 + y**2)
-                # print('dxy %.2f (km)'%(dxy/1e3))
 
                 M[i, j] = (dxy**2) / (D_ij**2) if dxy < D_ij else 1e6
-
-                # print('Mij %.2f disatnce'%M[i,j])
-
                 # dynamical similarity
                 roj = self.ro_avg(self.parent_eddies[j])
                 rj = self.rad_avg(self.parent_eddies[j])
@@ -97,23 +89,15 @@ class Associate:
                     roj + self.new_eddies[i].ro
                 )
 
-                # print('DR %.2f (km)'%(DR/1e3))
-                # print('DR0 %2f (km)'%(DR0/1e3))
-
                 # Warning avoid couple cyclone with anticylone
                 M[i, j] += (
                     DR**2 + DR0**2
                     if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type
                     else 1e6
                 )
-                # print('Mij %.2f dynamcis'%M[i,j])
 
                 # temporal proximity
-                # print("time factor %.3f"%((0.5*self._Dt/self._Tc)**2))
                 M[i, j] += (0.5 * self._Dt / self._Tc) ** 2
-
-                # print('Mij %.2f'%np.sqrt(M[i,j]))
-
         return np.sqrt(M)
 
     def order(self):
@@ -188,9 +172,6 @@ class AssociateMulti:
             cmp = 0
             for k in range(len(self.parent_eddies)):
                 for j in range(len(self.parent_eddies[k])):
-                    # print('eddy 1 ', self.parent_eddies[j].lon, self.parent_eddies[j].lat, self.parent_eddies[j].eddy_type)
-                    # print('eddy 2 ', self.new_eddies[i].lon, self.new_eddies[i].lat, self.new_eddies[i].eddy_type)
-                    # print('Mij %.2f before'%M[i,j])
                     dlat = self.parent_eddies[k][j].lat - self.new_eddies[i].lat
                     dlon = self.parent_eddies[k][j].lon - self.new_eddies[i].lon
                     x = xgeo.deg2m(dlon, self.parent_eddies[k][j].lat)
@@ -202,14 +183,10 @@ class AssociateMulti:
                         self._Dt[k],
                     )
 
-                    # print('Dij %.2f (km)'%(D_ij/1e3))
                     # Distance term
                     dxy = np.sqrt(x**2 + y**2)
-                    # print('dxy %.2f (km)'%(dxy/1e3))
 
                     M[i, cmp] = (dxy**2) / (D_ij**2) if dxy < D_ij else 1e6
-
-                    # print('Mij %.2f disatnce'%M[i,j])
 
                     # dynamical similarity
                     roj = self.ro_avg(self.parent_eddies[k][j])
@@ -222,19 +199,14 @@ class AssociateMulti:
                         roj + self.new_eddies[i].ro
                     )
 
-                    # print('DR %.2f (km)'%(DR/1e3))
-                    # print('DR0 %2f (km)'%(DR0/1e3))
-
                     # Warning avoid couple cyclone with anticylone
                     M[i, cmp] += (
                         DR**2 + DR0**2
                         if self.parent_eddies[k][j].eddy_type == self.new_eddies[i].eddy_type
                         else 1e6
                     )
-                    # print('Mij %.2f dynamcis'%M[i,j])
 
                     # temporal proximity
-                    # print("time factor %.3f"%((0.5*self._Dt[k]/self._Tc)**2))
                     M[i, cmp] += (0.5 * self._Dt[k] / self._Tc) ** 2
                     cmp += 1
 
@@ -404,9 +376,7 @@ class Tracks:
         for i in range(1, len(self.times)):  # compute tracking on all following time steps
             t = self.times[i]
             print(t)
-            # parent_eddies = self.eddies[i-1]
             new_eddies = self.eddies.eddies[i].eddies
-            # self.update(parent_eddies,new_eddies,self._dt) #modifier pour passer les dernières valeurs
             self.update_multi(
                 [self.eddies.eddies[i - k].eddies for k in range(1, min(i, self.nback) + 1)],
                 new_eddies,
@@ -467,7 +437,6 @@ class Tracks:
         self.eddies.add(new_eddies)
         self.times.append(new_eddies.time)
         self.track_step()
-        # return self.track_eddies
 
 
 def track_eddies(eddies, nback):

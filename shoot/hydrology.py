@@ -60,20 +60,11 @@ class Anomaly:
     @property
     def _i(self):
         lon_name = xcoords.get_lon(self.dens).name
-        # lat_name = xcoords.get_lat(self.dens).name
-        # ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
-        # return ij[0][0]
         return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
 
     @property
     def _j(self):
         lon_name = xcoords.get_lon(self.dens).name
-        # lat_name = xcoords.get_lat(self.dens).name
-        # ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
-        # print((self.lon, self.lat))
-        # print(ij[1][0])
-        # print(np.unravel_index(np.argmin(dist), self.dens[lon_name].shape))
-        # return ij[1][0]
         return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
 
     @functools.cached_property
@@ -347,17 +338,13 @@ class Anomaly:
             return None
         if self.depth_vector[0] < self.depth_vector[-1]:
             if self.eddy.eddy_type == "anticyclone":
-                # icore = argrelmin(self.anomaly.values)[0][0]  # take deepest
                 icore = np.argmin(self.anomaly.values)
             else:
-                # icore = argrelmax(self.anomaly.values)[0][0]
                 icore = np.argmax(self.anomaly.values)
         else:
             if self.eddy.eddy_type == "anticyclone":
-                # icore = argrelmin(self.anomaly.values)[0][-1]  # take deepest
                 icore = np.argmin(self.anomaly.values)
             else:
-                # icore = argrelmax(self.anomaly.values)[0][-1]
                 icore = np.argmax(self.anomaly.values)
         return icore
 

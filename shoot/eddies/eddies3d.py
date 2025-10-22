@@ -50,12 +50,6 @@ class Associate:
                 )
         return M
 
-    # def order(self):
-    #     M = self.cost
-    #     raw, col = linear_sum_assignment(M)
-    #     for i, j in zip(raw, col):
-    #         self.new_eddies[i].z_id = self.parent_eddies[j].z_id
-
     def order(self):
         M = self.cost
         idel = []
@@ -68,11 +62,12 @@ class Associate:
             np.delete(self.new_eddies, idel)[i].z_id = self.parent_eddies[j].z_id
 
 
-class Eddies3D:
+class EddiesByDepth:
 
-    def __init__(self, u, v, eddies3d, nb_eddies):
+    def __init__(self, u, v, depth, eddies3d, nb_eddies):
         self.u = u
         self.v = v
+        self.depth = depth  # to change
         self.eddies3d = eddies3d  # dictionnary with Eddies2D at each depth
         self.nb_eddies = nb_eddies
 
@@ -114,4 +109,80 @@ class Eddies3D:
 
             eddies3d[z] = eddies_z
             eddies_tmp = eddies_z
-        return cls(u, v, eddies3d, nb_eddies)
+        return cls(u, v, depth, eddies3d, nb_eddies)
+
+
+class RawEddy3D:
+    def __init__(self, depths, eddies):
+        self.depths = depths
+        self.eddies = eddies  # list of RawEddy2D
+
+    @property
+    def min_depth(self):
+        return min(np.abs(self.depths))
+
+    @property
+    def max_depth(self):
+        return max(np.abs(self.depths))
+
+    @property
+    def vmax(self):
+        "return the maximum speed of the eddy"
+        return max([e.vmax_contour.mean_velocity for e in self.eddies])
+
+    @property
+    def vmax_depth(self):
+        """return the depth of the maximum speed"""
+        ivmax = np.argmax([e.vmax_contour.mean_velocity for e in self.eddies])
+        return np.abs(self.depths[ivmax])
+
+
+class Eddies3D:
+    def __init__(self, u, v, depths, eddies):
+        self.eddies = eddies
+        self.depths = depths
+        self.u = u
+        self.v = v
+
+    @classmethod
+    def detect_eddies_3d(
+        cls,
+        u,
+        v,
+        window_center,
+        window_fit=None,
+        dx=None,
+        dy=None,
+        min_radius=None,
+        ssh_method='streamline',
+        paral=False,
+        max_distance=10,
+        **kwargs,
+    ):
+
+        eddies = EddiesByDepth.detect_eddies_3d(
+            u,
+            v,
+            window_center,
+            window_fit=window_fit,
+            dx=dx,
+            dy=dy,
+            min_radius=min_radius,
+            ssh_method=ssh_method,
+            paral=paral,
+            max_distance=max_distance,
+            **kwargs,
+        )
+
+        eddies_3d = []
+        for z_id in range(eddies.nb_eddies):
+            e_depth = []
+            e = []
+            for i, k in enumerate(eddies.eddies3d):
+                eddies_2d = eddies.eddies3d[k]
+                for eddy in eddies_2d.eddies:
+                    if eddy.z_id == z_id:
+                        e.append(eddy)
+                        e_depth.append(eddies.depth[i].values)
+            eddies_3d.append(RawEddy3D(e_depth, e))
+        return cls(u, v, eddies.depth.values, eddies_3d)

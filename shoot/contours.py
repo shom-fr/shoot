@@ -40,7 +40,7 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
         ran = np.arange(vmin, vmax + 0.005, 0.005)
     else:
         ran = np.linspace(vmin, vmax, nlevels)
-    for level in ran:  # parcoure tous les demi-centimètre
+    for level in ran:
         for line in cont_gen.lines(level):
             if (line[0] == line[-1]).all():  # chek if it is closed contour
                 xx = interp_to_line(lon2d.values, line)
@@ -48,9 +48,7 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
                 if snum.points_in_polygon(
                     point, np.array([xx, yy]).T
                 ):  # Check if it contains the center
-                    if np.any(
-                        np.isnan(ssh)
-                    ):  # Chek if it contains land points inside
+                    if np.any(np.isnan(ssh)):  # Chek if it contains land points inside
                         nan_indexes = np.where(np.isnan(ssh))
                         nan_points = np.array(
                             [
@@ -58,11 +56,7 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
                                 for i, j in zip(nan_indexes[0], nan_indexes[1])
                             ]
                         )
-                        if np.any(
-                            snum.points_in_polygon(
-                                nan_points, np.array([xx, yy]).T
-                            )
-                        ):
+                        if np.any(snum.points_in_polygon(nan_points, np.array([xx, yy]).T)):
                             continue
                     dss.append(
                         xr.Dataset(
@@ -126,10 +120,6 @@ def add_contour_dx_dy(ds):
         ds["dx"] = ("npts", dx, {"units": "m"})
         ds["dy"] = ("npts", dy, {"units": "m"})
         ds.attrs["length"] = float(np.sqrt(dx**2 + dy**2).sum())
-        # radius based on the area
-        # a = area(ds)
-        # ds['area'] = a
-
     return ds
 
 
@@ -186,7 +176,6 @@ def get_lnam_peaks(lnam, K=0.7):
         ].data + 1
 
         # compute max inside the polygon
-        # ijmax = abs(lnam).isel({lnam.dims[0]:slice(lat_min,lat_max), lnam.dims[1]:slice(lon_min,lon_max)}).argmax(lnam.dims)
         ijmax = (
             abs(lnam)
             .isel(
@@ -200,28 +189,18 @@ def get_lnam_peaks(lnam, K=0.7):
         jmax_in = ijmax[lnam.dims[0]].data  # lat
         imax_in = ijmax[lnam.dims[1]].data  # lon
 
-        # lat_center = abs(lnam).sel({lnam.dims[0]:slice(lat_min,lat_max), lnam.dims[1]:slice(lon_min,lon_max)}).latitude[jmax_in]
-        # lon_center = abs(lnam).sel({lnam.dims[0]:slice(lat_min,lat_max), lnam.dims[1]:slice(lon_min,lon_max)}).longitude[imax_in]
         lat_center = abs(lnam).isel(
             {lnam.dims[0]: slice(jmin, jmax), lnam.dims[1]: slice(imin, imax)}
         )[jmax_in, imax_in][lat_name]
         lon_center = abs(lnam).isel(
             {lnam.dims[0]: slice(jmin, jmax), lnam.dims[1]: slice(imin, imax)}
         )[jmax_in, imax_in][lon_name]
-        # assert(snum.points_in_polygon([lon_center, lat_center], np.array([xx, yy]).T))
-
-        # jcenter = lnam.indexes[lat_name].get_loc(float(lat_center.data))
-        # icenter = lnam.indexes[lon_name].get_loc(float(lon_center.data))
 
         jcenter = (
-            (abs(lat2d - lat_center) + abs(lon2d - lon_center))
-            .argmin(lnam.dims)[lnam.dims[0]]
-            .data
+            (abs(lat2d - lat_center) + abs(lon2d - lon_center)).argmin(lnam.dims)[lnam.dims[0]].data
         )
         icenter = (
-            (abs(lat2d - lat_center) + abs(lon2d - lon_center))
-            .argmin(lnam.dims)[lnam.dims[1]]
-            .data
+            (abs(lat2d - lat_center) + abs(lon2d - lon_center)).argmin(lnam.dims)[lnam.dims[1]].data
         )
 
         if lnam[jcenter, icenter] > 0:
@@ -244,7 +223,5 @@ def area(ds):
         + sgeo.deg2m(ds.lat[:-1] - ds.lat[1:]).values ** 2
     )
 
-    theta = np.arccos(
-        (-dx + xydist[1:] + xydist[:-1]) / (xydist[1:] + xydist[:-1])
-    )
+    theta = np.arccos((-dx + xydist[1:] + xydist[:-1]) / (xydist[1:] + xydist[:-1]))
     return np.sum(xyavg * theta)
