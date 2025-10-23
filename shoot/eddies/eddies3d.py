@@ -6,11 +6,15 @@ Created on Wed Jul  3 15:39:51 2024 by jbroust
 
 import functools
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.optimize import linear_sum_assignment
 
 
 from .. import geo as sgeo
 from . import eddies2d
+from .. import plot as splot
+from .. import dyn as sdyn
+from .. import cf as scf
 
 
 class Associate:
@@ -36,9 +40,6 @@ class Associate:
         M = np.zeros((len(self.new_eddies), len(self.parent_eddies)))
         for i in range(len(self.new_eddies)):
             for j in range(len(self.parent_eddies)):
-                # print('eddy 1 ', self.parent_eddies[j].glon, self.parent_eddies[j].glat, self.parent_eddies[j].eddy_type)
-                # print('eddy 2 ', self.new_eddies[i].glon, self.new_eddies[i].glat, self.new_eddies[i].eddy_type)
-                # print('Mij %.2f before'%M[i,j])
                 dlat = self.parent_eddies[j].glat - self.new_eddies[i].glat
                 dlon = self.parent_eddies[j].glon - self.new_eddies[i].glon
                 x = sgeo.deg2m(dlon, self.parent_eddies[j].glat)
@@ -109,6 +110,7 @@ class EddiesByDepth:
 
             eddies3d[z] = eddies_z
             eddies_tmp = eddies_z
+
         return cls(u, v, depth, eddies3d, nb_eddies)
 
 
@@ -138,8 +140,9 @@ class RawEddy3D:
 
 
 class Eddies3D:
-    def __init__(self, u, v, depths, eddies):
+    def __init__(self, u, v, depths, eddies, eddies_byslice):
         self.eddies = eddies
+        self.eddies_byslice = eddies_byslice
         self.depths = depths
         self.u = u
         self.v = v
@@ -183,6 +186,54 @@ class Eddies3D:
                 for eddy in eddies_2d.eddies:
                     if eddy.z_id == z_id:
                         e.append(eddy)
-                        e_depth.append(eddies.depth[i].values)
-            eddies_3d.append(RawEddy3D(e_depth, e))
-        return cls(u, v, eddies.depth.values, eddies_3d)
+                        e_depth.append(eddies.depth[k].values)
+            eddies_3d.append(RawEddy3D(np.array(e_depth), e))
+        return cls(u, v, eddies.depth.values, eddies_3d, eddies)
+
+    def plot2d(self, depth=0, boundary=False, vmax=False, quiver=False, ns=5):
+        """
+        plot the 2D vorticity field superimposed with eddies detection at the nearest
+        layer depth
+        """
+
+        lon = scf.get_lon(self.u)
+        lat = scf.get_lat(self.u)
+        i = np.argmin(np.abs(depth - np.abs(self.depths)))
+        fig, ax = splot.create_map(
+            lon,
+            lat,
+            figsize=(8, 5),
+        )
+        sdyn.get_relvort(self.u.isel(depth=i), self.v.isel(depth=i)).plot(
+            x="lon_rho",
+            y="lat_rho",
+            cmap="cmo.curl",
+            ax=ax,
+            add_colorbar=False,
+            transform=splot.pcarr,
+        )
+
+        if quiver:
+            plt.quiver(
+                lon[::ns, ::ns].values,
+                lat[::ns, ::ns].values,
+                self.u.isel(depth=i)[::ns, ::ns].values,
+                self.v.isel(depth=i)[::ns, ::ns].values,
+                color="k",
+                transform=splot.pcarr,
+            )
+
+        for eddy3d in self.eddies:
+            inearest = np.argmin(np.abs(depth - np.abs(eddy3d.depths)))
+            eddy2d = eddy3d.eddies[inearest]
+            eddy2d.plot(boundary=boundary, vmax=vmax, transform=splot.pcarr)
+            cb = plt.scatter(
+                eddy2d.lon,
+                eddy2d.lat,
+                c=eddy3d.max_depth,
+                cmap="Spectral_r",
+                vmin=np.min(np.abs(self.depths)),
+                vmax=np.max(np.abs(self.depths)),
+                transform=splot.pcarr,
+            )
+        plt.colorbar(cb, label="maximum depth")
