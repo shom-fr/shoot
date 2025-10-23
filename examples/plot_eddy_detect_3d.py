@@ -11,14 +11,13 @@ In this example,  3D eddies are detected from CROCO model currents interpolated 
 # -----------------
 #
 # Import needed stuff.
-import os, sys
+import os
 import cmocean
 import matplotlib.pyplot as plt
 import xarray as xr
 import xoa.cf as xcf
 
-sys.path.append("/home/shom/jbroust/Documents/CODE/SHOOT_LIB/")
-from shoot.eddies.eddies3d import EddiesByDepth, Eddies3D
+from shoot.eddies.eddies3d import Eddies3D
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
 
@@ -31,18 +30,9 @@ xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
-root_path = "/local/tmp/jbroust/DATA/CROCO/MED1.8"
-path = os.path.join(root_path, "ionian_shoot_3d_10042024_interp.nc")
-
+root_path = "../data"
+path = os.path.join(root_path, "pelops_3d_interp.nc")
 ds_3d = xr.open_dataset(path)
-## Pelops area
-ds_3d = ds_3d.isel(x_rho=slice(350, 550), y_rho=slice(50, 250))
-
-# ds_surf = ds_3d.isel(depth=len(ds_3d.depth) - 1)
-# ds_mid = ds_3d.sel(depth=-200)
-
-## interpolate at fixed depths
-
 
 # %% D
 # Detect eddies
