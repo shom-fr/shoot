@@ -356,7 +356,7 @@ class Tracks:
             else:
                 ds = xr.concat([ds, track.ds], dim="eddies")
         ds_eddies = self.eddies.ds
-        return xr.merge([ds_eddies, ds])
+        return xr.merge([ds_eddies, ds], compat="override")
 
     def save(self, path_nc):
         "this save at .nc format"

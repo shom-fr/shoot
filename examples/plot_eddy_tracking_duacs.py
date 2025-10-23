@@ -65,10 +65,7 @@ eddies = EvolEddies2D.detect_eddies(
     ellipse_error=ellipse_error,
 )
 end = time.time()
-print(
-    "Temps de calcul pour %i pas de temps : %.2f s"
-    % (len(ds.time), end - start)
-)
+print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - start))
 # %%
 # Tracking
 # ~~~~~~~~
@@ -80,7 +77,6 @@ print(tracks)
 tracked_eddies = tracks.track_eddies
 
 # sauvegarde du tracking complet
-
 # tracks.save(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
 
 # %%

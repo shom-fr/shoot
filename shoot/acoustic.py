@@ -28,8 +28,10 @@ def _ilmin(profile):
 def _ecs(profile, depth):
     ilmaxs = _ilmax(profile)
     try:
-        # return profile.depth[ilmaxs[-1]]
-        return depth[ilmaxs[-1]] if profile[ilmaxs[-1]] > profile[-1] else 0 * depth[ilmaxs[-1]]
+        if np.abs(depth[0]) > np.abs(depth[-1]):  # bottom to surf case
+            return depth[ilmaxs[-1]] if profile[ilmaxs[-1]] > profile[-1] else 0 * depth[ilmaxs[-1]]
+        else:  # surface to bottom case
+            return depth[ilmaxs[0]] if profile[ilmaxs[0]] > profile[0] else 0 * depth[ilmaxs[0]]
     except IndexError:
         return np.nan * depth[-1]
 
@@ -39,14 +41,17 @@ def _iminc(profile, depth):
     ilmaxs = _ilmax(profile)
     ilmins = _ilmin(profile)
     if len(ilmaxs) > 1:
-        maxd = ilmaxs[-2]
-        maxs = ilmaxs[-1]
+        if np.abs(depth[0]) > np.abs(depth[-1]):  # bottom to surf case
+            maxd = ilmaxs[-2]
+            maxs = ilmaxs[-1]
+        else:  # surface to bottom
+            maxd = ilmaxs[1]
+            maxs = ilmaxs[0]
         for l in ilmins:
             if (l > maxd) and (l < maxs):
                 pos_iminc = l
                 break
     if pos_iminc:
-        # return profile.depth.isel(s_rho=pos_iminc)
         return depth[pos_iminc]
     else:
         return np.nan * depth[-1]
@@ -55,7 +60,10 @@ def _iminc(profile, depth):
 def _mcp(profile, depth):
     ilmins = _ilmin(profile)
     try:
-        return depth[ilmins[0]]
+        if np.abs(depth[0]) > np.abs(depth[-1]):  # bottom to surface
+            return depth[ilmins[0]]
+        else:  # surface to bottom
+            return depth[ilmins[-1]]
     except IndexError:
         return np.nan * depth[-1]
 
