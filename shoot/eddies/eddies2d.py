@@ -794,7 +794,7 @@ class Eddies2D:
                 eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
             if paral:
-                with mp.Pool(nb_procs) as p:
+                with mp.Pool(nb_procs,maxtasksperchild=5) as p:
                     eddies_tmp = p.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
             else:
                 eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
