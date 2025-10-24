@@ -293,7 +293,7 @@ class Track:
                 "y_start": (("eddies"), [self.eddies[0].lat]),
                 "x_end": (("eddies"), [self.eddies[-1].lon]),
                 "y_end": (("eddies"), [self.eddies[-1].lat]),
-                "eddy_type": (("eddies"), [self.eddies[0].eddy_type]),
+                "track_type": (("eddies"), [self.eddies[0].eddy_type]),
             },
         )
 
@@ -356,7 +356,7 @@ class Tracks:
             else:
                 ds = xr.concat([ds, track.ds], dim="eddies")
         ds_eddies = self.eddies.ds
-        return xr.merge([ds_eddies, ds], compat="override")
+        return xr.merge([ds_eddies, ds])
 
     def save(self, path_nc):
         "this save at .nc format"

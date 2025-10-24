@@ -580,7 +580,7 @@ class Eddy:
     @classmethod
     def reconstruct(cls, ds, track):
         if track:
-            eddy_type = str(ds.eddy_type[int(ds.track_id.values)].values)
+            eddy_type = str(ds.track_type[int(ds.track_id.values)].values)
             track_id = int(ds.track_id.values)
         else:
             eddy_type = str(ds.eddy_type.values)
@@ -669,7 +669,7 @@ class Eddies2D:
         window_fit = float(ds.window_fit[:-3])
         min_radius = float(ds.min_radius[:-3])
         eddies = []
-        track = False if ds.eddy_type.dims[0] == "obs" else True
+        track = hasattr(ds, "track_type")  # if ds.eddy_type.dims[0] == "obs" else True
         for i in range(len(ds.obs)):
             eddies.append(Eddy.reconstruct(ds.isel(obs=i), track))
             if i == 0:
@@ -794,7 +794,7 @@ class Eddies2D:
                 eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
             if paral:
-                with mp.Pool(nb_procs,maxtasksperchild=5) as p:
+                with mp.Pool(nb_procs, maxtasksperchild=5) as p:
                     eddies_tmp = p.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
             else:
                 eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]

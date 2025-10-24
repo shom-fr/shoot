@@ -76,8 +76,20 @@ tracks = track_eddies(eddies, nbackward)  # 10*dt
 print(tracks)
 tracked_eddies = tracks.track_eddies
 
-# sauvegarde du tracking complet
-# tracks.save(os.path.join(root_path, 'track_ionian_sea_duacs_jan2024.nc'))
+# %% Test track save and reconstruction
+
+# Save track
+tracks.save(
+    os.path.join("/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/", 'track_ionian_sea_duacs_jan2024.nc')
+)
+
+# Reconstruct traks from save file
+track_r = tracks.reconstruct(
+    xr.open_dataset(
+        os.path.join("/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/", 'track_ionian_sea_duacs_jan2024.nc')
+    ),
+    nbackward,
+)
 
 # %%
 # Plots

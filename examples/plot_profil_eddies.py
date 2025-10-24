@@ -68,7 +68,6 @@ window_fit = 120  # 100  # 120
 min_radius = 20
 
 # Ellipse error
-
 ellipse_error = 0.05
 
 # %%
