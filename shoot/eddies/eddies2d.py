@@ -726,12 +726,13 @@ class Eddies2D:
         wy2 = wy // 2
         xdim = scf.get_xdim(u)
         ydim = scf.get_ydim(u)
-        if type(xdim) == str:
-            nx = u.sizes[xdim]
-            ny = u.sizes[ydim]
-        else:
-            nx = u.sizes[xdim[0]]
-            ny = u.sizes[ydim[0]]
+
+        if not type(xdim) == str:
+            xdim = xdim[0]
+            ydim = ydim[0]
+
+        nx = u.sizes[xdim]
+        ny = u.sizes[ydim]
 
         def def_eddy(ic, wx2c, wy2c):
             # Local selection
