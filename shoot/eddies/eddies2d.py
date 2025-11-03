@@ -355,7 +355,7 @@ class RawEddy2D:
     def ro(self):
         """Rosby number of the eddy"""
         f = 2 * sdyn.OMEGA * np.sin(self.glat)
-        return self.vmax_contour.mean_velocity / (f * self.vmax_contour.length)
+        return self.vmax_contour.mean_velocity / (f * self.vmax_contour.radius)
 
     @functools.cached_property
     def elon(self):
