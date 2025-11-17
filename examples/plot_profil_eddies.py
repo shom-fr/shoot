@@ -32,7 +32,7 @@ from shoot.grid import get_dx_dy
 
 # %%
 # Read data
-root_path = "./data"
+root_path = "../data"
 path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
 ds = xr.open_dataset(path)
 
@@ -174,7 +174,7 @@ dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="cmo.dense")
 for eddy in eddies.eddies[n].eddies:
     color = "k" if eddy.p_id else "w"
     eddy.plot(transform=pcarr, lw=1)
-    plt.text(eddy.glon, eddy.glat, eddy.track_id, c=color, transform=pcarr)
+    plt.text(eddy.lon, eddy.lat, eddy.track_id, c=color, transform=pcarr)
     # track = tracked_eddies[eddy.track_id]
     # lon, lat = [], []
     # for e in track.eddies:
