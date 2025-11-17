@@ -20,6 +20,7 @@ import xoa.cf as xcf
 from shoot.eddies.eddies3d import Eddies3D
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
+from shoot.samples import get_sample_file
 
 
 xr.set_options(display_style="text")
@@ -30,8 +31,9 @@ xcf.set_cf_specs("croco.cfg")
 
 # %%
 # Read data
-root_path = "../data"
-path = os.path.join(root_path, "pelops_3d_interp.nc")
+
+root_path = "MODELS/CROCO/MED/pelops_3d_interp.nc"
+path = get_sample_file(root_path)
 ds_3d = xr.open_dataset(path)
 
 # %% D
