@@ -17,12 +17,14 @@ import xarray as xr
 from shoot.grid import get_dx_dy
 from shoot.dyn import get_lnam, get_okuboweiss, get_geos
 from shoot.plot import create_map, pcarr
+from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
 
 # %%
 # Read data
-path = os.path.join('../data/jan2024_ionian_sea_duacs.nc')
+root_path = "OBS/SATELLITE/jan2024_ionian_sea_duacs.nc"
+path = get_sample_file(root_path)
 ds = xr.open_dataset(path).isel(time=0)
 # ds = ds.sel(longitude=slice(24, 34), latitude=slice(31, 35))
 
