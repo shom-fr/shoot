@@ -21,8 +21,8 @@ def psi(u, v):
     lat, lon = scf.get_lat(u), scf.get_lon(u)
     lat2d, lon2d = xr.broadcast(lat, lon)
 
-    lon_ref = lon.mean()  # lon[ci]#lon.mean()
-    lat_ref = lat.mean()  # lat[cj]#lat.mean()
+    lon_ref = lon.mean()
+    lat_ref = lat.mean()
 
     dlon2d = lon2d - lon_ref
     dlat2d = lat2d - lat_ref
@@ -41,9 +41,7 @@ def psi(u, v):
 
     # integrate in the four domains
     cx1 = cumulative_trapezoid(v[cj, ci:], x[cj, ci:], initial=0)
-    cx2 = cumulative_trapezoid(
-        v[cj, ci::-1], x[cj, ci::-1]
-    )  # -cumulative_trapezoid(v[cj,ci::-1], x[cj,ci::-1])
+    cx2 = cumulative_trapezoid(v[cj, ci::-1], x[cj, ci::-1])
 
     # expand vector to matrix size
     mcx11 = np.tile(cx1, (ly1, 1))
@@ -51,13 +49,9 @@ def psi(u, v):
     mcx21 = np.tile(cx2, (ly1, 1))
     mcx22 = np.tile(cx2, (ly2, 1))
 
-    # integrate psi ## reprendre avec Initial !
-    psi_xy11 = mcx11 - cumulative_trapezoid(
-        u[cj:, ci:], y[cj:, ci:], initial=0, axis=0
-    )
-    psi_xy12 = mcx12 - cumulative_trapezoid(
-        u[cj::-1, ci:], y[cj::-1, ci:], axis=0
-    )
+    # integrate psi
+    psi_xy11 = mcx11 - cumulative_trapezoid(u[cj:, ci:], y[cj:, ci:], initial=0, axis=0)
+    psi_xy12 = mcx12 - cumulative_trapezoid(u[cj::-1, ci:], y[cj::-1, ci:], axis=0)
     psi_xy21 = mcx21 - cumulative_trapezoid(
         u[cj:, ci - 1 :: -1], y[cj:, ci - 1 :: -1], initial=0, axis=0
     )
@@ -84,12 +78,8 @@ def psi(u, v):
     mcy22 = np.tile(cy2, (lx2, 1)).T
 
     # PSI from integrating u first and then v (4 parts of eq. A2)
-    psi_yx11 = mcy11 + cumulative_trapezoid(
-        v[cj:, ci:], x[cj:, ci:], initial=0, axis=-1
-    )
-    psi_yx21 = mcy21 + cumulative_trapezoid(
-        v[cj:, ci::-1], x[cj:, ci::-1], axis=-1
-    )
+    psi_yx11 = mcy11 + cumulative_trapezoid(v[cj:, ci:], x[cj:, ci:], initial=0, axis=-1)
+    psi_yx21 = mcy21 + cumulative_trapezoid(v[cj:, ci::-1], x[cj:, ci::-1], axis=-1)
     psi_yx12 = mcy12 + cumulative_trapezoid(
         v[cj - 1 :: -1, ci:], x[cj - 1 :: -1, ci:], initial=0, axis=-1
     )
@@ -114,25 +104,3 @@ def psi(u, v):
     psi.name = "psi"
     psi.attrs.update(long_name="Streamfunction")
     return psi
-
-
-# def psi_poisson(u, v):
-#     """
-#     Compute the streafunction from the velocity components following Bijlsma et al 1986
-#     Parameters
-#     ----------
-#     u, v : 2D arrays
-#         *x* and *y*-velocities. The number of rows and columns must match
-#         the length of *y* and *x*, respectively.
-
-#     Returns
-#     -------
-#     The streamfunction in the interior domain.
-#     """
-
-#     # Step 1 Compute divergence and vorticity in the interior domain
-#     vort = sdyn.get_relvort(u, v)
-#     div = sdyn.get_div(u, v)
-
-#     # Step 2 Solve Poisson equation with nul boundary conditions
-#     xi = poisson_direct(xsize, ysize, dx, dy, boundary_null)

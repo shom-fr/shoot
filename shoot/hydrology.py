@@ -53,33 +53,19 @@ class Anomaly:
         lon_name = xcoords.get_lon(self.dens).name
         lat_name = xcoords.get_lat(self.dens).name
         dist = np.sqrt(
-            (self.dens[lon_name] - self.lon) ** 2
-            + (self.dens[lat_name] - self.lat) ** 2
+            (self.dens[lon_name] - self.lon) ** 2 + (self.dens[lat_name] - self.lat) ** 2
         ).values
         return dist
 
     @property
     def _i(self):
         lon_name = xcoords.get_lon(self.dens).name
-        # lat_name = xcoords.get_lat(self.dens).name
-        # ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
-        # return ij[0][0]
-        return np.unravel_index(
-            np.argmin(self._dist), self.dens[lon_name].shape
-        )[0]
+        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
 
     @property
     def _j(self):
         lon_name = xcoords.get_lon(self.dens).name
-        # lat_name = xcoords.get_lat(self.dens).name
-        # ij = np.where((self.dens[lon_name] == self.lon) & (self.dens[lat_name] == self.lat))
-        # print((self.lon, self.lat))
-        # print(ij[1][0])
-        # print(np.unravel_index(np.argmin(dist), self.dens[lon_name].shape))
-        # return ij[1][0]
-        return np.unravel_index(
-            np.argmin(self._dist), self.dens[lon_name].shape
-        )[1]
+        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
 
     @functools.cached_property
     def depth_vector(self):
@@ -101,20 +87,16 @@ class Anomaly:
         else:  # decreasing order bad for np.interp
             return np.interp(
                 self.depth_vector[::-1],
-                self.depth.isel({self.xdim: self._j, self.ydim: self._i})[
-                    ::-1
-                ],
+                self.depth.isel({self.xdim: self._j, self.ydim: self._i})[::-1],
                 inside[::-1],
             )[::-1]
 
     def is_inside(self, x, y):
         lon = [
-            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi})
-            for xi, yi in zip(x, y)
+            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
         ]
         lat = [
-            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi})
-            for xi, yi in zip(x, y)
+            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
         ]
         points = np.array([lon, lat]).T
 
@@ -148,12 +130,8 @@ class Anomaly:
 
         stepx = int(2 * nx / 10)
         stepy = int(2 * ny / 10)
-        X = np.arange(
-            max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx
-        )
-        Y = np.arange(
-            max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy
-        )
+        X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx)
+        Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy)
 
         X, Y = np.meshgrid(X, Y)
         X = X.flatten()
@@ -189,12 +167,10 @@ class Anomaly:
 
     def is_valid(self, x, y):
         lon = [
-            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi})
-            for xi, yi in zip(x, y)
+            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
         ]
         lat = [
-            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi})
-            for xi, yi in zip(x, y)
+            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
         ]
         points = np.array([lon, lat]).T
         result = np.ones(len(x)) * True
@@ -205,9 +181,7 @@ class Anomaly:
             else:
                 xx = eddy.boundary_contour.lon
                 yy = eddy.boundary_contour.lat
-            result *= np.invert(
-                snum.points_in_polygon(points, np.array([xx, yy]).T)
-            )
+            result *= np.invert(snum.points_in_polygon(points, np.array([xx, yy]).T))
         return result
 
     @functools.cached_property
@@ -306,9 +280,7 @@ class Anomaly:
             ],
             output_core_dims=[[self.depth_vector.dims[0]]],
             dask_gufunc_kwargs={
-                "output_sizes": {
-                    self.depth_vector.dims[0]: len(self.depth_vector)
-                }
+                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
             },
             vectorize=True,
             dask="parallelized",
@@ -329,9 +301,7 @@ class Anomaly:
             ],
             output_core_dims=[[self.depth_vector.dims[0]]],
             dask_gufunc_kwargs={
-                "output_sizes": {
-                    self.depth_vector.dims[0]: len(self.depth_vector)
-                }
+                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
             },
             vectorize=True,
             dask="parallelized",
@@ -368,14 +338,14 @@ class Anomaly:
             return None
         if self.depth_vector[0] < self.depth_vector[-1]:
             if self.eddy.eddy_type == "anticyclone":
-                icore = argrelmin(self.anomaly.values)[0][0]  # take deepest
+                icore = np.argmin(self.anomaly.values)
             else:
-                icore = argrelmax(self.anomaly.values)[0][0]
+                icore = np.argmax(self.anomaly.values)
         else:
             if self.eddy.eddy_type == "anticyclone":
-                icore = argrelmin(self.anomaly.values)[0][-1]  # take deepest
+                icore = np.argmin(self.anomaly.values)
             else:
-                icore = argrelmax(self.anomaly.values)[0][-1]
+                icore = np.argmax(self.anomaly.values)
         return icore
 
     @functools.cached_property

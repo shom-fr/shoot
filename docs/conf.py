@@ -5,7 +5,7 @@
 
 import sys
 import os
-import sphinx_autosummary_accessors
+# import sphinx_autosummary_accessors
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
 
@@ -40,7 +40,7 @@ extensions = [
     'genlogos',
 ]
 
-templates_path = ['_templates', sphinx_autosummary_accessors.templates_path]
+templates_path = ['_templates'] #, sphinx_autosummary_accessors.templates_path]
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 

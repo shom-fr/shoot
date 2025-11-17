@@ -5,10 +5,14 @@ description = "SHom Ocean Objects Tracker"
 requires-python = ">=3.10"
 dependencies = [
     "cf_xarray",
+    "cartopy",
+    "cmocean",
     "colorlog",
     "contourpy",
-    "matplotlib-base",
-    "netCDF",
+    "gsw",
+    "matplotlib",
+    "netCDF4",
+    "owslib",
     "scipy",
     "xarray",
 ]
@@ -24,10 +28,6 @@ readme = "README.rst"
 
 [project.optional-dependencies]
 docs = [
-  "gsw",
-  "cartopy",
-  "matplotlib",
-  "owslib",
   "sphinx",
   "sphinx-argparse",
   "sphinx-book-theme",

@@ -12,8 +12,8 @@ import numpy as np
 from .. import cf as scf
 
 
-#### It requires that the user have been logged in the copernicus
-#### marine toolbox before
+#### It requires the user to be already logged in the copernicus
+#### marine toolbox
 
 
 class Download:
@@ -51,13 +51,7 @@ class Download:
                 if not os.path.exists(path_out):
                     os.makedirs(path_out)
                 print("path :", path_out)
-                print(
-                    " \n  ##### Downloading : "
-                    + dtype
-                    + " - year : "
-                    + str(year)
-                    + "######"
-                )
+                print(" \n  ##### Downloading : " + dtype + " - year : " + str(year) + "######")
                 print("range de mois", months)
                 for m in months:
                     cm.get(
@@ -89,9 +83,5 @@ class Download:
         }
 
 
-def load(
-    years, months, region, root_path="/local/tmp/data", data_types=["XB", "PF"]
-):
-    Download(
-        years, months, root_path, region=region, data_types=data_types
-    )._load()
+def load(years, months, region, root_path="/local/tmp/data", data_types=["XB", "PF"]):
+    Download(years, months, root_path, region=region, data_types=data_types)._load()

@@ -20,15 +20,15 @@ OMEGA = 2 * np.pi / 86400
 # -----------------------
 
 
-# Fonction de distance à l’ellipse
 def _residuals(params, points):
+    """return distance to theoretical ellipse"""
     xc, yc, a, b, theta = params
     R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
     shifted = points - [xc, yc]
     rotated = shifted @ R
     normed = rotated / [a, b]
     distances = np.linalg.norm(normed, axis=1)
-    return distances - 1  # on veut des distances = 1 pour les points sur l’ellipse
+    return distances - 1
 
 
 def fit_ellipse_from_coords(lons, lats, get_fit=False):

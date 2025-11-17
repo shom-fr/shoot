@@ -271,7 +271,6 @@ def get_geos_old(ssh, dx=None, dy=None):
     yaxis = dims.index(xcoords.get_ydim(ssh, errors="raise"))
     dhdx = np.gradient(ssh.values, axis=xaxis) / dx
     dhdy = np.gradient(ssh.values, axis=yaxis) / dy
-    # dhdx, dhdy = deriv2d(ssh)
     corio = get_coriolis(xcoords.get_lat(ssh))
     u = xr.DataArray(-GRAVITY * dhdy, dims=ssh.dims, coords=ssh.coords) / corio
     v = xr.DataArray(GRAVITY * dhdx, dims=ssh.dims, coords=ssh.coords) / corio

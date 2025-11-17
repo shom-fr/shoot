@@ -66,7 +66,6 @@ window_fit = 120  # 100  # 120
 min_radius = 20
 
 # Ellipse error
-
 ellipse_error = 0.05
 
 # %%
@@ -96,6 +95,16 @@ nbackward = 10  # number of admitted time step without detection
 
 tracks = track_eddies(eddies, nbackward)  # 10*dt
 tracked_eddies = tracks.track_eddies
+
+# %% save
+eddies.save('/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/jan2024_ionian_tracked.nc')
+
+# %% load already tracked eddies
+
+eddies = EvolEddies2D.reconstruct(
+    xr.open_dataset('/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/jan2024_ionian_tracked.nc')
+)
+
 
 # %%
 # Associate to floats
@@ -163,7 +172,7 @@ dss.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="cmo.dense")
 for eddy in eddies.eddies[n].eddies:
     color = "k" if eddy.p_id else "w"
     eddy.plot(transform=pcarr, lw=1)
-    plt.text(eddy.glon, eddy.glat, eddy.track_id, c=color, transform=pcarr)
+    plt.text(eddy.lon, eddy.lat, eddy.track_id, c=color, transform=pcarr)
     # track = tracked_eddies[eddy.track_id]
     # lon, lat = [], []
     # for e in track.eddies:

@@ -32,14 +32,12 @@ def get_dx_dy(da, dx=None, dy=None):
         dx += sgeo.deg2m(dlatx) ** 2
         dx = np.sqrt(dx)
         dx = xr.DataArray(dx, dims=lon2d.dims, coords=lon2d.coords, name="dx", attrs={"units": "m"})
-        # dx = cf.format_data_var(dx, "dx", **kw)
 
     if dy is None:
         dy = sgeo.deg2m(dlony, lat2d.values) ** 2
         dy += sgeo.deg2m(dlaty) ** 2
         dy = np.sqrt(dy)
         dy = xr.DataArray(dy, dims=lon2d.dims, coords=lon2d.coords, name="dy", attrs={"units": "m"})
-        # dy = cf.format_data_var(dy, "dy", **kw)
 
     return dx, dy
 

@@ -49,7 +49,6 @@ def create_map(
     **kwargs,
 ):
     """Create a simple decorated cartopy map"""
-    # lons, lats = lons.values, lats.values
     xmin, xmax = np.min(lons), np.max(lons)
     ymin, ymax = np.min(lats), np.max(lats)
     dx, dy = xmax - xmin, ymax - ymin

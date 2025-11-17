@@ -90,9 +90,10 @@ plt.title(f"Local angular momentum [{window_lnam}km]")
 # Diagnostic
 ow = get_okuboweiss(ds.ugos, ds.vgos, dx=dx, dy=dy)
 
+
 # %%
 # Plot
 fig2, ax2 = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-lnam.plot(cmap=cm.cm.delta, ax=ax2, add_colorbar=False, transform=pcarr)
-lnam.plot.contour(levels=[0], colors="k", transform=pcarr, ax=ax2)
+ow.plot(cmap=cm.cm.balance, ax=ax2, add_colorbar=False, transform=pcarr)
+ow.plot.contour(levels=[0], colors="k", transform=pcarr, ax=ax2)
 plt.title("Okubo-Weiss")
