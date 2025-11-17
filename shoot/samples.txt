@@ -1,0 +1,6 @@
+# Format: relative_filename sha256
+
+OBS/SATELLITE/jan2024_ionian_sea_duacs.nc dd6896888a968420d5bf2bbe33192e725f9112c87538af0d09c6baa432b039c6 
+MODELS/CROCO/MED/pelops_3d.nc 9040eaa0939e3e4aad2d2e90e2824f8c8c4c5e9f9e11dcb52e78aec55225df77
+MODELS/CROCO/GIGATL/gigatl1-1000m.nc e190d4e74c597e792471d81c1bbb8e07fe8cb603965990b44d75d4672e8b6d8f
+EDDIES/track_ionian_sea_duacs_jan2024.nc 8d5710b0fca2bef8eb93983bb014aa4cf48e325d9c3ffe61d25557a21234140e

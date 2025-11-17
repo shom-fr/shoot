@@ -32,9 +32,7 @@ def determine_region(lat_min, lat_max, lon_min, lon_max):
 
 class Profile:
     def __init__(self, prf):
-        self.time = np.datetime64("1950-01-01") + np.timedelta64(
-            int(prf.TIME.values * 86400), "s"
-        )
+        self.time = np.datetime64("1950-01-01") + np.timedelta64(int(prf.TIME.values * 86400), "s")
         self.lat = prf.LATITUDE.values
         self.lon = prf.LONGITUDE.values
         self.depth = np.arange(1, 2001)
@@ -60,9 +58,7 @@ class Profiles:
         self.root_path = os.path.join(root_path, region)
         self.region = region
         self.time = time
-        self.years = np.arange(
-            self.time.min().dt.year.values, self.time.max().dt.year.values + 1
-        )
+        self.years = np.arange(self.time.min().dt.year.values, self.time.max().dt.year.values + 1)
         self.months = [
             self.time.min().dt.month.values,
             self.time.max().dt.month.values,
@@ -82,9 +78,7 @@ class Profiles:
 
         file_path = []
         for year in self.years:
-            file_path += sorted(
-                glob.glob(os.path.join(self.root_path, str(year), "*.nc"))
-            )
+            file_path += sorted(glob.glob(os.path.join(self.root_path, str(year), "*.nc")))
 
         self.profiles = []
         for f in file_path:
@@ -95,9 +89,7 @@ class Profiles:
                     self.profiles.append(prf)
 
     @classmethod
-    def from_ds(
-        cls, ds, root_path, region=None, data_types=["XT", "PF"], download=True
-    ):
+    def from_ds(cls, ds, root_path, region=None, data_types=["XT", "PF"], download=True):
 
         if not region:
             lat_min = scf.get_lat(ds).min().values
@@ -160,9 +152,7 @@ class Profiles:
         for eddy in eddies.eddies:  # list of Eddies2D object object
             tstart = eddy.time - np.timedelta64(nlag, "D")
             tend = eddy.time + np.timedelta64(nlag, "D")
-            ind_prf = np.where(
-                (self.ds.time >= tstart) & (self.ds.time <= tend)
-            )[0]
+            ind_prf = np.where((self.ds.time >= tstart) & (self.ds.time <= tend))[0]
             prf = self.ds.isel(profil=ind_prf)
 
             for e in eddy.eddies:  # list of Raw2dEddies object

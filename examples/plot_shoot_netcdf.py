@@ -18,6 +18,7 @@ pcarr = ccrs.PlateCarree()
 
 from shoot.num import points_in_polygon
 from shoot.plot import create_map, pcarr
+from shoot.samples import get_sample_file
 
 
 # %%
@@ -67,9 +68,7 @@ def create_map_ax(
     if coastlines:
         ax.coastlines()
     if emodnet:
-        ax.add_wms(
-            "https://ows.emodnet-bathymetry.eu/wms", "emodnet:mean_atlas_land"
-        )
+        ax.add_wms("https://ows.emodnet-bathymetry.eu/wms", "emodnet:mean_atlas_land")
     if title:
         ax.set_title(title)
     return fig, ax
@@ -81,13 +80,12 @@ def create_map_ax(
 
 #  Import data
 
-root_path = "../data"
-
-
-ds = xr.open_dataset(os.path.join(root_path, "jan2024_ionian_sea_duacs.nc"))
-tracks = xr.open_dataset(
-    os.path.join(root_path, "track_ionian_sea_duacs_jan2024.nc")
-)
+root_path = "OBS/SATELLITE/jan2024_ionian_sea_duacs.nc"
+path = get_sample_file(root_path)
+ds = xr.open_dataset(path)
+root_track = "EDDIES/track_ionian_sea_duacs_jan2024.nc"
+track_path = get_sample_file(root_track)
+tracks = xr.open_dataset(track_path)
 
 
 # %%
@@ -161,12 +159,8 @@ lats = np.arange(30, 44.5, 0.1)
 count_s_anti = np.zeros((len(lats), len(lons)))
 count_s_cyc = np.zeros((len(lats), len(lons)))
 
-ind_anti = np.where(
-    tracks.eddy_type[tracks.track_id.values].values == "anticyclone"
-)[0]
-ind_cyc = np.where(
-    tracks.eddy_type[tracks.track_id.values].values == "cyclone"
-)[0]
+ind_anti = np.where(tracks.eddy_type[tracks.track_id.values].values == "anticyclone")[0]
+ind_cyc = np.where(tracks.eddy_type[tracks.track_id.values].values == "cyclone")[0]
 
 shoot_anti = tracks.isel(obs=ind_anti)
 shoot_cyc = tracks.isel(obs=ind_cyc)
@@ -208,9 +202,7 @@ count_s_anti[count_s_anti == 0] = np.nan
 count_s_cyc[count_s_cyc == 0] = np.nan
 
 
-fig, axs = plt.subplots(
-    1, 2, subplot_kw=dict(projection=pmerc), figsize=(10, 5)
-)
+fig, axs = plt.subplots(1, 2, subplot_kw=dict(projection=pmerc), figsize=(10, 5))
 # create_map_ax(np.arange(-6, 36), np.arange(30, 44.5), axs[0])
 create_map_ax(np.arange(15, 30), np.arange(30, 40), axs[0])
 plt.sca(axs[0])

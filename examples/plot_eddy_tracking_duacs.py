@@ -19,12 +19,12 @@ import xarray as xr
 from shoot.eddies.eddies2d import EvolEddies2D
 from shoot.eddies.track import track_eddies
 from shoot.plot import create_map, pcarr
-
+from shoot.samples import get_sample_file
 
 # %%
 # Read data
-root_path = "../data"
-path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
+root_path = "OBS/SATELLITE/jan2024_ionian_sea_duacs.nc"
+path = get_sample_file(root_path)
 ds = xr.open_dataset(path)
 
 # %%

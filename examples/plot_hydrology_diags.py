@@ -22,14 +22,15 @@ from shoot.eddies.eddies2d import Eddies2D
 from shoot.hydrology import Anomaly, compute_anomalies
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
+from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
 
 # %%
 # Read data
 
-root_path = "../data"
-path = os.path.join(root_path, "pelops_3d.nc")
+root_path = "MODELS/CROCO/MED/pelops_3d.nc"
+path = get_sample_file(root_path)
 ds_3d = xr.open_dataset(path)
 ds_2d = ds_3d.isel(s_rho=len(ds_3d.s_rho) - 1)
 

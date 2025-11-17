@@ -17,6 +17,7 @@ import xarray as xr
 
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.plot import create_map, pcarr
+from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
 
@@ -24,8 +25,8 @@ xr.set_options(display_style="text")
 # Read data
 # ---------
 
-root_path = "../data"
-path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
+root_path = "OBS/SATELLITE/jan2024_ionian_sea_duacs.nc"
+path = get_sample_file(root_path)
 # select one specific date for this example
 ds = xr.open_dataset(path).isel(time=0)
 

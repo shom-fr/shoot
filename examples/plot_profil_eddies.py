@@ -28,12 +28,13 @@ from shoot.plot import create_map, pcarr
 from shoot.contours import get_lnam_peaks
 from shoot.rossby import Rossby
 from shoot.grid import get_dx_dy
+from shoot.samples import get_sample_file
 
 
 # %%
 # Read data
-root_path = "../data"
-path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
+root_path = "OBS/SATELLITE/jan2024_ionian_sea_duacs.nc"
+path = get_sample_file(root_path)
 ds = xr.open_dataset(path)
 
 # %%
@@ -43,12 +44,9 @@ data_path = "/local/tmp/jbroust/DATA/CORA"
 
 prf = Profiles.from_ds(
     ds,
-    # usr="jroustan",
-    # pwd="M@rue.33",
     root_path=data_path,
     data_types=["PF"],
     download=False,
-    # dir_path="/local/tmp/jbroust/DATA/CORA/IONIAN",
 )
 print(prf.ds.time)
 
