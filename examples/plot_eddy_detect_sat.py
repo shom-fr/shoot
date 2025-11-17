@@ -17,6 +17,7 @@ import xarray as xr
 
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.plot import create_map, pcarr
+from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
 
@@ -24,8 +25,8 @@ xr.set_options(display_style="text")
 # Read data
 # ---------
 
-root_path = "../data"
-path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
+root_path = "OBS/SATELLITE/jan2024_ionian_sea_duacs.nc"
+path = get_sample_file(root_path)
 # select one specific date for this example
 ds = xr.open_dataset(path).isel(time=0)
 
@@ -81,9 +82,7 @@ print("it takes %.1f s" % (end - start))
 # -----
 #
 fig, ax = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
-ds.adt.plot(
-    ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r", alpha=0.6
-)
+ds.adt.plot(ax=ax, transform=pcarr, add_colorbar=False, cmap="Spectral_r", alpha=0.6)
 plt.quiver(
     ds.longitude.values,
     ds.latitude.values,
@@ -94,8 +93,5 @@ plt.quiver(
 for eddy in eddies.eddies:
     # for eddy in eddies_ssh:
     eddy.plot(transform=pcarr, lw=1)
-plt.title(
-    "w_center %i km, w_fit %ikm min_rad %ikm"
-    % (window_center, window_fit, min_radius)
-)
+plt.title("w_center %i km, w_fit %ikm min_rad %ikm" % (window_center, window_fit, min_radius))
 plt.tight_layout()

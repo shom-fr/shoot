@@ -9,10 +9,10 @@ import pooch
 pooch.get_logger().setLevel("DEBUG")
 
 POOCH = pooch.create(
-    path=pooch.os_cache("woom"),
-    base_url="https://raw.githubusercontent.com/shom-fr/data-samples/refs/heads/{version}/",
-    version_dev="main",
-    env="WOOM_SAMPLES",
+    path=pooch.os_cache("shoot"),
+    base_url="https://raw.githubusercontent.com/shom-fr/data-samples/main/OCEANO/",
+    # version_dev="main",
+    # env="WOOM_SAMPLES",
 )
 
 POOCH.load_registry(os.path.join(os.path.dirname(__file__), "samples.txt"))

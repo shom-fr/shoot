@@ -11,7 +11,6 @@ In this example, eddies are detected from CROCO model currents interpolated to 1
 # -----------------
 #
 # Import needed stuff.
-import os
 import cmocean as cm
 import time
 import matplotlib.pyplot as plt
@@ -20,6 +19,7 @@ import xarray as xr
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
+from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
 
@@ -28,8 +28,8 @@ xr.set_options(display_style="text")
 # Read data
 
 # Mind that the dataarray should be 2D : single time and single depth
-root_path = "../data"
-path = os.path.join(root_path, "gigatl1-1000m.nc")
+root_path = "MODELS/CROCO/GIGATL/gigatl1-1000m.nc"
+path = get_sample_file(root_path)
 ds = xr.open_dataset(path).isel(time=0)
 
 
@@ -70,10 +70,7 @@ eddies = Eddies2D.detect_eddies(
     ellipse_error=ellipse_error,
 )
 end = time.time()
-print(
-    "Number of detected eddies %i in %.1f s"
-    % (len(eddies.eddies), end - start)
-)
+print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - start))
 
 # %%
 # Plots
