@@ -74,6 +74,7 @@ def add_parser_eddies(subparsers):
     subparsers_eddies = parser_eddies.add_subparsers(help="sub-command help")
     add_parser_eddies_detect(subparsers_eddies)
     add_parser_eddies_track(subparsers_eddies)
+    add_parser_eddies_track_detected(subparsers_eddies)
     add_parser_eddies_diags(subparsers_eddies)
 
     return parser_eddies
@@ -547,6 +548,90 @@ def main_eddies_track(parser, args):
         logger.info(f"Detections plot saved to: {args.to_figure}")
 
 
+
+# %% eddies track-detected
+
+
+def add_parser_eddies_track_detected(subparsers):
+    parser_eddies_track_detected = subparsers.add_parser(
+        "track-detected",
+        help="track already detected eddies",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    add_arguments_eddies_track_detected(parser_eddies_track_detected)
+    parser_eddies_track_detected.set_defaults(func=main_eddies_track_detected)
+    return parser_eddies_track_detected
+
+
+def add_arguments_eddies_track_detected(parser):
+    parser.add_argument(
+        "nc_data_files", help="list of detected netcdf file", nargs="+"
+    )
+    parser.add_argument(
+        "--nbackward",
+        help="number of backward step possible or tracking",
+        default=10,
+        type=int,
+    )
+    parser.add_argument(
+        "--to-netcdf",
+        help="save tracking to this netcdf file",
+        default="eddies.track.nc",
+    )
+    parser.add_argument(
+        "--max-ellipse-error",
+        help="maximal ellipse relative error (<1)",
+        default=0.05,
+        type=float,
+    )
+    parser.add_argument(
+        "--without-ssh",
+        help="do not use dataset ssh to compute contours",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-b",
+        "--begin",
+        help="Start date for tracking (yyyy/mm/jj)",
+        nargs=1,
+        type=str,
+    )
+    parser.add_argument(
+        "-e",
+        "--end",
+        help="Start date for tracking (yyyy/mm/jj)",
+        nargs=1,
+        type=str,
+    )
+
+
+def _eddies_track_detected(parser, args, logger, dss):
+    # Detect
+    logger.debug("Merge detected files")
+    eddies = seddies.EvolEddies2D.merge_ds(
+        dss
+    )
+    logger.info("Merge finished")
+
+    # track
+    logger.debug("Starting tracking")
+    tracks = strack.track_eddies(eddies, args.nbackward)
+    logger.info("tracking finished")
+
+    # Save
+    logger.debug("Saving tracking to netcdf")
+    tracks.save(args.to_netcdf)
+    logger.info(f"Detections saved to: {args.to_netcdf}")
+    return eddies, tracks
+
+def main_eddies_track_detected(parser, args):
+    logger = logging.getLogger(__name__)
+
+    # Open files
+    dss=[xr.open_dataset(f) for f in args.nc_data_files]
+    eddies, tracks = _eddies_track_detected(parser, args, logger, dss)
+
+ 
 # %% Eddies diags
 
 
