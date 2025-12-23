@@ -6,6 +6,7 @@
 Created on Wed Jul  3 15:39:51 2024 by sraynaud
 """
 import os, gc
+import psutil
 import functools
 import numpy as np
 from scipy.interpolate import splprep, splev
@@ -1067,7 +1068,7 @@ class EvolEddies2D:
         min_radius,
         u=None,
         v=None,
-        ssh=False,
+        ssh=None,
         paral=False,
         nb_procs=None,
         ellipse_error=0.1,
@@ -1086,16 +1087,18 @@ class EvolEddies2D:
         eddies = []
         verbose = True
         for i in range(len(time)):
-            import psutil
-
             process = psutil.Process(os.getpid())
             print(f"Used memory : {process.memory_info().rss / 1024**2:.2f} MB")
             # print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel({time.name: i})
-            ssh_ = dss[ssh] if ssh is not False else False
+            #ssh_ = dss[ssh] if ssh is not None else None
             # check if ssh field is not full of nan
-            if ssh_.isnull().mean().item() > 0.9 : 
-                ssh_=False
+            if not ssh or (dss[ssh].isnull().mean().item() > 0.9) : 
+                print("je vais faire sans ssh")
+                ssh_=None
+            else : 
+                ssh_ = dss[ssh]
+                
             eddies_ = Eddies2D.detect_eddies(
                 dss[u],
                 dss[v],
