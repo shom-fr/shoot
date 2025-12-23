@@ -166,9 +166,11 @@ def main_eddies_detect(parser, args):
         ds = xr.open_mfdataset(args.nc_data_file)
     time = scf.get_time(ds)
     if time is not None:
-        logger.warning("Selecting the first time step")
         if not args.all:
+            logger.warning("Selecting the first time step")
             ds = ds.isel({time.name: 0})
+        else : 
+            logger.warning("Performs detection at all times")
 
     # Get variables
     u = ds[args.u_name] if args.u_name else scf.get_u(ds)
