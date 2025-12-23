@@ -1093,6 +1093,9 @@ class EvolEddies2D:
             # print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel({time.name: i})
             ssh_ = dss[ssh] if ssh is not False else False
+            # check if ssh field is not full of nan
+            if ssh_.isnull().mean().item() > 0.9 : 
+                ssh_=False
             eddies_ = Eddies2D.detect_eddies(
                 dss[u],
                 dss[v],
