@@ -15,10 +15,11 @@ from . import num as snum
 
 
 class Anomaly:
-    def __init__(self, eddy, eddies, dens, depth=None, r_factor=1.2, nz=100):
+    def __init__(self, eddy, eddies, dens, depth=None, r_factor=1.2, nz=100, eddy_type= True):
         self.lon = eddy.lon
         self.lat = eddy.lat
         self.eddy = eddy
+        self.eddy_type= eddy_type #True if anomaly sign based on eddy_type
         if hasattr(eddy, "boundary_contour"):
             self.radius = (
                 eddy.boundary_contour.radius
@@ -336,16 +337,15 @@ class Anomaly:
     def _icore_depth(self):
         if np.isnan(self.anomaly).all():
             return None
-        if self.depth_vector[0] < self.depth_vector[-1]:
+        if self.eddy_type : 
+
             if self.eddy.eddy_type == "anticyclone":
                 icore = np.argmin(self.anomaly.values)
             else:
                 icore = np.argmax(self.anomaly.values)
-        else:
-            if self.eddy.eddy_type == "anticyclone":
-                icore = np.argmin(self.anomaly.values)
-            else:
-                icore = np.argmax(self.anomaly.values)
+
+        else : 
+            icore = np.argmax(np.abs(self.anomaly.values))
         return icore
 
     @functools.cached_property
@@ -355,9 +355,23 @@ class Anomaly:
     @functools.cached_property
     def intensity(self):
         return np.abs(self.anomaly[self._icore_depth])
+    
+    @functools.cached_property
+    def signed_intensity(self):
+        return self.anomaly[self._icore_depth]
+    
+    def anomaly_at_depth(self, depth_level, signed = False): 
+        if np.sign(depth_level) != np.sign(self.depth_vector[1]): 
+            depth_level *=-1 
+        
+        iref = np.argmin(np.abs(self.depth_vector.values-depth_level)) 
+        if signed : 
+            return self.anomaly[iref]          
+        else : 
+            return np.abs(self.anomaly[iref])
+        
 
-
-def compute_anomalies(eddies, dens, nz=100, r_factor=1.2):
+def compute_anomalies(eddies, dens, nz=100, r_factor=1.2, eddy_type= True):
     """Add anomaly to detected eddies
     Parameters
     ----------
@@ -376,4 +390,9 @@ def compute_anomalies(eddies, dens, nz=100, r_factor=1.2):
      nothing : directly appends anomaly object in each eddies
     """
     for eddy in eddies.eddies:
-        eddy.anomaly = Anomaly(eddy, eddies, dens, r_factor=r_factor, nz=nz)
+        eddy.anomaly = Anomaly(eddy, eddies, dens, r_factor=r_factor, nz=nz, eddy_type=eddy_type)
+        
+
+    
+        
+
