@@ -9,6 +9,8 @@ Created on Thu Aug  19 10:21:12 2025
 import copernicusmarine as cm
 import os
 import numpy as np
+import xarray as xr
+from argopy import DataFetcher
 from .. import cf as scf
 
 
@@ -19,69 +21,62 @@ from .. import cf as scf
 class Download:
     def __init__(
         self,
-        years,
-        months,
+        time, 
+        lat_min,
+        lat_max,
+        lon_min,
+        lon_max,
         root_path,
-        region="mediterrane",
-        data_types=["XB", "PF"],
+        max_depth = 1000, 
     ):
-        self.path = os.path.join(root_path, region)
-        self.region = region
-        self.years = years
-        self.months = months
-        print("years ", years)
-        self.data_types = data_types
+        self.path = root_path
+        self.lon_min = lon_min 
+        self.lon_max = lon_max
+        self.lat_min = lat_min
+        self.lat_max = lat_max 
+        self.max_depth = max_depth
+        self.root_path = root_path
+        self.time = time 
+        years = np.unique(self.time.dt.year.values) 
+        self.profiles = None
+        for year in years : 
+            path_tmp = os.path.join(self.root_path, f"argo_profile_{year}.nc")
+            if os.path.exists(path_tmp):
+                print(f"Data already exists for year {year}")
+                profiles_tmp = xr.open_dataset(path_tmp)
+            else : 
+                tmin = str(time.sel(time=str(year)).min().dt.strftime("%Y-%d-%m").values) 
+                tmax = str(time.sel(time=str(year)).max().dt.strftime("%Y-%d-%m").values) 
+                profiles_tmp = self._load(tmin,tmax)  
+                profiles_tmp.to_netcdf(path_tmp) 
+            if self.profiles : 
+                self.profiles = xr.concat([self.profiles, profiles_tmp],dim="N_PROF")
+            else : 
+                self.profiles = profiles_tmp
+        
 
-    def _load(self):
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
-
-        for dtype in self.data_types:
-            for i, year in enumerate(self.years):
-                if i == 0:
-                    first_month = self.months[0]
-                else:
-                    first_month = 1
-                if i == len(self.years) - 1:
-                    last_month = self.months[-1] + 1
-                else:
-                    last_month = 13
-                months = np.arange(first_month, last_month)
-                path_out = os.path.join(self.path, "%s" % year)
-                if not os.path.exists(path_out):
-                    os.makedirs(path_out)
-                print("path :", path_out)
-                print(" \n  ##### Downloading : " + dtype + " - year : " + str(year) + "######")
-                print("range de mois", months)
-                for m in months:
-                    cm.get(
-                        dataset_id="cmems_obs-ins_glo_phy-temp-sal_my_cora_irr",
-                        filter="*"
-                        + self.region
-                        + "/"
-                        + str(year)
-                        + "/CO_DMQCGL01_"
-                        + str(year)
-                        + f"{m:02d}"
-                        + "*_PR_"
-                        + dtype
-                        + "*",
-                        output_directory=path_out,
-                        no_directories=True,
-                        force_download=True,
-                    )
-
-    @staticmethod
-    def get_regions():
-        return {
-            "artic": {"lat": (66, 90), "lon": (-180, 180)},
-            "baltic": {"lat": (53, 66), "lon": (9, 30)},
-            "blacksea": {"lat": (40, 47), "lon": (27, 42)},
-            "mediterrane": {"lat": (30, 46), "lon": (-6, 36)},
-            "northwesternshelf": {"lat": (48, 62), "lon": (-25, 10)},
-            "southwestshelf": {"lat": (43, 50), "lon": (-17, 5)},
-        }
+    def _load(self, tmin, tmax):
+        f = DataFetcher(src='erddap', mode='expert')
+        box = [self.lon_min, self.lon_max, self.lat_min, self.lat_max, 0,self.max_depth, tmin, tmax]
+        
+        points = f.region(box).to_xarray()
+        profiles = points.argo.point2profile()
+        return profiles
 
 
-def load(years, months, region, root_path="/local/tmp/data", data_types=["XB", "PF"]):
-    Download(years, months, root_path, region=region, data_types=data_types)._load()
+    @classmethod 
+    def from_ds(cls, ds, root_path, max_depth=1000): 
+        lat = scf.get_lat(ds)
+        lon = scf.get_lon(ds)
+        lon_min= float(lon.min().values)
+        lon_max= float(lon.max().values)
+        lat_min= float(lat.min().values)
+        lat_max= float(lat.max().values)
+        time = scf.get_time(ds)
+        return cls(time, lat_min, lat_max, lon_min, lon_max, root_path, max_depth= max_depth) 
+        
+    
+
+def load_from_ds(ds, root_path="/local/tmp/data"):
+    do = Download.from_ds(ds, root_path)
+    return do.profiles
