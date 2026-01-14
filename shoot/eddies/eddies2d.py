@@ -294,22 +294,24 @@ class RawEddy2D:
     def ncontours(self):
         return len(self.contours)
 
-    def is_eddy(self, min_radius):  # a mettre dans RawEddy2D
+    def is_eddy(self, min_radius, verbose = False):
         # Checks if closed contour exists
         if not self.ncontours:
-            # print(self.glon, self.glat, "no contour")
+            if verbose :
+                return False, 0
             return False
         if min_radius and self.radius < min_radius:
-            # print(self.glon, self.glat, "small radius")
+            if verbose :
+                return False, 1
             return False
         if np.isnan(self.vmax_contour.mean_velocity):
-            # print(self.glon, self.glat, "nan velocity")
+            if verbose :
+                return False, 3
             return False
-        # if self.vmax_contour.ellipse.fit_error > self.max_ellipse_error / 2: #ce test est inutile
-        #     # print(self.glon, self.glat, "ellipse error")
-        #     return False
-        # print(self.glon, self.glat, "is eddy")
+        if verbose :
+            return True, -1
         return True
+
 
     @functools.cached_property
     def boundary_contour(self):
