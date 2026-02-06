@@ -63,6 +63,7 @@ eddies = EvolEddies2D.detect_eddies(
     u="ugos",
     v="vgos",
     ellipse_error=ellipse_error,
+    paral = True,
 )
 end = time.time()
 print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - start))

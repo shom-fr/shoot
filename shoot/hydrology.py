@@ -55,18 +55,25 @@ class Anomaly:
         lat_name = xcoords.get_lat(self.dens).name
         dist = np.sqrt(
             (self.dens[lon_name] - self.lon) ** 2 + (self.dens[lat_name] - self.lat) ** 2
-        ).values
-        return dist
+        )
+        #dist = dist.transpose(lat_name, lon_name)
+        if len(self.dens[lon_name].dims) == 1 : 
+            dim_x = self.dens[lon_name].dims[0]
+            dim_y = self.dens[lat_name].dims[0]
+            dist = dist.transpose(dim_y, dim_x)
+        return dist.values
 
     @property
     def _i(self):
-        lon_name = xcoords.get_lon(self.dens).name
-        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
+        #lon_name = xcoords.get_lon(self.dens).name
+        #return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
+        return np.unravel_index(np.argmin(self._dist), self._dist.shape)[0]
 
     @property
     def _j(self):
-        lon_name = xcoords.get_lon(self.dens).name
-        return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
+        #lon_name = xcoords.get_lon(self.dens).name
+        #return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
+        return np.unravel_index(np.argmin(self._dist), self._dist.shape)[1]
 
     @functools.cached_property
     def depth_vector(self):
@@ -93,12 +100,22 @@ class Anomaly:
             )[::-1]
 
     def is_inside(self, x, y):
-        lon = [
-            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-        ]
-        lat = [
-            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-        ]
+        if len(xcoords.get_lon(self.dens).shape) == 1: 
+            lon = [
+                xcoords.get_lon(self.dens).isel({self.xdim: xi}) for xi in x
+            ]            
+        else : 
+            lon = [
+                xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            ]
+        if len(xcoords.get_lat(self.dens).shape) == 1:
+            lat = [
+                xcoords.get_lat(self.dens).isel({self.ydim: yi}) for yi in y
+            ]
+        else : 
+            lat = [
+                xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            ]
         points = np.array([lon, lat]).T
 
         if hasattr(self.eddy, "x_vmax"):
@@ -116,21 +133,10 @@ class Anomaly:
         dym = np.nanmean(dy)
         nx = int(r * self.radius / dxm)
         ny = int(r * self.radius / dym)
-        X = [
-            self._j,
-            self._j,
-            min(self._j + nx, self._jmax - 1),
-            max(self._j - nx, 0),
-        ]
-        Y = [
-            min(self._i + ny, self._imax - 1),
-            max(self._i - ny, 0),
-            self._i,
-            self._i,
-        ]
 
-        stepx = int(2 * nx / 10)
-        stepy = int(2 * ny / 10)
+        stepx = max(int(2 * nx / 10),1)
+        stepy = max(int(2 * ny / 10),1)
+
         X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx)
         Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy)
 
@@ -167,12 +173,22 @@ class Anomaly:
         )
 
     def is_valid(self, x, y):
-        lon = [
-            xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-        ]
-        lat = [
-            xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-        ]
+        if len(xcoords.get_lon(self.dens).shape)==1: 
+            lon = [
+                xcoords.get_lon(self.dens).isel({self.xdim: xi}) for xi in x
+            ]
+        else : 
+            lon = [
+                xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            ]
+        if len(xcoords.get_lat(self.dens).shape)==1: 
+            lat = [
+                xcoords.get_lat(self.dens).isel({self.ydim: yi}) for  yi in y
+            ]
+        else : 
+            lat = [
+                xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
+            ]
         points = np.array([lon, lat]).T
         result = np.ones(len(x)) * True
         for eddy in self.eddies.eddies:
@@ -340,12 +356,12 @@ class Anomaly:
         if self.eddy_type : 
 
             if self.eddy.eddy_type == "anticyclone":
-                icore = np.argmin(self.anomaly.values)
+                icore = np.nanargmin(self.anomaly.values)
             else:
-                icore = np.argmax(self.anomaly.values)
+                icore = np.nanargmax(self.anomaly.values)
 
         else : 
-            icore = np.argmax(np.abs(self.anomaly.values))
+            icore = np.nanargmax(np.abs(self.anomaly.values))
         return icore
 
     @functools.cached_property

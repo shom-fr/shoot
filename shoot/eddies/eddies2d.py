@@ -389,8 +389,8 @@ class RawEddy2D:
         dsv = self.contours[0]
         for ds in self.contours:
             if ds.mean_velocity > dsv.mean_velocity:
-                if Ellipse.from_coords(ds.lon, ds.lat).fit_error > self.max_ellipse_error / 5:
-                    continue
+                #if Ellipse.from_coords(ds.lon, ds.lat).fit_error > self.max_ellipse_error / 5:
+                #    continue
                 dsv = ds
         ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
         ok = np.concatenate([ok, [len(dsv.lon) - 1]])

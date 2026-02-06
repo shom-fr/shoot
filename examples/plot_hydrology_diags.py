@@ -45,7 +45,7 @@ window_center = 50
 
 window_fit = 120
 
-min_radius = 20
+min_radius = 10
 
 ellipse_error = 0.05
 
@@ -89,7 +89,8 @@ anomaly = Anomaly(eddy, eddies, ds_3d.sig0, depth=ds_3d.depth, r_factor=1.2)
 # It shows the selected inside and outside profiles
 #
 fig, ax = create_map(ds_2d.lon_rho, ds_2d.lat_rho, figsize=(8, 5))
-get_relvort(ds_2d.u, ds_2d.v).plot(
+vort = get_relvort(ds_2d.u, ds_2d.v)/1e-4
+cb = vort.plot(
     x="lon_rho",
     y="lat_rho",
     cmap=cm.cm.curl,
@@ -98,15 +99,17 @@ get_relvort(ds_2d.u, ds_2d.v).plot(
     transform=pcarr,
 )
 
+plt.colorbar(cb, label = r"$\zeta/f$")
+
 for eddy in eddies.eddies:
-    eddy.plot(transform=pcarr, lw=1)
+    eddy.plot(transform=pcarr, lw=1, vmax = True, boundary = True)
 ax.scatter(
     anomaly._profils_outside.lon_rho,
     anomaly._profils_outside.lat_rho,
     s=10,
     marker="o",
     transform=pcarr,
-    label="inside",
+    label="outside",
 )
 
 cmb = ax.scatter(
@@ -115,7 +118,7 @@ cmb = ax.scatter(
     s=10,
     marker="*",
     transform=pcarr,
-    label="outside",
+    label="inside",
 )
 
 plt.title("Eddy detection")

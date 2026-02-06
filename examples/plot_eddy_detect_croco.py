@@ -54,7 +54,7 @@ min_radius = 10
 # Ellipse error
 # preconised 1% for deep field, 5% to 10% to surface field
 
-ellipse_error = 0.05
+ellipse_error = 0.02
 # %%
 # Detection
 # ---------
@@ -80,7 +80,8 @@ print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - star
 #
 
 fig, ax = create_map(ds.lon_rho, ds.lat_rho, figsize=(8, 5))
-get_relvort(ds.u, ds.v).plot(
+vort = get_relvort(ds.u, ds.v)/1e-4
+cb = vort.plot(
     x="lon_rho",
     y="lat_rho",
     cmap=cm.cm.curl,
@@ -88,16 +89,18 @@ get_relvort(ds.u, ds.v).plot(
     add_colorbar=False,
     transform=pcarr,
 )
-nj = 5
-plt.quiver(
+plt.colorbar(cb, label = r"$\zeta/f$")
+nj = 4
+qv = plt.quiver(
     ds.lon_rho[::nj, ::nj].values,
     ds.lat_rho[::nj, ::nj].values,
     ds.u[::nj, ::nj].values,
     ds.v[::nj, ::nj].values,
     transform=pcarr,
 )
+plt.quiverkey(qv, 0.18, 0.85, 0.5, "50 cm/s", coordinates = 'figure')
 
 for eddy in eddies.eddies:
     eddy.plot(transform=pcarr, lw=1, boundary=True)
-plt.title("Relative vorticity at 1000m")
+plt.title("Relative vorticity at 1000m depth")
 plt.tight_layout()

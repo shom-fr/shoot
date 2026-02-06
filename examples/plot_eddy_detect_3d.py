@@ -22,7 +22,6 @@ from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
 from shoot.samples import get_sample_file
 
-
 xr.set_options(display_style="text")
 
 # %%
@@ -82,7 +81,7 @@ for i in range(len(ds_3d.depth)):
         ds_3d.isel(depth=i).lat_rho,
         figsize=(8, 5),
     )
-    get_relvort(ds_3d.isel(depth=i).u, ds_3d.isel(depth=i).v).plot(
+    cb = get_relvort(ds_3d.isel(depth=i).u, ds_3d.isel(depth=i).v).plot(
         x="lon_rho",
         y="lat_rho",
         cmap="cmo.curl",
@@ -90,6 +89,7 @@ for i in range(len(ds_3d.depth)):
         add_colorbar=False,
         transform=pcarr,
     )
+    plt.colorbar(cb, label = r"$\zeta$")
 
     plt.quiver(
         ds_3d.lon_rho[::5, ::5].values,

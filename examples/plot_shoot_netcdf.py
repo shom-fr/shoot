@@ -25,7 +25,6 @@ from shoot.samples import get_sample_file
 # Usefull function
 # ----------------
 
-
 def create_map_ax(
     lons,
     lats,
@@ -86,6 +85,7 @@ ds = xr.open_dataset(path)
 root_track = "EDDIES/track_ionian_sea_duacs_jan2024.nc"
 track_path = get_sample_file(root_track)
 tracks = xr.open_dataset(track_path)
+tracks
 
 
 # %%
@@ -99,7 +99,7 @@ colors = {"cyclone": "b", "anticyclone": "r"}
 
 dss = ds.isel(time=-1)
 
-dss.adt.plot(
+cb = dss.adt.plot(
     x="longitude",
     y="latitude",
     cmap="cmo.dense",
@@ -108,7 +108,9 @@ dss.adt.plot(
     transform=pcarr,
 )
 
-nj = 2
+plt.colorbar(cb, label = "ADT [m]")
+
+nj = 1
 plt.quiver(
     dss.longitude[::nj].values,
     dss.latitude[::nj].values,
