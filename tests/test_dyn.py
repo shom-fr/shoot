@@ -140,23 +140,32 @@ class TestRelativeVorticity:
         lons = np.linspace(-2, 2, nx)
         lats = np.linspace(40, 44, ny)
         omega_rotation = 1e-5  # rad/s
-        
+
         x, y = np.meshgrid(lons, lats)
-        u = -omega_rotation * (y - 42)  # Tangential velocity
-        v = omega_rotation * (x - 0)
-        
+        # Convert to physical distances in meters (approximate)
+        # At lat~42, 1 degree lon ~ 82 km, 1 degree lat ~ 111 km
+        x_m = x * 82000  # meters
+        y_m = (y - 42) * 111000  # meters from center
+
+        u = -omega_rotation * y_m  # Tangential velocity in m/s
+        v = omega_rotation * x_m
+
         u_da = xr.DataArray(u, dims=['lat', 'lon'], coords={'lat': lats, 'lon': lons})
         v_da = xr.DataArray(v, dims=['lat', 'lon'], coords={'lat': lats, 'lon': lons})
-        
+        u_da.lon.attrs['standard_name'] = 'longitude'
+        u_da.lat.attrs['standard_name'] = 'latitude'
+        v_da.lon.attrs['standard_name'] = 'longitude'
+        v_da.lat.attrs['standard_name'] = 'latitude'
+
         vort = sdyn.get_relvort(u_da, v_da)
-        
+
         # For solid body rotation, vorticity should be constant = 2*omega
         expected_vort = 2 * omega_rotation
-        
+
         # Check interior points (avoid edge effects)
         interior_vort = vort[2:-2, 2:-2]
         mean_vort = float(interior_vort.mean())
-        
+
         assert abs(mean_vort - expected_vort) < expected_vort * 0.2  # 20% tolerance
         
     def test_relvort_with_nans(self):
@@ -318,12 +327,15 @@ class TestGeostrophicCalculations:
         nx, ny = 8, 10
         lons = np.linspace(-2, 2, nx)
         lats = np.linspace(40, 50, ny)
-        
+
         # SSH increases northward (simple gradient)
-        ssh_gradient = 0.02  # m per degree latitude
+        # Use physical gradient: ~0.18 m per 111 km (1 degree lat)
+        ssh_gradient_per_m = 0.18 / 111000  # m SSH per m distance
         x, y = np.meshgrid(lons, lats)
-        ssh_data = ssh_gradient * (y - 45)  # Linear gradient
-        
+        # Convert latitude to meters from center
+        y_m = (y - 45) * 111000  # meters
+        ssh_data = ssh_gradient_per_m * y_m  # SSH in meters
+
         ssh = xr.DataArray(
             ssh_data,
             dims=['lat', 'lon'],
@@ -331,16 +343,17 @@ class TestGeostrophicCalculations:
         )
         ssh.lon.attrs['standard_name'] = 'longitude'
         ssh.lat.attrs['standard_name'] = 'latitude'
-        
+
         ugeos, vgeos = sdyn.get_geos(ssh)
-        
-        # For north-south SSH gradient, should get eastward geostrophic flow
+
+        # For north-south SSH gradient (high in north), should get westward geostrophic flow in NH
+        # (pressure gradient south, Coriolis deflects to right = west)
         # Interior points (avoid gradient edge effects)
         u_interior = ugeos[2:-2, 2:-2]
         v_interior = vgeos[2:-2, 2:-2]
-        
-        # U should be positive (eastward), V should be near zero
-        assert float(u_interior.mean()) > 0
+
+        # U should be negative (westward), V should be near zero
+        assert float(u_interior.mean()) < 0
         assert abs(float(v_interior.mean())) < abs(float(u_interior.mean())) * 0.2
         
     def test_geos_circular_high(self):

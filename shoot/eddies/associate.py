@@ -16,6 +16,8 @@ from .. import num as snum
 
 
 class Associate:
+    """Associate eddies with reference eddies based on spatial proximity and similarity"""
+
     def __init__(self, eddies, ref_eddies, dmax):
         self.ref_eddies = ref_eddies  # list reference eddies
         self.eddies = eddies  # list of eddies
@@ -55,6 +57,7 @@ class Associate:
         return np.sqrt(M)
 
     def order(self):
+        """Assign eddy IDs using linear sum assignment"""
         M = self.cost
         idel = []
         for i in range(M.shape[0]):
@@ -69,7 +72,42 @@ class Associate:
 
 
 class BiMod:
+    """Bipartite matching for eddy association with validation metrics
+
+    Performs eddy association and computes validation metrics including
+    match proportion, area overlap, and distance between matched eddies.
+
+    Parameters
+    ----------
+    eddies : Eddies2D
+        Eddies to associate with reference.
+    ref_eddies : Eddies2D
+        Reference eddies for comparison.
+    dmax : float
+        Maximum distance (km) for association.
+
+    Attributes
+    ----------
+    pmatch : float
+        Proportion of eddies that match with reference (property).
+    parea : float
+        Average intersection area ratio between matched eddies (property).
+    dist : float
+        Average distance (km) between matched eddy centers (property).
+    """
+
     def __init__(self, eddies, ref_eddies, dmax):
+        """Initialize bipartite matcher
+
+        Parameters
+        ----------
+        eddies : Eddies2D
+            Eddies to associate with reference.
+        ref_eddies : Eddies2D
+            Reference eddies for comparison.
+        dmax : float
+            Maximum distance (km) for association.
+        """
         self.eddies = eddies
         self.ref_eddies = ref_eddies
         self.dmax = dmax
@@ -89,6 +127,7 @@ class BiMod:
 
     @property
     def pmatch(self):
+        """Proportion of eddies that match with reference eddies"""
         self._intersects()
         nb_nomatch = np.sum(
             [
@@ -100,6 +139,11 @@ class BiMod:
         return (len(self.eddies.eddies) - nb_nomatch) / len(self.eddies.eddies)
 
     def _intersects(self):
+        """Check if matched eddies' contours intersect
+
+        Sets the `intersect` attribute for each eddy indicating whether
+        its contour intersects with its matched reference eddy's contour.
+        """
         for eddy in self.eddies.eddies:
             eddy.intersect = False
             if eddy.id is None:
@@ -113,7 +157,7 @@ class BiMod:
                             points, np.array([reddy.x_vmax, reddy.y_vmax]).T
                         ).any():
                             eddy.intersect = True
-                    else:  # Raw eddy 2D case
+                    else:  # GriddedEddy2D case
                         points = np.array(
                             [eddy.vmax_contour.lon, eddy.vmax_contour.lat]
                         ).T
@@ -131,6 +175,7 @@ class BiMod:
 
     @property
     def parea(self):
+        """Average intersection area ratio between matched eddies"""
         area = 0
         nb_eddy = 0
         for eddy in self.eddies.eddies:
@@ -151,6 +196,7 @@ class BiMod:
 
     @property
     def dist(self):
+        """Average distance between matched eddy centers"""
         ddist = 0
         nb_eddy = 0
         for eddy in self.eddies.eddies:

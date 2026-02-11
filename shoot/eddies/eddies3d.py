@@ -14,11 +14,42 @@ from .. import geo as sgeo
 from . import eddies2d
 from .. import plot as splot
 from .. import dyn as sdyn
-from .. import cf as scf
+from .. import meta as smeta
 
 
 class Associate:
+    """Associate eddies between vertical levels based on spatial proximity
+
+    Uses the Hungarian algorithm (linear sum assignment) to match eddies
+    between a parent level and a new level based on distance and eddy type.
+
+    Parameters
+    ----------
+    parent_eddies : list
+        Reference eddies from the parent vertical level.
+    new_eddies : list
+        Eddies from the new vertical level to associate.
+    max_distance : float, default 10
+        Maximum distance (km) for eddy centers to be associated.
+
+    Attributes
+    ----------
+    cost : ndarray
+        Cost matrix for eddy association (cached property).
+    """
+
     def __init__(self, parent_eddies, new_eddies, max_distance=10):
+        """Initialize eddy association
+
+        Parameters
+        ----------
+        parent_eddies : list
+            Reference eddies from the parent vertical level.
+        new_eddies : list
+            Eddies from the new vertical level to associate.
+        max_distance : float, default 10
+            Maximum distance (km) for eddy centers to be associated.
+        """
         self.parent_eddies = parent_eddies  # reference eddies
         self.new_eddies = new_eddies  # next time eddies
         self._max_distance = max_distance  # maximum distance for centers to be associated
@@ -64,8 +95,48 @@ class Associate:
 
 
 class EddiesByDepth:
+    """3D eddy detection by associating eddies across depth levels
+
+    Detects eddies at each vertical level and associates them vertically
+    to create 3D coherent structures.
+
+    Parameters
+    ----------
+    u : xarray.DataArray
+        3D zonal velocity field.
+    v : xarray.DataArray
+        3D meridional velocity field.
+    depth : xarray.DataArray
+        Depth coordinate.
+    eddies3d : dict
+        Dictionary of Eddies2D objects at each depth level.
+    nb_eddies : int
+        Total number of 3D eddies detected.
+
+    Attributes
+    ----------
+    eddies3d : dict
+        Eddies organized by depth level.
+    nb_eddies : int
+        Total count of 3D eddies.
+    """
 
     def __init__(self, u, v, depth, eddies3d, nb_eddies):
+        """Initialize 3D eddies by depth
+
+        Parameters
+        ----------
+        u : xarray.DataArray
+            3D zonal velocity field.
+        v : xarray.DataArray
+            3D meridional velocity field.
+        depth : xarray.DataArray
+            Depth coordinate.
+        eddies3d : dict
+            Dictionary of Eddies2D objects at each depth level.
+        nb_eddies : int
+            Total number of 3D eddies detected.
+        """
         self.u = u
         self.v = v
         self.depth = depth  # to change
@@ -117,7 +188,7 @@ class EddiesByDepth:
 class RawEddy3D:
     def __init__(self, depths, eddies):
         self.depths = depths
-        self.eddies = eddies  # list of RawEddy2D
+        self.eddies = eddies  # list of GriddedEddy2D
 
     @property
     def min_depth(self):
@@ -196,8 +267,8 @@ class Eddies3D:
         layer depth
         """
 
-        lon = scf.get_lon(self.u)
-        lat = scf.get_lat(self.u)
+        lon = smeta.get_lon(self.u)
+        lat = smeta.get_lat(self.u)
         i = np.argmin(np.abs(depth - np.abs(self.depths)))
         fig, ax = splot.create_map(
             lon,

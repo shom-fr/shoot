@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Contouring utilities
+
+Functions for extracting and analyzing closed contours from 2D fields.
 """
 
 import numpy as np
@@ -9,27 +11,34 @@ import contourpy as cpy
 import scipy.ndimage as scin
 import xarray as xr
 
-from . import cf as scf
+from . import meta as smeta
 from . import num as snum
 from . import geo as sgeo
 
 
 def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
-    """Get closed contours around a center
+    """Extract closed contours enclosing a center point
+
     Parameters
     ----------
-    lon_center: float
-    lat_center: float
-    ssh: xarray.DataArray
-    nlevels: maximum number of values for contour (optional)
-    robust: percentage quantile to avoid looking at extreme ssh values
+    lon_center : float
+        Center longitude in degrees.
+    lat_center : float
+        Center latitude in degrees.
+    ssh : xarray.DataArray
+        2D field to contour (typically SSH).
+    nlevels : int, default 50
+        Maximum number of contour levels.
+    robust : float, default 0.03
+        Quantile threshold to exclude extreme values.
 
     Returns
     -------
-    list(xarray.Dataset)
+    list of xarray.Dataset
+        Each dataset contains a closed contour with coordinates and metadata.
     """
-    lon = scf.get_lon(ssh)
-    lat = scf.get_lat(ssh)
+    lon = smeta.get_lon(ssh)
+    lat = smeta.get_lat(ssh)
     lat2d, lon2d = xr.broadcast(lat, lon)
 
     cont_gen = cpy.contour_generator(z=ssh.values)
@@ -80,7 +89,20 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
 
 
 def interp_to_line(data, line):
-    """Interpolate a 2D field to series of relative coordinates"""
+    """Interpolate 2D field values along a contour line
+
+    Parameters
+    ----------
+    data : ndarray
+        2D field to interpolate.
+    line : ndarray
+        Contour line coordinates of shape (n, 2).
+
+    Returns
+    -------
+    ndarray
+        Interpolated values along the contour.
+    """
     coords = line.T[::-1]
     mask = np.isnan(data).astype("d")
     dataf = np.nan_to_num(data)
@@ -92,7 +114,22 @@ def interp_to_line(data, line):
 
 
 def add_contour_uv(ds, u, v):
-    """Interpolate and add u and v along contours"""
+    """Add velocity components and angular momentum to contour dataset
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Contour dataset with 'line' variable.
+    u : ndarray
+        Zonal velocity field.
+    v : ndarray
+        Meridional velocity field.
+
+    Returns
+    -------
+    xarray.Dataset
+        Input dataset with added velocity and momentum variables.
+    """
     if "u" not in ds:
         uc = interp_to_line(u, ds.line.values)
         vc = interp_to_line(v, ds.line.values)
@@ -113,7 +150,18 @@ def add_contour_uv(ds, u, v):
 
 
 def add_contour_dx_dy(ds):
-    """Add x and y metrics to contours"""
+    """Add spatial metrics to contour dataset
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Contour dataset with lon/lat coordinates.
+
+    Returns
+    -------
+    xarray.Dataset
+        Input dataset with added dx, dy, and length attributes.
+    """
     if "dx" not in ds:
         dx = sgeo.deg2m(np.gradient(ds.lon.values), ds.lat.values.mean())
         dy = sgeo.deg2m(np.gradient(ds.lat.values))
@@ -124,18 +172,67 @@ def add_contour_dx_dy(ds):
 
 
 class ContourMeanSpeedGetter:
+    """Callable class to compute mean speed along a contour
+
+    Parameters
+    ----------
+    u : ndarray
+        Zonal velocity field.
+    v : ndarray
+        Meridional velocity field.
+    """
+
     def __init__(self, u, v):
+        """Initialize with velocity fields
+
+        Parameters
+        ----------
+        u : ndarray
+            Zonal velocity field.
+        v : ndarray
+            Meridional velocity field.
+        """
         self.u, self.v = u, v
 
     def __call__(self, ds):
+        """Compute mean speed along contour
+
+        Parameters
+        ----------
+        ds : xarray.Dataset
+            Contour dataset with 'line' variable.
+
+        Returns
+        -------
+        float
+            Mean speed along the contour.
+        """
         add_contour_uv(ds.line.values, self.u, self.v)
         return float(np.sqrt(ds.u**2 + ds.v**2).mean())
 
 
 def get_lnam_peaks(lnam, K=0.7):
+    """Find local extrema of LNAM field within closed contours
+
+    Parameters
+    ----------
+    lnam : xarray.DataArray
+        2D LNAM (Local Normalized Angular Momentum) field.
+    K : float, default 0.7
+        Contour level threshold for detecting closed regions.
+
+    Returns
+    -------
+    minima : ndarray
+        Array of (i, j) indices for LNAM minima (anticyclones).
+    maxima : ndarray
+        Array of (i, j) indices for LNAM maxima (cyclones).
+    Lines_coords : list
+        List of contour line coordinates [lon, lat] for each closed contour.
+    """
     # compute lines
-    lon = scf.get_lon(lnam)
-    lat = scf.get_lat(lnam)
+    lon = smeta.get_lon(lnam)
+    lat = smeta.get_lat(lnam)
     lat2d, lon2d = xr.broadcast(lat, lon)
 
     lon_name, lat_name = snum.get_coord_name(lnam)
@@ -212,6 +309,18 @@ def get_lnam_peaks(lnam, K=0.7):
 
 
 def area(ds):
+    """Compute area enclosed by a contour
+
+    Parameters
+    ----------
+    ds : xarray.Dataset
+        Contour dataset with lon, lat coordinates and lon_center, lat_center attributes.
+
+    Returns
+    -------
+    float
+        Area enclosed by the contour in m².
+    """
     xdist = sgeo.deg2m(ds.lon - ds.lon_center, ds.lat_center).values
     ydist = sgeo.deg2m(ds.lat - ds.lat_center).values
 

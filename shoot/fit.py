@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Optimization routines
-=====================
+Optimization and fitting routines
+
+Functions for fitting geometric shapes to spatial data.
 """
 import numpy as np
 from scipy.optimize import least_squares
@@ -21,7 +20,20 @@ OMEGA = 2 * np.pi / 86400
 
 
 def _residuals(params, points):
-    """return distance to theoretical ellipse"""
+    """Compute residuals between points and ellipse
+
+    Parameters
+    ----------
+    params : array-like
+        Ellipse parameters [xc, yc, a, b, theta].
+    points : ndarray
+        Point coordinates of shape (n, 2).
+
+    Returns
+    -------
+    ndarray
+        Normalized distances minus 1.
+    """
     xc, yc, a, b, theta = params
     R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
     shifted = points - [xc, yc]
@@ -32,25 +44,31 @@ def _residuals(params, points):
 
 
 def fit_ellipse_from_coords(lons, lats, get_fit=False):
-    """Fit an allipse to a contour line
+    """Fit ellipse to geographic coordinates
+
+    Uses least-squares optimization to fit an ellipse to a set of points
+    given in geographic coordinates.
+
     Parameters
     ----------
-    lons: array(npts)
-        Longitudes in degrees
-    lats: array(npts)
-        Latitudes in degrees
-
-    get_fit: boolean (optional)
-        True if error metric is wanted
+    lons : array-like
+        Longitude coordinates in degrees.
+    lats : array-like
+        Latitude coordinates in degrees.
+    get_fit : bool, default False
+        If True, return fit error along with parameters.
 
     Returns
     -------
-    dict:
-        lon: center lon in degrees
-        lat: center lat in degrees
-        a: semi-major axis in km
-        b: semi-minor axis in km
-        angle: angle in degrees
+    dict or tuple
+        Dictionary with keys:
+        - lon : Center longitude in degrees
+        - lat : Center latitude in degrees
+        - a : Semi-major axis in kilometers
+        - b : Semi-minor axis in kilometers
+        - angle : Orientation angle in degrees
+
+        If get_fit=True, returns (dict, error) tuple.
     """
 
     lons = np.array(lons)

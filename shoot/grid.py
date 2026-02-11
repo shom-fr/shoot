@@ -1,22 +1,39 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Grid utilities
+Grid utilities for computing spatial resolutions and window sizes
 """
 import numpy as np
 import xarray as xr
 
 from . import geo as sgeo
-from . import cf as scf
+from . import meta as smeta
 
 
 def get_dx_dy(da, dx=None, dy=None):
-    """Get the local resolution in meters along X and Y"""
+    """Compute local grid resolution in meters
+
+    Parameters
+    ----------
+    da : xarray.DataArray
+        Data array with longitude and latitude coordinates.
+    dx : xarray.DataArray, optional
+        X resolution in meters. Computed if not provided.
+    dy : xarray.DataArray, optional
+        Y resolution in meters. Computed if not provided.
+
+    Returns
+    -------
+    dx : xarray.DataArray
+        Resolution along X in meters.
+    dy : xarray.DataArray
+        Resolution along Y in meters.
+    """
     if dx is not None and dy is not None:
         return dx, dy
 
-    lon = scf.get_lon(da)
-    lat = scf.get_lat(da)
+    lon = smeta.get_lon(da)
+    lat = smeta.get_lat(da)
 
     lat2d, lon2d = xr.broadcast(lat, lon)
     dlonx = np.gradient(lon2d.values, axis=-1)
@@ -24,7 +41,7 @@ def get_dx_dy(da, dx=None, dy=None):
     dlatx = np.gradient(lat2d.values, axis=-1)
     dlaty = np.gradient(lat2d.values, axis=-2)
 
-    # cf = scf.get_cf_specs()
+    # cf = smeta.get_cf_specs()
     kw = dict(format_coords=False, rename_dims=False)
 
     if dx is None:
@@ -43,7 +60,24 @@ def get_dx_dy(da, dx=None, dy=None):
 
 
 def get_wx_wy(window, dx, dy):
-    """Get the window size in grid points along X and Y"""
+    """Convert window size from km to grid points
+
+    Parameters
+    ----------
+    window : float
+        Window size in kilometers.
+    dx : float or xarray.DataArray
+        Grid resolution along X in meters.
+    dy : float or xarray.DataArray
+        Grid resolution along Y in meters.
+
+    Returns
+    -------
+    wx : int
+        Window width in grid points (odd number).
+    wy : int
+        Window height in grid points (odd number).
+    """
     dx = np.nanmean(dx)
     dy = np.nanmean(dy)
     wx = 2 * (int(np.ceil(window * 1e3 / dx)) // 2) + 1

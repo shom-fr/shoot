@@ -1,29 +1,49 @@
 # -*- coding: utf-8 -*-
 """
-hydrologic functions
-====================
+Hydrologic functions
+
+Anomaly detection and profile analysis for eddies.
 """
 import functools
-import math
+
 import numpy as np
-import numba
 import xarray as xr
-from scipy.signal import argrelmax, argrelmin
-import xoa.coords as xcoords
+
+from . import meta as smeta
 from . import grid as sgrid
 from . import num as snum
 
 
 class Anomaly:
-    def __init__(self, eddy, eddies, dens, depth=None, r_factor=1.2, nz=100, eddy_type= True):
+    """Compute 3D anomalies inside and outside an eddy
+
+    Compares vertical profiles of a tracer (density, temperature, etc.)
+    inside and outside an eddy to compute anomalies.
+
+    Parameters
+    ----------
+    eddy : RawEddy2D
+        Eddy object with location and contour information.
+    eddies : Eddies2D
+        Collection of all eddies (to exclude from background).
+    dens : xarray.DataArray
+        3D tracer field (e.g., density, temperature).
+    depth : xarray.DataArray, optional
+        3D depth field. Inferred from dens if not provided.
+    r_factor : float, default 1.2
+        Radius factor for selecting outside profiles.
+    nz : int, default 100
+        Number of vertical levels for interpolation.
+    """
+
+    def __init__(self, eddy, eddies, dens, depth=None, r_factor=1.2, nz=100, eddy_type=True):
+
         self.lon = eddy.lon
         self.lat = eddy.lat
         self.eddy = eddy
-        self.eddy_type= eddy_type #True if anomaly sign based on eddy_type
+        self.eddy_type = eddy_type  # True if anomaly sign based on eddy_type
         if hasattr(eddy, "boundary_contour"):
-            self.radius = (
-                eddy.boundary_contour.radius
-            )  # eddy.vmax_contour.radius  # eddy.radius in meters
+            self.radius = eddy.boundary_contour.radius  # eddy.vmax_contour.radius  # eddy.radius in meters
         else:
             self.radius = eddy.eff_radius  # boundary contour radius in meters
 
@@ -31,10 +51,10 @@ class Anomaly:
         if not depth is None:
             self.depth = depth.squeeze()
         else:
-            self.depth = xcoords.get_depth(dens).squeeze()
-        self.xdim = xcoords.get_xdim(self.dens, errors="raise")
-        self.ydim = xcoords.get_ydim(self.dens, errors="raise")
-        self.zdim = xcoords.get_zdim(self.dens, errors="raise")
+            self.depth = smeta.get_depth(dens).squeeze()
+        self.xdim = smeta.get_xdim(self.dens, errors="raise")
+        self.ydim = smeta.get_ydim(self.dens, errors="raise")
+        self.zdim = smeta.get_zdim(self.dens, errors="raise")
         self.nz = nz
         self._jmax = len(self.dens[self.xdim])
         self._imax = len(self.dens[self.ydim])
@@ -51,13 +71,11 @@ class Anomaly:
 
     @functools.cached_property
     def _dist(self):
-        lon_name = xcoords.get_lon(self.dens).name
-        lat_name = xcoords.get_lat(self.dens).name
-        dist = np.sqrt(
-            (self.dens[lon_name] - self.lon) ** 2 + (self.dens[lat_name] - self.lat) ** 2
-        )
-        #dist = dist.transpose(lat_name, lon_name)
-        if len(self.dens[lon_name].dims) == 1 : 
+        lon_name = smeta.get_lon(self.dens).name
+        lat_name = smeta.get_lat(self.dens).name
+        dist = np.sqrt((self.dens[lon_name] - self.lon) ** 2 + (self.dens[lat_name] - self.lat) ** 2)
+        # dist = dist.transpose(lat_name, lon_name)
+        if len(self.dens[lon_name].dims) == 1:
             dim_x = self.dens[lon_name].dims[0]
             dim_y = self.dens[lat_name].dims[0]
             dist = dist.transpose(dim_y, dim_x)
@@ -65,14 +83,12 @@ class Anomaly:
 
     @property
     def _i(self):
-        #lon_name = xcoords.get_lon(self.dens).name
-        #return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
+        # return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
         return np.unravel_index(np.argmin(self._dist), self._dist.shape)[0]
 
     @property
     def _j(self):
-        #lon_name = xcoords.get_lon(self.dens).name
-        #return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
+        # return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
         return np.unravel_index(np.argmin(self._dist), self._dist.shape)[1]
 
     @functools.cached_property
@@ -100,22 +116,14 @@ class Anomaly:
             )[::-1]
 
     def is_inside(self, x, y):
-        if len(xcoords.get_lon(self.dens).shape) == 1: 
-            lon = [
-                xcoords.get_lon(self.dens).isel({self.xdim: xi}) for xi in x
-            ]            
-        else : 
-            lon = [
-                xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-            ]
-        if len(xcoords.get_lat(self.dens).shape) == 1:
-            lat = [
-                xcoords.get_lat(self.dens).isel({self.ydim: yi}) for yi in y
-            ]
-        else : 
-            lat = [
-                xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-            ]
+        if len(smeta.get_lon(self.dens).shape) == 1:
+            lon = [smeta.get_lon(self.dens).isel({self.xdim: xi}) for xi in x]
+        else:
+            lon = [smeta.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
+        if len(smeta.get_lat(self.dens).shape) == 1:
+            lat = [smeta.get_lat(self.dens).isel({self.ydim: yi}) for yi in y]
+        else:
+            lat = [smeta.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
         points = np.array([lon, lat]).T
 
         if hasattr(self.eddy, "x_vmax"):
@@ -134,8 +142,8 @@ class Anomaly:
         nx = int(r * self.radius / dxm)
         ny = int(r * self.radius / dym)
 
-        stepx = max(int(2 * nx / 10),1)
-        stepy = max(int(2 * ny / 10),1)
+        stepx = max(int(2 * nx / 10), 1)
+        stepy = max(int(2 * ny / 10), 1)
 
         X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx)
         Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy)
@@ -173,22 +181,14 @@ class Anomaly:
         )
 
     def is_valid(self, x, y):
-        if len(xcoords.get_lon(self.dens).shape)==1: 
-            lon = [
-                xcoords.get_lon(self.dens).isel({self.xdim: xi}) for xi in x
-            ]
-        else : 
-            lon = [
-                xcoords.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-            ]
-        if len(xcoords.get_lat(self.dens).shape)==1: 
-            lat = [
-                xcoords.get_lat(self.dens).isel({self.ydim: yi}) for  yi in y
-            ]
-        else : 
-            lat = [
-                xcoords.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)
-            ]
+        if len(smeta.get_lon(self.dens).shape) == 1:
+            lon = [smeta.get_lon(self.dens).isel({self.xdim: xi}) for xi in x]
+        else:
+            lon = [smeta.get_lon(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
+        if len(smeta.get_lat(self.dens).shape) == 1:
+            lat = [smeta.get_lat(self.dens).isel({self.ydim: yi}) for yi in y]
+        else:
+            lat = [smeta.get_lat(self.dens).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
         points = np.array([lon, lat]).T
         result = np.ones(len(x)) * True
         for eddy in self.eddies.eddies:
@@ -296,9 +296,7 @@ class Anomaly:
                 [self.depth_vector.dims[0]],
             ],
             output_core_dims=[[self.depth_vector.dims[0]]],
-            dask_gufunc_kwargs={
-                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
-            },
+            dask_gufunc_kwargs={"output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}},
             vectorize=True,
             dask="parallelized",
             output_dtypes=[self.profil_inside.dtype],
@@ -317,9 +315,7 @@ class Anomaly:
                 [self.depth_vector.dims[0]],
             ],
             output_core_dims=[[self.depth_vector.dims[0]]],
-            dask_gufunc_kwargs={
-                "output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}
-            },
+            dask_gufunc_kwargs={"output_sizes": {self.depth_vector.dims[0]: len(self.depth_vector)}},
             vectorize=True,
             dask="parallelized",
             output_dtypes=[self.profil_inside.dtype],
@@ -353,14 +349,14 @@ class Anomaly:
     def _icore_depth(self):
         if np.isnan(self.anomaly).all():
             return None
-        if self.eddy_type : 
+        if self.eddy_type:
 
             if self.eddy.eddy_type == "anticyclone":
                 icore = np.nanargmin(self.anomaly.values)
             else:
                 icore = np.nanargmax(self.anomaly.values)
 
-        else : 
+        else:
             icore = np.nanargmax(np.abs(self.anomaly.values))
         return icore
 
@@ -371,44 +367,39 @@ class Anomaly:
     @functools.cached_property
     def intensity(self):
         return np.abs(self.anomaly[self._icore_depth])
-    
+
     @functools.cached_property
     def signed_intensity(self):
         return self.anomaly[self._icore_depth]
-    
-    def anomaly_at_depth(self, depth_level, signed = False): 
-        if np.sign(depth_level) != np.sign(self.depth_vector[1]): 
-            depth_level *=-1 
-        
-        iref = np.argmin(np.abs(self.depth_vector.values-depth_level)) 
-        if signed : 
-            return self.anomaly[iref]          
-        else : 
-            return np.abs(self.anomaly[iref])
-        
 
-def compute_anomalies(eddies, dens, nz=100, r_factor=1.2, eddy_type= True):
+    def anomaly_at_depth(self, depth_level, signed=False):
+        if np.sign(depth_level) != np.sign(self.depth_vector[1]):
+            depth_level *= -1
+
+        iref = np.argmin(np.abs(self.depth_vector.values - depth_level))
+        if signed:
+            return self.anomaly[iref]
+        else:
+            return np.abs(self.anomaly[iref])
+
+
+def compute_anomalies(eddies, dens, nz=100, r_factor=1.2, eddy_type=True):
     """Add anomaly to detected eddies
+
     Parameters
     ----------
-    eddies: Eddies object
+    eddies : Eddies2D
+        Collection of detected eddies.
+    dens : xarray.DataArray
+        3D tracer field (density, temperature, etc.).
+    nz : int, default 100
+        Number of vertical interpolation levels.
+    r_factor : float, default 1.2
+        Radius factor for background profile selection.
 
-    dens: 3D dataarray
-        Variable of interest including a depth dimension
-
-    nz: int (optional)
-        number of depth layers
-    r_factor: float (optional)
-        maximum distance to the center to combute background values
-
-    Returns
-    -------
-     nothing : directly appends anomaly object in each eddies
+    Notes
+    -----
+    Modifies eddies in-place by adding .anomaly attribute to each eddy.
     """
     for eddy in eddies.eddies:
         eddy.anomaly = Anomaly(eddy, eddies, dens, r_factor=r_factor, nz=nz, eddy_type=eddy_type)
-        
-
-    
-        
-

@@ -7,7 +7,8 @@
    :hidden:
 
    install
-   algos
+   quickstart
+   indepth
    cli
    examples/index
 
@@ -16,7 +17,9 @@
    :maxdepth: 1
    :hidden:
 
+   algos
    lib
+   contributing
    Gitlab repository <https://gitlab.com/GitShom/STM/shoot>
 
 Indices and tables

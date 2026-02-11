@@ -1,6 +1,7 @@
 """
-Streamlines for 2D vector fields.
+Streamline computation for 2D vector fields
 
+Functions for computing streamfunctions from velocity fields.
 """
 
 import numpy as np
@@ -8,17 +9,37 @@ from scipy.integrate import cumulative_trapezoid
 import xarray as xr
 
 from . import geo as sgeo
-from . import cf as scf
+from . import meta as smeta
 
 
 def psi(u, v):
-    """Compute stream function from current"""
+    """Compute streamfunction from velocity field
+
+    Integrates the velocity field to obtain the streamfunction using
+    a four-quadrant integration scheme centered on the domain center.
+
+    Parameters
+    ----------
+    u : xarray.DataArray
+        Zonal velocity component (2D).
+    v : xarray.DataArray
+        Meridional velocity component (2D).
+
+    Returns
+    -------
+    xarray.DataArray
+        Streamfunction field in km²/s.
+
+    Notes
+    -----
+    Assumes domain is centered on the feature of interest.
+    """
     # define center position assume that we provide a domain centered on the peak
     ci = u.shape[1] // 2
     cj = u.shape[0] // 2
 
     # get lat, lon
-    lat, lon = scf.get_lat(u), scf.get_lon(u)
+    lat, lon = smeta.get_lat(u), smeta.get_lon(u)
     lat2d, lon2d = xr.broadcast(lat, lon)
 
     lon_ref = lon.mean()

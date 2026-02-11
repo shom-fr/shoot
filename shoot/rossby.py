@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jan 23 08:48:47 2025
+Rossby radius utilities
 
-@author: jbroust
+Functions for accessing first baroclinic Rossby radius climatology.
 """
 
 from scipy.io import loadmat
@@ -16,7 +16,15 @@ RD = ['Rd_Chelton', 'Rd_KNTN', 'RR_baroc1']
 
 
 class Rossby:
-    """This class return the first baroclinic Rossby number based on climatology"""
+    """First baroclinic Rossby radius climatology
+
+    Loads and provides access to Rossby radius data from climatology.
+
+    Parameters
+    ----------
+    path : str
+        Path to Rossby radius MATLAB file.
+    """
 
     def __init__(
         self,
@@ -52,9 +60,41 @@ class Rossby:
         )
 
     def get_ro(self, lon, lat):
+        """Get Rossby radius at specific location
+
+        Parameters
+        ----------
+        lon : float
+            Longitude in degrees.
+        lat : float
+            Latitude in degrees.
+
+        Returns
+        -------
+        float
+            Rossby radius in kilometers.
+        """
         ilat = np.argmin(np.abs(lat - self.ds.lat))
         jlon = np.argmin(np.abs(lon - self.ds.lon))
         return self.ds.rd.isel(lon=jlon, lat=ilat).values
 
     def get_ro_avg(self, lon_min, lon_max, lat_min, lat_max):
+        """Get average Rossby radius over region
+
+        Parameters
+        ----------
+        lon_min : float
+            Minimum longitude in degrees.
+        lon_max : float
+            Maximum longitude in degrees.
+        lat_min : float
+            Minimum latitude in degrees.
+        lat_max : float
+            Maximum latitude in degrees.
+
+        Returns
+        -------
+        float
+            Mean Rossby radius in kilometers.
+        """
         return np.nanmean(self.ds.sel(lon=slice(lon_min, lon_max), lat=slice(lat_min, lat_max)).rd)

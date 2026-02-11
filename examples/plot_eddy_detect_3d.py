@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Detect CROCO-MED1.8 eddies at different depths and link the detections
-====================================
+======================================================================
 
 In this example,  3D eddies are detected from CROCO model currents interpolated at several depths and collocated at RHO points.
 """
@@ -11,12 +11,11 @@ In this example,  3D eddies are detected from CROCO model currents interpolated 
 # -----------------
 #
 # Import needed stuff.
-import os
 import cmocean
 import matplotlib.pyplot as plt
 import xarray as xr
-import xoa.cf as xcf
 
+from shoot.meta import set_meta_specs
 from shoot.eddies.eddies3d import Eddies3D
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
@@ -26,7 +25,7 @@ xr.set_options(display_style="text")
 
 # %%
 # Load croco-specific naming conventions to find dims, coords and variables
-xcf.set_cf_specs("croco.cfg")
+set_meta_specs("croco")
 
 # %%
 # Read data

@@ -2,8 +2,16 @@ name: shoot
 
 channels:
   - conda-forge
-  - defaults
 
 dependencies:
-  - jax
+  - cartopy
+  - cmocean
+  - colorlog
+  - contourpy
+  - gsw
+  - matplotlib
+  - netCDF4
+  - owslib
+  - scipy
+  - xarray
   - xoa

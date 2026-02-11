@@ -20,7 +20,7 @@ from .eddies import track as strack
 from . import hydrology as shydrology
 from . import acoustic as sacoustic
 
-from . import cf as scf
+from . import meta as smeta
 from . import plot as splot
 
 
@@ -28,6 +28,13 @@ from . import plot as splot
 
 
 def get_parser():
+    """Create and configure the main argument parser
+
+    Returns
+    -------
+    argparse.ArgumentParser
+        Configured argument parser with all subcommands.
+    """
     parser = argparse.ArgumentParser(
         description="shoot interface",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -42,6 +49,11 @@ def get_parser():
 
 
 def main():
+    """Main entry point for the shoot command-line interface
+
+    Parses command-line arguments, sets up logging, and dispatches
+    to the appropriate subcommand function.
+    """
     # Get the parser
     parser = get_parser()
 
@@ -64,6 +76,18 @@ def main():
 
 
 def add_parser_eddies(subparsers):
+    """Add eddies subparser with detection, tracking, and diagnostics commands
+
+    Parameters
+    ----------
+    subparsers : argparse._SubParsersAction
+        Subparsers object to add eddies parser to.
+
+    Returns
+    -------
+    argparse.ArgumentParser
+        Configured eddies subparser.
+    """
     # Setup argument parser
     parser_eddies = subparsers.add_parser(
         "eddies",
@@ -154,17 +178,27 @@ def add_arguments_eddies_detect(parser):
     parser.add_argument(
         "--plot", help="Plot first time detection", action="store_true"
     )
+    parser.add_argument(
+        "--meta-file",
+        help="xoa.meta config file to help reading input datasets",
+        type=str,
+    )
 
 
 def main_eddies_detect(parser, args):
     logger = logging.getLogger(__name__)
+
+    # Load custom meta file if provided
+    if args.meta_file:
+        logger.info(f"Loading meta config from: {args.meta_file}")
+        smeta.set_meta_specs(args.meta_file)
 
     # Open files
     if len(args.nc_data_file) == 1:
         ds = xr.open_dataset(args.nc_data_file[0])
     else:
         ds = xr.open_mfdataset(args.nc_data_file)
-    time = scf.get_time(ds)
+    time = smeta.get_time(ds)
     if time is not None:
         if not args.all:
             logger.warning("Selecting the first time step")
@@ -173,13 +207,13 @@ def main_eddies_detect(parser, args):
             logger.warning("Performs detection at all times")
 
     # Get variables
-    u = ds[args.u_name] if args.u_name else scf.get_u(ds)
-    v = ds[args.v_name] if args.v_name else scf.get_v(ds)
+    u = ds[args.u_name] if args.u_name else smeta.get_u(ds)
+    v = ds[args.v_name] if args.v_name else smeta.get_v(ds)
     if not args.without_ssh:
         ssh = (
             ds[args.ssh_name]
             if args.ssh_name
-            else scf.get_ssh(ds, errors="warn")
+            else smeta.get_ssh(ds, errors="warn")
         )
     else:
         ssh = None
@@ -217,7 +251,7 @@ def main_eddies_detect(parser, args):
 
     # Save
     logger.debug("Saving detections to netcdf")
-    eddies.save(args.to_netcdf)
+    eddies.to_netcdf(args.to_netcdf)
     logger.info(f"Detections saved to: {args.to_netcdf}")
 
     # Plot
@@ -362,6 +396,11 @@ def add_arguments_eddies_track(parser):
         nargs=1,
         type=str,
     )
+    parser.add_argument(
+        "--meta-file",
+        help="xoa.meta config file to help reading input datasets",
+        type=str,
+    )
 
 
 def _eddies_track(parser, args, logger, ds):
@@ -388,14 +427,14 @@ def _eddies_track(parser, args, logger, ds):
 
     # Save
     logger.debug("Saving tracking to netcdf")
-    tracks.save(args.to_netcdf)
+    tracks.to_netcdf(args.to_netcdf)
     logger.info(f"Detections saved to: {args.to_netcdf}")
     return eddies, tracks
 
 
 def _eddies_update(parser, args, logger, ds):
 
-    time = scf.get_time(ds)
+    time = smeta.get_time(ds)
     if time is not None:
         logger.warning("Selecting the last time step")
         # ds = ds.isel({time.name: -1})
@@ -405,24 +444,24 @@ def _eddies_update(parser, args, logger, ds):
     u = (
         ds[args.u_name].isel({time.name: -1})
         if args.u_name
-        else scf.get_u(ds).isel({time.name: -1})
+        else smeta.get_u(ds).isel({time.name: -1})
     )
     v = (
         ds[args.v_name].isel({time.name: -1})
         if args.v_name
-        else scf.get_v(ds).isel({time.name: -1})
+        else smeta.get_v(ds).isel({time.name: -1})
     )
     if not args.without_ssh:
         ssh = (
             ds[args.ssh_name].isel({time.name: -1})
             if args.ssh_name
-            else scf.get_ssh(ds, errors="warn").isel({time.name: -1})
+            else smeta.get_ssh(ds, errors="warn").isel({time.name: -1})
         )
     else:
         ssh = None
 
     logger.debug("Starting detection at last day")
-    print("u", u)
+    logger.debug(f"U velocity shape: {u.shape}, range: [{u.min().values:.3f}, {u.max().values:.3f}]")
     new_eddies = seddies.Eddies2D.detect_eddies(
         u,
         v,
@@ -445,13 +484,18 @@ def _eddies_update(parser, args, logger, ds):
 
     # Save
     logger.debug("Saving tracking to netcdf")
-    tracks_refresh.save(args.to_netcdf)
+    tracks_refresh.to_netcdf(args.to_netcdf)
     logger.info(f"Detections saved to: {args.to_netcdf}")
     return new_eddies, tracks_refresh
 
 
 def main_eddies_track(parser, args):
     logger = logging.getLogger(__name__)
+
+    # Load custom meta file if provided
+    if args.meta_file:
+        logger.info(f"Loading meta config from: {args.meta_file}")
+        smeta.set_meta_specs(args.meta_file)
 
     # Open files
     if len(args.nc_data_file) == 1:
@@ -460,7 +504,7 @@ def main_eddies_track(parser, args):
         ds = xr.open_mfdataset(args.nc_data_file)
 
     # time range
-    time = scf.get_time(ds)
+    time = smeta.get_time(ds)
     if args.begin or args.end:
         begin = (
             args.begin[0]
@@ -472,7 +516,7 @@ def main_eddies_track(parser, args):
             if args.end
             else str(time[-1].dt.strftime("%Y/%m/%d").values)
         )
-        print(begin, end)
+        logger.info(f"Time range: {begin} to {end}")
         ds = ds.sel({time.name: slice(begin, end)})
 
     if args.update:
@@ -484,8 +528,8 @@ def main_eddies_track(parser, args):
     if args.plot:
         logger.debug("Plotting detections")
         ds = ds.isel({time.name: -1})
-        u = ds[args.u_name] if args.u_name else scf.get_u(ds)
-        v = ds[args.v_name] if args.v_name else scf.get_v(ds)
+        u = ds[args.u_name] if args.u_name else smeta.get_u(ds)
+        v = ds[args.v_name] if args.v_name else smeta.get_v(ds)
         fig, ax = splot.create_map(
             ds.cf["longitude"], ds.cf["latitude"], figsize=(8, 5)
         )
@@ -682,6 +726,11 @@ def add_arguments_eddies_diags(parser):
     parser.add_argument(
         "--density", help="Acoustic impact diag", action="store_true"
     )
+    parser.add_argument(
+        "--meta-file",
+        help="xoa.meta config file to help reading input datasets",
+        type=str,
+    )
 
 
 def _sel_eddies(eddies, date):
@@ -696,6 +745,11 @@ def _sel_eddies(eddies, date):
 def main_eddies_diags(parser, args):
     logger = logging.getLogger(__name__)
 
+    # Load custom meta file if provided
+    if args.meta_file:
+        logger.info(f"Loading meta config from: {args.meta_file}")
+        smeta.set_meta_specs(args.meta_file)
+
     # Open files
     ds_eddies = xr.open_dataset(args.nc_data_files[1])
     ds_3d = xr.open_mfdataset(args.nc_data_files[0])
@@ -703,15 +757,15 @@ def main_eddies_diags(parser, args):
     # Compute the sound celerity
     if not hasattr(ds_3d, "cs") and args.acoustic:
         ct = gsw.conversions.CT_from_pt(
-            scf.get_salt(ds_3d), scf.get_temp(ds_3d)
+            smeta.get_salt(ds_3d), smeta.get_temp(ds_3d)
         )
         pres = gsw.conversions.p_from_z(
-            scf.get_depth(ds_3d), scf.get_lat(ds_3d)
+            smeta.get_depth(ds_3d), smeta.get_lat(ds_3d)
         )
         ds_3d["cs"] = gsw.density.sound_speed(ds_3d.salt, ct, pres)
 
     # time range
-    time = ds_3d.time  # scf.get_time(ds_3d)
+    time = ds_3d.time  # smeta.get_time(ds_3d)
     try:
         # select in data file
         if args.date:
@@ -729,7 +783,7 @@ def main_eddies_diags(parser, args):
     eddies_r = seddies.Eddies2D.reconstruct(ds_eddies)
 
     if args.density:
-        print("TO BE IMPLEMENTED")
+        logger.warning("Density diagnostics not yet implemented")
 
     if args.acoustic:
         # anomaly construction

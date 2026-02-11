@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Dynamics
+Ocean dynamics utilities
+
+Functions for computing kinematic quantities from velocity fields including
+vorticity, divergence, angular momentum, and geostrophic currents.
 """
 import math
 import numpy as np
@@ -66,25 +69,25 @@ def _get_lnam_wrapper_(uu, vv, wx, dx2dy):
 
 
 def get_lnam(u, v, window, dx=None, dy=None):
-    """Get the local normalized angular momentum
+    """Compute local normalized angular momentum
 
     Parameters
     ----------
-    u: xarray.Dataset
-        Velocity along X
-    v: xarray.Dataset
-        Velocity along X
-    window: float
-        Window in km
-    dx: None, xarray.Dataset
-        Resolution along X in m
-    dy: None, xarray.Dataset
-        Resolution along Y in m
+    u : xarray.DataArray
+        Zonal velocity component.
+    v : xarray.DataArray
+        Meridional velocity component.
+    window : float
+        Window size in kilometers.
+    dx : xarray.DataArray, optional
+        Grid resolution along X in meters.
+    dy : xarray.DataArray, optional
+        Grid resolution along Y in meters.
 
-    Return
-    ------
+    Returns
+    -------
     xarray.DataArray
-        Local normalized angular momentum
+        Local normalized angular momentum.
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     dxm = np.nanmean(dx)
@@ -107,23 +110,23 @@ def get_lnam(u, v, window, dx=None, dy=None):
 
 
 def get_div(u, v, dx=None, dy=None):
-    """Get the divergence of the flow
+    """Compute horizontal divergence
 
     Parameters
     ----------
-    u: xarray.Dataset
-        Velocity along X
-    v: xarray.Dataset
-        Velocity along X
-    dx: None, xarray.Dataset
-        Resolution along X in m
-    dy: None, xarray.Dataset
-        Resolution along Y in m
+    u : xarray.DataArray
+        Zonal velocity component.
+    v : xarray.DataArray
+        Meridional velocity component.
+    dx : xarray.DataArray, optional
+        Grid resolution along X in meters.
+    dy : xarray.DataArray, optional
+        Grid resolution along Y in meters.
 
-    Return
-    ------
+    Returns
+    -------
     xarray.DataArray
-        divergence
+        Horizontal divergence in s^-1.
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(u, errors="raise")
@@ -157,22 +160,26 @@ def _get_div_(u, v, dx, dy):
 
 
 def get_okuboweiss(u, v, dx=None, dy=None):
-    """Get the Okubo-Weiss parameter
+    """Compute Okubo-Weiss parameter
+
+    The Okubo-Weiss parameter distinguishes vortex-dominated (OW < 0)
+    from strain-dominated (OW > 0) regions.
+
     Parameters
     ----------
-    u: xarray.Dataset
-        Velocity along X
-    v: xarray.Dataset
-        Velocity along X
-    dx: None, xarray.Dataset
-        Resolution along X in m
-    dy: None, xarray.Dataset
-        Resolution along Y in m
+    u : xarray.DataArray
+        Zonal velocity component.
+    v : xarray.DataArray
+        Meridional velocity component.
+    dx : xarray.DataArray, optional
+        Grid resolution along X in meters.
+    dy : xarray.DataArray, optional
+        Grid resolution along Y in meters.
 
-    Return
-    ------
+    Returns
+    -------
     xarray.DataArray
-        Okubo-Weiss parameters
+        Okubo-Weiss parameter in s^-2.
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(u, errors="raise")
@@ -209,23 +216,23 @@ def _get_okuboweiss_(u, v, dx, dy):
 
 
 def get_relvort(u, v, dx=None, dy=None):
-    """Get the relative vorticity
+    """Compute relative vorticity
 
     Parameters
     ----------
-    u: xarray.Dataset
-        Velocity along X
-    v: xarray.Dataset
-        Velocity along X
-    dx: None, xarray.Dataset
-        Resolution along X in m
-    dy: None, xarray.Dataset
-        Resolution along Y in m
+    u : xarray.DataArray
+        Zonal velocity component.
+    v : xarray.DataArray
+        Meridional velocity component.
+    dx : xarray.DataArray, optional
+        Grid resolution along X in meters.
+    dy : xarray.DataArray, optional
+        Grid resolution along Y in meters.
 
-    Return
-    ------
+    Returns
+    -------
     xarray.DataArray
-        Relative vorticity
+        Relative vorticity in s^-1.
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(u, errors="raise")
@@ -259,12 +266,40 @@ def _get_relvort_(u, v, dx, dy):
 
 
 def get_coriolis(lat):
-    """Get the coriolis parameter of a dataarray"""
+    """Compute Coriolis parameter
+
+    Parameters
+    ----------
+    lat : float or array-like
+        Latitude in degrees.
+
+    Returns
+    -------
+    float or array-like
+        Coriolis parameter (f = 2Ω sin(lat)) in s^-1.
+    """
     return 2 * OMEGA * np.sin(np.radians(lat))
 
 
 def get_geos_old(ssh, dx=None, dy=None):
-    """Get the geostrophic current from SSH (old version)"""
+    """Compute geostrophic currents from SSH (deprecated)
+
+    Parameters
+    ----------
+    ssh : xarray.DataArray
+        Sea surface height.
+    dx : xarray.DataArray, optional
+        Grid resolution along X in meters.
+    dy : xarray.DataArray, optional
+        Grid resolution along Y in meters.
+
+    Returns
+    -------
+    u : xarray.DataArray
+        Zonal geostrophic velocity.
+    v : xarray.DataArray
+        Meridional geostrophic velocity.
+    """
     dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
     dims = list(ssh.dims)
     xaxis = dims.index(xcoords.get_xdim(ssh, errors="raise"))
@@ -278,21 +313,25 @@ def get_geos_old(ssh, dx=None, dy=None):
 
 
 def get_geos(ssh, dx=None, dy=None):
-    """Get the geostrophic current from SSH
+    """Compute geostrophic currents from SSH
+
+    Uses geostrophic balance: f×u_g = -g∇η
 
     Parameters
     ----------
-    ssh: xarray.Dataset
-        Sea surface height
-    dx: None, xarray.Dataset
-        Resolution along X in m
-    dy: None, xarray.Dataset
-        Resolution along Y in m
+    ssh : xarray.DataArray
+        Sea surface height in meters.
+    dx : xarray.DataArray, optional
+        Grid resolution along X in meters.
+    dy : xarray.DataArray, optional
+        Grid resolution along Y in meters.
 
-    Return
-    ------
-    xarray.DataArray, xarray.DataArray: U, V
-        X and Y geostrophic velocities
+    Returns
+    -------
+    u : xarray.DataArray
+        Zonal geostrophic velocity in m/s.
+    v : xarray.DataArray
+        Meridional geostrophic velocity in m/s.
     """
     dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(ssh, errors="raise")
