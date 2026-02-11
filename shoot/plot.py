@@ -1,21 +1,47 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Graphic utilities
-=================
-"""
-import numpy as np
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
+Plotting utilities
 
-import xoa.geo as xgeo
+Cartographic and visualization functions for oceanographic data.
+"""
+import cartopy.crs as ccrs
+import matplotlib.pyplot as plt
+import numpy as np
+
+from . import geo as sgeo
 
 pmerc = ccrs.Mercator()
 pcarr = ccrs.PlateCarree()
 
 
 def plot_ellipse(lon, lat, a, b, angle, ax=None, npts=100, **kwargs):
-    """Plot an ellipse on a map"""
+    """Plot geographic ellipse
+
+    Parameters
+    ----------
+    lon : float
+        Center longitude in degrees.
+    lat : float
+        Center latitude in degrees.
+    a : float
+        Semi-major axis in kilometers.
+    b : float
+        Semi-minor axis in kilometers.
+    angle : float
+        Orientation angle in degrees.
+    ax : matplotlib.axes.Axes, optional
+        Axes to plot on. Uses current axes if None.
+    npts : int, default 100
+        Number of points for ellipse outline.
+    **kwargs
+        Additional plot styling arguments.
+
+    Returns
+    -------
+    list
+        Matplotlib line objects.
+    """
     if ax is None:
         ax = plt.gca()
 
@@ -30,8 +56,8 @@ def plot_ellipse(lon, lat, a, b, angle, ax=None, npts=100, **kwargs):
 
     am = a * 1e3
     bm = b * 1e3
-    lons = lon + xgeo.m2deg(am * ca * cas - bm * sa * sas, lat)
-    lats = lat + xgeo.m2deg(am * sa * cas + bm * ca * sas)
+    lons = lon + sgeo.m2deg(am * ca * cas - bm * sa * sas, lat)
+    lats = lat + sgeo.m2deg(am * sa * cas + bm * ca * sas)
 
     pe = ax.plot(lons, lats, **kwargs)
     return pe
@@ -48,7 +74,36 @@ def create_map(
     title=None,
     **kwargs,
 ):
-    """Create a simple decorated cartopy map"""
+    """Create cartographic map for oceanographic data
+
+    Parameters
+    ----------
+    lons : array-like
+        Longitude coordinates in degrees.
+    lats : array-like
+        Latitude coordinates in degrees.
+    margin : float, default 0.0
+        Fractional margin around data extent.
+    square : bool, default False
+        Force square aspect ratio.
+    coastlines : bool, default True
+        Draw coastlines.
+    emodnet : bool, default False
+        Use EMODnet bathymetry background.
+    projection : cartopy.crs.Projection, default Mercator
+        Map projection.
+    title : str, optional
+        Map title.
+    **kwargs
+        Additional arguments for plt.subplots.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        Figure object.
+    ax : matplotlib.axes.Axes
+        Cartographic axes.
+    """
     xmin, xmax = np.min(lons), np.max(lons)
     ymin, ymax = np.min(lats), np.max(lats)
     dx, dy = xmax - xmin, ymax - ymin

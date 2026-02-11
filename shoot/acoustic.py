@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-
 """
-acoustic functions
-==================
+Acoustic analysis functions
+
+Functions for computing acoustic parameters from sound speed profiles.
 """
 
 import functools
@@ -11,7 +11,7 @@ from scipy.signal import argrelmax, argrelmin
 import numba
 import xarray as xr
 
-from . import cf as scf
+from . import meta as smeta
 
 
 def _ilmax(profile):
@@ -81,23 +81,24 @@ def _get_ecs_wrapper_(cs, depth, xdim, ydim, nx, ny):
 
 
 def get_ecs(cs):
-    """Get the local ecs
+    """Compute surface duct thickness
 
     Parameters
     ----------
-    cs: xarray.Dataset
-        sound speed
-    Return
-    ------
+    cs : xarray.DataArray
+        3D sound speed field.
+
+    Returns
+    -------
     xarray.DataArray
-        Epaisseur du chenal de surface
+        Surface duct thickness (épaisseur du chenal de surface).
     """
-    xdim = scf.get_xdim(cs)
-    ydim = scf.get_ydim(cs)
-    zdim = scf.get_zdim(cs)
+    xdim = smeta.get_xdim(cs)
+    ydim = smeta.get_ydim(cs)
+    zdim = smeta.get_zdim(cs)
     nx = len(cs[xdim])
     ny = len(cs[ydim])
-    depth = scf.get_depth(cs)
+    depth = smeta.get_depth(cs)
     ecs = xr.apply_ufunc(
         _get_ecs_wrapper_,
         cs,
@@ -135,12 +136,12 @@ def get_mcp(cs):
     xarray.DataArray
         Minimum de célérité profond
     """
-    xdim = scf.get_xdim(cs)
-    ydim = scf.get_ydim(cs)
-    zdim = scf.get_zdim(cs)
+    xdim = smeta.get_xdim(cs)
+    ydim = smeta.get_ydim(cs)
+    zdim = smeta.get_zdim(cs)
     nx = len(cs[xdim])
     ny = len(cs[ydim])
-    depth = scf.get_depth(cs)
+    depth = smeta.get_depth(cs)
     mcp = xr.apply_ufunc(
         _get_mcp_wrapper_,
         cs,
@@ -179,12 +180,12 @@ def get_iminc(cs):
     xarray.DataArray
         Minimum de célérité profond
     """
-    xdim = scf.get_xdim(cs)
-    ydim = scf.get_ydim(cs)
-    zdim = scf.get_zdim(cs)
+    xdim = smeta.get_xdim(cs)
+    ydim = smeta.get_ydim(cs)
+    zdim = smeta.get_zdim(cs)
     nx = len(cs[xdim])
     ny = len(cs[ydim])
-    depth = scf.get_depth(cs)
+    depth = smeta.get_depth(cs)
     iminc = xr.apply_ufunc(
         _get_iminc_wrapper_,
         cs,
@@ -199,10 +200,44 @@ def get_iminc(cs):
 
 
 class ProfileAcous:
+    """Acoustic parameters for a single sound speed profile
+
+    Computes acoustic properties (local maxima/minima, surface duct thickness,
+    deep minimum, etc.) from a sound speed profile.
+
+    Parameters
+    ----------
+    profile : xarray.DataArray
+        Sound speed profile.
+    depth : xarray.DataArray
+        Depth coordinate for the profile.
+
+    Attributes
+    ----------
+    ilmax : ndarray
+        Indices of local maxima in the profile.
+    ilmin : ndarray
+        Indices of local minima in the profile.
+    ecs : float
+        Surface duct thickness (épaisseur du chenal de surface).
+    iminc : float
+        Depth of intermediate minimum in two-channel profiles.
+    mcp : float
+        Depth of deep sound speed minimum (minimum de célérité profond).
+    """
 
     def __init__(self, profile, depth):
+        """Initialize acoustic profile analyzer
+
+        Parameters
+        ----------
+        profile : xarray.DataArray
+            Sound speed profile.
+        depth : xarray.DataArray
+            Depth coordinate for the profile.
+        """
         self.profile = profile  # it an cs xarray profile
-        self.depth = depth  # scf.get_depth(profile)
+        self.depth = depth  # smeta.get_depth(profile)
         self.depth_dim = self.depth.dims[0]
 
     @functools.cached_property
@@ -218,19 +253,54 @@ class ProfileAcous:
 
     @functools.cached_property
     def ecs(self):
-        return _ecs(self.profile.values, self.depth)
+        return _ecs(self.profile.values, self.depth.values)
 
     @functools.cached_property
     def iminc(self):
-        return _iminc(self.profile.values, self.depth)
+        return _iminc(self.profile.values, self.depth.values)
 
     @functools.cached_property
     def mcp(self):
-        return _mcp(self.profile.values, self.depth)
+        return _mcp(self.profile.values, self.depth.values)
 
 
 class AcousEddy:
+    """Acoustic analysis for an eddy anomaly
+
+    Computes acoustic parameters both inside and outside an eddy,
+    and calculates the acoustic impact (difference between inside/outside).
+
+    Parameters
+    ----------
+    anomaly : Anomaly
+        Eddy anomaly object containing profile data inside and outside the eddy.
+
+    Attributes
+    ----------
+    ecs_inside : float
+        Surface duct thickness inside the eddy.
+    ecs_outside : float
+        Surface duct thickness outside the eddy.
+    mcp_inside : float
+        Deep sound speed minimum depth inside the eddy.
+    mcp_outside : float
+        Deep sound speed minimum depth outside the eddy.
+    iminc_inside : float
+        Intermediate minimum depth inside the eddy.
+    iminc_outside : float
+        Intermediate minimum depth outside the eddy.
+    acoustic_impact : float
+        Combined acoustic impact metric (sum of relative differences).
+    """
+
     def __init__(self, anomaly):
+        """Initialize acoustic eddy analyzer
+
+        Parameters
+        ----------
+        anomaly : Anomaly
+            Eddy anomaly object containing profile data.
+        """
         self.anomaly = anomaly
 
     @functools.cached_property
@@ -292,8 +362,8 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).ecs
 
-        lon = scf.get_lon(self.anomaly.profils_inside).values
-        lat = scf.get_lat(self.anomaly.profils_inside).values
+        lon = smeta.get_lon(self.anomaly.profils_inside).values
+        lat = smeta.get_lat(self.anomaly.profils_inside).values
         ecs = xr.DataArray(
             data=ecs,
             dims=["nb_profil"],
@@ -310,8 +380,8 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).ecs
 
-        lon = scf.get_lon(self.anomaly.profils_outside).values
-        lat = scf.get_lat(self.anomaly.profils_outside).values
+        lon = smeta.get_lon(self.anomaly.profils_outside).values
+        lat = smeta.get_lat(self.anomaly.profils_outside).values
         ecs = xr.DataArray(
             data=ecs,
             dims=["nb_profil"],
@@ -328,8 +398,8 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).mcp
 
-        lon = scf.get_lon(self.anomaly.profils_inside).values
-        lat = scf.get_lat(self.anomaly.profils_inside).values
+        lon = smeta.get_lon(self.anomaly.profils_inside).values
+        lat = smeta.get_lat(self.anomaly.profils_inside).values
         mcp = xr.DataArray(
             data=mcp,
             dims=["nb_profil"],
@@ -346,8 +416,8 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).mcp
 
-        lon = scf.get_lon(self.anomaly.profils_outside).values
-        lat = scf.get_lat(self.anomaly.profils_outside).values
+        lon = smeta.get_lon(self.anomaly.profils_outside).values
+        lat = smeta.get_lat(self.anomaly.profils_outside).values
         mcp = xr.DataArray(
             data=mcp,
             dims=["nb_profil"],
@@ -364,8 +434,8 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).iminc
 
-        lon = scf.get_lon(self.anomaly.profils_inside).values
-        lat = scf.get_lat(self.anomaly.profils_inside).values
+        lon = smeta.get_lon(self.anomaly.profils_inside).values
+        lat = smeta.get_lat(self.anomaly.profils_inside).values
         iminc = xr.DataArray(
             data=iminc,
             dims=["nb_profil"],
@@ -382,8 +452,8 @@ class AcousEddy:
                 self.anomaly.depth_vector,
             ).iminc
 
-        lon = scf.get_lon(self.anomaly.profils_outside).values
-        lat = scf.get_lat(self.anomaly.profils_outside).values
+        lon = smeta.get_lon(self.anomaly.profils_outside).values
+        lat = smeta.get_lat(self.anomaly.profils_outside).values
         iminc = xr.DataArray(
             data=iminc,
             dims=["nb_profil"],
@@ -393,14 +463,19 @@ class AcousEddy:
 
 
 def acoustic_points(eddies):
-    """The function add an ecs, iminc, mcp points inside and outside every eddies
+    """Compute acoustic impact for all eddies
+
+    Adds acoustic parameters (ecs, iminc, mcp) inside and outside
+    each eddy, plus overall acoustic impact metric.
 
     Parameters
     ----------
-    eddies: Eddies object
+    eddies : Eddies2D
+        Collection of eddies with anomaly attributes.
 
-    Return
-    ------
+    Notes
+    -----
+    Modifies eddies in-place by adding acoustic attributes.
     """
     for eddy in eddies.eddies:
         acous = AcousEddy(eddy.anomaly)

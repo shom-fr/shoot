@@ -12,12 +12,12 @@ Hydrology anomalies can be performes in every 3D fields.
 # -----------------
 #
 # Import needed stuff.
-import os
 import time
 import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 
+from shoot.meta import set_meta_specs
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.hydrology import Anomaly, compute_anomalies
 from shoot.plot import create_map, pcarr
@@ -28,7 +28,7 @@ xr.set_options(display_style="text")
 
 # %%
 # Read data
-
+set_meta_specs("croco")
 root_path = "MODELS/CROCO/MED/pelops_3d.nc"
 path = get_sample_file(root_path)
 ds_3d = xr.open_dataset(path)
@@ -89,7 +89,7 @@ anomaly = Anomaly(eddy, eddies, ds_3d.sig0, depth=ds_3d.depth, r_factor=1.2)
 # It shows the selected inside and outside profiles
 #
 fig, ax = create_map(ds_2d.lon_rho, ds_2d.lat_rho, figsize=(8, 5))
-vort = get_relvort(ds_2d.u, ds_2d.v)/1e-4
+vort = get_relvort(ds_2d.u, ds_2d.v) / 1e-4
 cb = vort.plot(
     x="lon_rho",
     y="lat_rho",
@@ -99,10 +99,10 @@ cb = vort.plot(
     transform=pcarr,
 )
 
-plt.colorbar(cb, label = r"$\zeta/f$")
+plt.colorbar(cb, label=r"$\zeta/f$")
 
 for eddy in eddies.eddies:
-    eddy.plot(transform=pcarr, lw=1, vmax = True, boundary = True)
+    eddy.plot(transform=pcarr, lw=1, vmax=True, boundary=True)
 ax.scatter(
     anomaly._profils_outside.lon_rho,
     anomaly._profils_outside.lat_rho,

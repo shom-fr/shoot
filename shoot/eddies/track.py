@@ -7,15 +7,46 @@ Created on Thu Jan  9 13:24:21 2025
 """
 
 import functools
+import logging
+
 import numpy as np
 import xarray as xr
 from scipy.optimize import linear_sum_assignment
 import xoa.geo as xgeo
 
+from .. import geo as sgeo
 from . import eddies2d as seddies
+
+logger = logging.getLogger(__name__)
 
 
 class Associate:
+    """Associate eddies between time steps for tracking
+
+    Uses the Chelton et al. (2011) tracking algorithm with cost function
+    based on distance, Rossby number, and radius similarity.
+
+    Parameters
+    ----------
+    track_eddies : list
+        List of Track objects containing eddy trajectories.
+    parent_eddies : list
+        Eddies from the previous time step.
+    new_eddies : list
+        Eddies from the current time step to associate.
+    Dt : float
+        Time step (days) between parent and new eddies.
+    Tc : float
+        Characteristic time scale for tracking.
+    C : float, default 6.5*1e3/86400
+        Characteristic velocity scale (m/s).
+
+    Attributes
+    ----------
+    cost : ndarray
+        Cost matrix for eddy association (cached property).
+    """
+
     def __init__(
         self,
         track_eddies,
@@ -25,6 +56,23 @@ class Associate:
         Tc,
         C=6.5 * 1e3 / 86400,
     ):
+        """Initialize eddy tracking association
+
+        Parameters
+        ----------
+        track_eddies : list
+            List of Track objects containing eddy trajectories.
+        parent_eddies : list
+            Eddies from the previous time step.
+        new_eddies : list
+            Eddies from the current time step to associate.
+        Dt : float
+            Time step (days) between parent and new eddies.
+        Tc : float
+            Characteristic time scale for tracking.
+        C : float, default 6.5*1e3/86400
+            Characteristic velocity scale (m/s).
+        """
         self.parent_eddies = parent_eddies  # reference eddies
         self.new_eddies = new_eddies  # next time eddies
         self.track_eddies = track_eddies
@@ -33,6 +81,7 @@ class Associate:
         self._C = C
 
     def search_dist(self, eddyj, eddyi):
+        """Compute search distance for eddy association"""
         istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         Ravg = 0
@@ -44,6 +93,7 @@ class Associate:
         return Dij
 
     def ro_avg(self, eddyj):
+        """Average Rossby number over last 5 time steps"""
         istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         ro = 0
@@ -53,6 +103,7 @@ class Associate:
         return ro / n
 
     def rad_avg(self, eddyj):
+        """Average radius over last 5 time steps"""
         istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         radius = 0
@@ -69,8 +120,8 @@ class Associate:
             for j in range(len(self.parent_eddies)):
                 dlat = self.parent_eddies[j].lat - self.new_eddies[i].lat
                 dlon = self.parent_eddies[j].lon - self.new_eddies[i].lon
-                x = xgeo.deg2m(dlon, self.parent_eddies[j].lat)
-                y = xgeo.deg2m(dlat)
+                x = sgeo.deg2m(dlon, self.parent_eddies[j].lat)
+                y = sgeo.deg2m(dlat)
 
                 D_ij = self.search_dist(self.parent_eddies[j], self.new_eddies[i])
 
@@ -85,15 +136,11 @@ class Associate:
                 DR = (self.parent_eddies[j].radius - self.new_eddies[i].radius) / (
                     rj + self.new_eddies[i].radius
                 )
-                DR0 = (self.parent_eddies[j].ro - self.new_eddies[i].ro) / (
-                    roj + self.new_eddies[i].ro
-                )
+                DR0 = (self.parent_eddies[j].ro - self.new_eddies[i].ro) / (roj + self.new_eddies[i].ro)
 
                 # Warning avoid couple cyclone with anticylone
                 M[i, j] += (
-                    DR**2 + DR0**2
-                    if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type
-                    else 1e6
+                    DR**2 + DR0**2 if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type else 1e6
                 )
 
                 # temporal proximity
@@ -113,6 +160,8 @@ class Associate:
 
 
 class AssociateMulti:
+    """Associate eddies with multiple backward time steps for tracking"""
+
     def __init__(
         self,
         track_eddies,
@@ -222,7 +271,6 @@ class AssociateMulti:
         return index
 
     def order(self):
-
         # compute global matrix
         M = self.cost
         index = self.indexmatching()
@@ -254,6 +302,8 @@ class AssociateMulti:
 
 
 class Track:
+    """Individual eddy track containing temporal sequence of eddies"""
+
     def __init__(
         self,
         eddy,
@@ -356,14 +406,14 @@ class Tracks:
             else:
                 ds = xr.concat([ds, track.ds], dim="eddies")
         ds_eddies = self.eddies.ds
-        return xr.merge([ds_eddies, ds])
+        return xr.merge([ds_eddies, ds], compat="override")
 
-    def save(self, path_nc):
-        "this save at .nc format"
+    def to_netcdf(self, path_nc):
+        "Save to NetCDF format"
         self.ds.to_netcdf(path_nc)
 
     def track_init(self):
-        print("initialization")
+        logger.info("Initializing tracks from first time step")
         for i, eddy in enumerate(
             self.eddies.eddies[0].eddies
         ):  # initialized with the the first detected eddies
@@ -372,10 +422,10 @@ class Tracks:
             self.nb_tracks += 1
 
     def track_steps(self):
-        print("tracking steps")
+        logger.info("Processing tracking steps")
         for i in range(1, len(self.times)):  # compute tracking on all following time steps
             t = self.times[i]
-            print(t)
+            logger.debug("Tracking time step: %s", t)
             new_eddies = self.eddies.eddies[i].eddies
             self.update_multi(
                 [self.eddies.eddies[i - k].eddies for k in range(1, min(i, self.nback) + 1)],
@@ -384,9 +434,7 @@ class Tracks:
             )
             for eddy in new_eddies:
                 if eddy.track_id is None:  # Create a new track
-                    self.track_eddies[self.nb_tracks] = Track(
-                        eddy, t, self.nb_tracks, self._dt, self._Tc
-                    )
+                    self.track_eddies[self.nb_tracks] = Track(eddy, t, self.nb_tracks, self._dt, self._Tc)
                     eddy.track_id = self.nb_tracks  # actualise eddy track number
                     self.nb_tracks += 1
 
@@ -409,9 +457,7 @@ class Tracks:
         )
         for eddy in new_eddies:
             if eddy.track_id is None:  # Create a new track
-                self.track_eddies[self.nb_tracks] = Track(
-                    eddy, t, self.nb_tracks, self._dt, self._Tc
-                )
+                self.track_eddies[self.nb_tracks] = Track(eddy, t, self.nb_tracks, self._dt, self._Tc)
                 eddy.track_id = self.nb_tracks  # actualise eddy track number
                 self.nb_tracks += 1
 
@@ -441,10 +487,11 @@ class Tracks:
 
 def track_eddies(eddies, nback):
     """Add anomaly to detected eddies
+
     Parameters
     ----------
-    eddies: EvolEddies object
-        represent detections at several timestep.
+    eddies: EvolEddies
+        Represent detections at several timestep.
         Mind that the time interval is preferably constant
 
     nback: int
@@ -463,14 +510,15 @@ def track_eddies(eddies, nback):
 
 
 def update_tracks(ds, new_eddies, nback):
-    """update tracking based on new eddies detection
+    """Update tracking based on new eddies detection
+
     Parameters
     ----------
     ds: xarray dataset
-      already tracked perdiod
+        Already tracked perdiod
 
     new_eddies: Eddies object
-        represent detections at the new time step.
+        Represent detections at the new time step.
 
     nback: int
         number of backward time step for eddy tracking.

@@ -8,17 +8,25 @@ Created on Thu Aug  19 10:20:12 2025
 
 import os, glob
 import functools
-from .download import Download,  load_from_ds
+from .download import Download, load_from_ds
 import xarray as xr
 import numpy as np
-from .. import cf as scf
+from .. import meta as smeta
 
 
 class Profile:
+    """Individual in-situ profile with temperature and salinity data"""
+
     def __init__(self, prf):
-        self.time = prf.TIME.values
-        self.lat = prf.LATITUDE.values
-        self.lon = prf.LONGITUDE.values
+        # Extract scalar values for single-element arrays
+        time_vals = prf.TIME.values
+        self.time = time_vals[0] if time_vals.size == 1 else time_vals
+
+        lat_vals = prf.LATITUDE.values
+        self.lat = float(lat_vals[0]) if lat_vals.size == 1 else lat_vals
+
+        lon_vals = prf.LONGITUDE.values
+        self.lon = float(lon_vals[0]) if lon_vals.size == 1 else lon_vals
         self.depth = np.arange(1, 2001)
         self.temp = np.interp(
             self.depth,
@@ -38,7 +46,42 @@ class Profile:
 
 
 class Profiles:
+    """Collection of in-situ profiles with temperature and salinity data
+
+    Manages a collection of Profile objects, providing methods to load from datasets,
+    convert to xarray format, save to NetCDF, and associate with eddies.
+
+    Parameters
+    ----------
+    time : xarray.DataArray
+        Time coordinate for the profiles.
+    root_path : str
+        Root directory path for data storage.
+    brut_prf : xarray.Dataset
+        Raw profile dataset.
+
+    Attributes
+    ----------
+    profiles : list of Profile
+        List of valid Profile objects.
+    years : ndarray
+        Array of years covered by the profiles.
+    ds : xarray.Dataset
+        Profiles converted to xarray Dataset format (cached property).
+    """
+
     def __init__(self, time, root_path, brut_prf):
+        """Initialize Profiles collection
+
+        Parameters
+        ----------
+        time : xarray.DataArray
+            Time coordinate for the profiles.
+        root_path : str
+            Root directory path for data storage.
+        brut_prf : xarray.Dataset
+            Raw profile dataset.
+        """
         self.root_path = root_path
         self.time = time
         self.years = np.arange(self.time.min().dt.year.values, self.time.max().dt.year.values + 1)
@@ -51,6 +94,20 @@ class Profiles:
 
     @classmethod
     def from_ds(cls, ds, root_path):
+        """Create Profiles from an xarray Dataset
+
+        Parameters
+        ----------
+        ds : xarray.Dataset
+            Dataset with time coordinate.
+        root_path : str
+            Root directory path for data storage.
+
+        Returns
+        -------
+        Profiles
+            New Profiles instance.
+        """
         brut_prf = load_from_ds(ds, root_path)
         return cls(ds.time, root_path, brut_prf)
 
@@ -80,7 +137,8 @@ class Profiles:
         )
         return ds
 
-    def save(self, name=None, path=None):
+    def to_netcdf(self, name=None, path=None):
+        """Save profiles to NetCDF format"""
         if not path:
             path = self.root_path
         if not name:
@@ -115,5 +173,4 @@ class Profiles:
                     if b:
                         e.p_id.append(prf.isel(profil=i).p_id.values)
                         eddy_pos[prf.isel(profil=i).p_id.values] = e.track_id
-        self.ds = self.ds.assign(eddy_pos=("profil", np.array(eddy_pos, dtype = np.int32)))
-
+        self.ds = self.ds.assign(eddy_pos=("profil", np.array(eddy_pos, dtype=np.int32)))

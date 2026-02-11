@@ -1,18 +1,38 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Pure numeric utilities
-======================
+Numerical utilities
+
+Optimized numeric functions for peak detection and geometric computations.
 """
 
 import numba
 import numpy as np
-import xoa.coords as xcoords
 import xarray as xr
+
+from . import meta as smeta
 
 
 @numba.njit
 def _find_signed_peaks_2d_ref(data, wx, wy):
+    """Reference implementation for finding 2D peaks (serial, not parallel)
+
+    Parameters
+    ----------
+    data : ndarray
+        2D data array to search for peaks.
+    wx : int
+        Window width in x direction.
+    wy : int
+        Window width in y direction.
+
+    Returns
+    -------
+    minima : ndarray
+        Array of (i, j) indices for local minima.
+    maxima : ndarray
+        Array of (i, j) indices for local maxima.
+    """
     ny, nx = data.shape
     mask = np.isnan(data)
     maxima = np.empty((0, 2), dtype=np.int64)
@@ -33,8 +53,8 @@ def _find_signed_peaks_2d_ref(data, wx, wy):
             jmax = -1
             imin = -1
             jmin = -1
-            vmax = 0.0
-            vmin = 0.0
+            vmax = -np.inf
+            vmin = np.inf
             for jl in range(j0, j1):
                 for il in range(i0, i1):
                     if mask[jl, il]:
@@ -58,6 +78,24 @@ def _find_signed_peaks_2d_ref(data, wx, wy):
 
 @numba.njit(parallel=True)
 def _find_signed_peaks_2d_paral_save(data, wx, wy):
+    """Parallel implementation for finding 2D peaks (memory-safe version)
+
+    Parameters
+    ----------
+    data : ndarray
+        2D data array to search for peaks.
+    wx : int
+        Window width in x direction.
+    wy : int
+        Window width in y direction.
+
+    Returns
+    -------
+    minima : ndarray
+        3D array of (nx, ny, 2) with peak indices, -1 for non-peaks.
+    maxima : ndarray
+        3D array of (nx, ny, 2) with peak indices, -1 for non-peaks.
+    """
     ny, nx = data.shape
     mask = np.isnan(data)
     maxima = np.ones((nx, ny, 2), dtype=np.int64) * -1
@@ -80,8 +118,8 @@ def _find_signed_peaks_2d_paral_save(data, wx, wy):
         jmax = -1
         imin = -1
         jmin = -1
-        vmax = 0.0
-        vmin = 0.0
+        vmax = -np.inf
+        vmin = np.inf
         for jl in range(j0, j1):
             for il in range(i0, i1):
                 if mask[jl, il]:
@@ -103,6 +141,26 @@ def _find_signed_peaks_2d_paral_save(data, wx, wy):
 
 @numba.njit(parallel=True)
 def _find_signed_peaks_2d_paral(data, wx, wy):
+    """Parallel implementation for finding 2D peaks
+
+    Note: May miss extrema on the right edge of the domain.
+
+    Parameters
+    ----------
+    data : ndarray
+        2D data array to search for peaks.
+    wx : int
+        Window width in x direction.
+    wy : int
+        Window width in y direction.
+
+    Returns
+    -------
+    minima : ndarray
+        3D array of (nx, ny, 2) with peak indices, -1 for non-peaks.
+    maxima : ndarray
+        3D array of (nx, ny, 2) with peak indices, -1 for non-peaks.
+    """
     ny, nx = data.shape
     mask = np.isnan(data)
 
@@ -125,8 +183,8 @@ def _find_signed_peaks_2d_paral(data, wx, wy):
             jmax = -1
             imin = -1
             jmin = -1
-            vmax = 0.0
-            vmin = 0.0
+            vmax = -np.inf
+            vmin = np.inf
             for jl in range(j0, j1):
                 for il in range(i0, i1):
                     if mask[jl, il]:
@@ -146,7 +204,27 @@ def _find_signed_peaks_2d_paral(data, wx, wy):
     return minima, maxima
 
 
-def find_signed_peaks_2d(data, wx, wy, paral=False):  # Problem with the
+def find_signed_peaks_2d(data, wx, wy, paral=False):
+    """Find local extrema (minima and maxima) in 2D field
+
+    Parameters
+    ----------
+    data : ndarray
+        2D data array to search for peaks.
+    wx : int
+        Window width in x direction for local extrema detection.
+    wy : int
+        Window width in y direction for local extrema detection.
+    paral : bool, default False
+        Use parallel implementation if True, serial if False.
+
+    Returns
+    -------
+    minima : ndarray
+        Array of (i, j) indices for local minima.
+    maxima : ndarray
+        Array of (i, j) indices for local maxima.
+    """
     if paral:
         minima, maxima = _find_signed_peaks_2d_paral(data, wx, wy)
         ny, nx = data.shape
@@ -164,8 +242,24 @@ def find_signed_peaks_2d(data, wx, wy, paral=False):  # Problem with the
 
 # @numba.njit
 def find_signed_peaks_2d_jb_old(lnam, closed_lines):
-    lon = xcoords.get_lon(lnam)
-    lat = xcoords.get_lat(lnam)
+    """Find peaks within closed contour lines (old implementation)
+
+    Parameters
+    ----------
+    lnam : xarray.DataArray
+        2D LNAM field.
+    closed_lines : list
+        List of closed contour lines.
+
+    Returns
+    -------
+    minima : ndarray
+        Array of (i, j) indices for local minima.
+    maxima : ndarray
+        Array of (i, j) indices for local maxima.
+    """
+    lon = smeta.get_lon(lnam)
+    lat = smeta.get_lat(lnam)
     ny, nx = lnam.shape
     mask = np.isnan(lnam)
 
@@ -224,6 +318,20 @@ def points_in_polygon(point, poly, inside):
 
 
 def get_coord_name(data):
+    """Extract longitude and latitude coordinate names from xarray object
+
+    Parameters
+    ----------
+    data : xarray.Dataset or xarray.DataArray
+        Data object with coordinates.
+
+    Returns
+    -------
+    lon_name : str or None
+        Name of longitude coordinate.
+    lat_name : str or None
+        Name of latitude coordinate.
+    """
     coords_name = [k for k in data.coords.keys()]
     lon_name = None
     lat_name = None

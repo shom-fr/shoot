@@ -4,7 +4,6 @@ name = "shoot"
 description = "SHom Ocean Objects Tracker"
 requires-python = ">=3.10"
 dependencies = [
-    "cf_xarray",
     "cartopy",
     "cmocean",
     "colorlog",
@@ -15,6 +14,7 @@ dependencies = [
     "owslib",
     "scipy",
     "xarray",
+    "xoa",
 ]
 authors = [
   {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"},
@@ -27,6 +27,17 @@ dynamic = ["version"]
 readme = "README.rst"
 
 [project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-mock",
+  "pytest-xdist",
+  "black",
+  "flake8",
+  "isort",
+  "pylint",
+  "pre-commit",
+  "pytest"
+]
 docs = [
   "sphinx",
   "sphinx-argparse",
@@ -52,6 +63,68 @@ write_to = "shoot/_version.py"
 tag_regex= "^(?P<prefix>v)?(?P<version>[^\\+]+)(?P<suffix>.*)?$"
 
 [tool.black]
-line-length = 100
-target-version = ['py310']
+line-length = 110
+target-version = ['py39', 'py310', 'py311', 'py312']
 skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+line_length = 110
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+skip_glob = ["*/migrations/*", "*/__pycache__/*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+    "requires_scheduler: Tests requiring real scheduler",
+]
+log_cli = false
+log_cli_level = "INFO"
+
+[tool.pylint.main]
+jobs = 0
+py-version = "3.11"
+suggestion-mode = true
+fail-under = 8.0
+ignore = ["migrations", "tests"]
+
+[tool.pylint.messages_control]
+disable = [
+    "C0111",  # missing-docstring
+    "C0103",  # invalid-name
+    "R0903",  # too-few-public-methods
+    "R0913",  # too-many-arguments
+    "W0212",  # protected-access
+    "E203", # whitespace before ':' << due to black
+]
+
+[tool.pylint.format]
+max-line-length = 110
+
+[tool.pylint.design]
+max-args = 10
+max-attributes = 15
+max-locals = 20
+
+# Bandit configuration
+[tool.bandit]
+exclude_dirs = ["/tests", "/build", "/dist"]
+tests = ["B201", "B301"]
+skips = ["B101", "B601"]

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Managing data samples
+Sample data management
+
+Functions for downloading and accessing example datasets via pooch.
 """
 import os
 import pooch
@@ -19,15 +21,18 @@ POOCH.load_registry(os.path.join(os.path.dirname(__file__), "samples.txt"))
 
 
 def get_sample_file(sample_name):
-    """Get the path to the sample file name
+    """Fetch sample data file
+
+    Downloads sample file from repository if needed and returns local path.
 
     Parameters
     ----------
-    sample_name: str
-        Base name of the file
+    sample_name : str
+        Sample file name (e.g., "MODELS/CROCO/gigatl1-1000m.nc").
 
-    Return
-    ------
+    Returns
+    -------
     str
+        Absolute path to cached sample file.
     """
     return POOCH.fetch(sample_name)

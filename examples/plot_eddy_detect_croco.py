@@ -16,6 +16,7 @@ import time
 import matplotlib.pyplot as plt
 import xarray as xr
 
+from shoot.meta import set_meta_specs
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
@@ -28,6 +29,7 @@ xr.set_options(display_style="text")
 # Read data
 
 # Mind that the dataarray should be 2D : single time and single depth
+set_meta_specs("croco")
 root_path = "MODELS/CROCO/GIGATL/gigatl1-1000m.nc"
 path = get_sample_file(root_path)
 ds = xr.open_dataset(path).isel(time=0)
@@ -80,7 +82,7 @@ print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - star
 #
 
 fig, ax = create_map(ds.lon_rho, ds.lat_rho, figsize=(8, 5))
-vort = get_relvort(ds.u, ds.v)/1e-4
+vort = get_relvort(ds.u, ds.v) / 1e-4
 cb = vort.plot(
     x="lon_rho",
     y="lat_rho",
@@ -89,7 +91,7 @@ cb = vort.plot(
     add_colorbar=False,
     transform=pcarr,
 )
-plt.colorbar(cb, label = r"$\zeta/f$")
+plt.colorbar(cb, label=r"$\zeta/f$")
 nj = 4
 qv = plt.quiver(
     ds.lon_rho[::nj, ::nj].values,
@@ -98,7 +100,7 @@ qv = plt.quiver(
     ds.v[::nj, ::nj].values,
     transform=pcarr,
 )
-plt.quiverkey(qv, 0.18, 0.85, 0.5, "50 cm/s", coordinates = 'figure')
+plt.quiverkey(qv, 0.18, 0.85, 0.5, "50 cm/s", coordinates='figure')
 
 for eddy in eddies.eddies:
     eddy.plot(transform=pcarr, lw=1, boundary=True)

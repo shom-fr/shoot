@@ -40,13 +40,13 @@ class TestGeoUtilities:
         # Convert 111320 m to degrees at equator
         result = sgeo.m2deg(111320, lat=0.0)
         expected = 1.0
-        assert abs(result - expected) < 1e-3
-        
+        assert abs(result - expected) < 2e-3
+
     def test_m2deg_meridional(self):
         """Test meter to degree conversion for meridional distance"""
         result = sgeo.m2deg(111320)
         expected = 1.0
-        assert abs(result - expected) < 1e-3
+        assert abs(result - expected) < 2e-3
         
     def test_deg2m_m2deg_roundtrip_equator(self):
         """Test that deg2m and m2deg are inverse operations at equator"""

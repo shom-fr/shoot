@@ -14,15 +14,16 @@ import os
 import xarray as xr
 import time
 
-from shoot.eddies import EvolEddies2D
+from shoot.eddies.eddies2d import EvolEddies2D
 from shoot.eddies.track import track_eddies
+from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
 
 # %%
 # Read data
-root_path = "../data"
-path = os.path.join(root_path, "jan2024_ionian_sea_duacs.nc")
+root_path = "OBS/SATELLITE/jan2024_ionian_sea_duacs.nc"
+path = get_sample_file(root_path)
 # partition into 2 dataset continuous in time
 ds1 = xr.open_dataset(path).isel(time=slice(0, 10))
 ds2 = xr.open_dataset(path).isel(time=slice(10, 20))
@@ -86,8 +87,8 @@ end = time.time()
 print("duree totale du calcul sur 1 mois : %.1f s" % (end - start))
 
 # %% Save partial tracking
-tracks1.save(root_path + "/eddies_med_test1.nc")
-tracks2.save(root_path + "/eddies_med_test2.nc")
+tracks1.to_netcdf(root_path + "/eddies_med_test1.nc")
+tracks2.to_netcdf(root_path + "/eddies_med_test2.nc")
 
 # %% load and merge
 ds1 = xr.open_dataset(root_path + "/eddies_med_test1.nc")
@@ -103,7 +104,7 @@ tracks = track_eddies(eddies, 10)
 
 # %% Save the full tracking
 
-tracks.save(root_path + "/eddies_mest_test_merged.nc")
+tracks.to_netcdf(root_path + "/eddies_mest_test_merged.nc")
 
 # %% Test the merged dataset
 ds_merged = xr.open_dataset(root_path + "/eddies_mest_test_merged.nc")

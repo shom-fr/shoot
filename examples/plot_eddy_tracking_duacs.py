@@ -11,6 +11,7 @@ Detect and Track eddies from satellite sea level
 #
 # Import needed stuff.
 import os
+import tempfile
 import time
 import cmocean as cm
 import matplotlib.pyplot as plt
@@ -63,7 +64,7 @@ eddies = EvolEddies2D.detect_eddies(
     u="ugos",
     v="vgos",
     ellipse_error=ellipse_error,
-    paral = True,
+    paral=True,
 )
 end = time.time()
 print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - start))
@@ -71,7 +72,7 @@ print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - sta
 # Tracking
 # ~~~~~~~~
 
-nbackward = 10  # number of admitted time step without detection
+nbackward = 10  # number of admitted time steps without detection
 
 tracks = track_eddies(eddies, nbackward)  # 10*dt
 print(tracks)
@@ -79,18 +80,18 @@ tracked_eddies = tracks.track_eddies
 
 # %% Test track save and reconstruction
 
-# Save track
-tracks.save(
-    os.path.join("/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/", 'track_ionian_sea_duacs_jan2024.nc')
-)
+# Save track to temporary file
+with tempfile.TemporaryDirectory() as tmpdir:
+    track_file = os.path.join(tmpdir, 'track_ionian_sea_duacs_jan2024.nc')
 
-# Reconstruct traks from save file
-track_r = tracks.reconstruct(
-    xr.open_dataset(
-        os.path.join("/local/tmp/jbroust/SHOOT_TEST/OUTPUTS/", 'track_ionian_sea_duacs_jan2024.nc')
-    ),
-    nbackward,
-)
+    # Save track
+    tracks.to_netcdf(track_file)
+
+    # Reconstruct tracks from save file
+    track_r = tracks.reconstruct(
+        xr.open_dataset(track_file),
+        nbackward,
+    )
 
 # %%
 # Plots

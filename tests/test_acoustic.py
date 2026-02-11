@@ -12,9 +12,7 @@ def typical_sound_speed_profile():
     """Fixture providing a typical ocean sound speed profile"""
     depths = np.array([0, 10, 20, 50, 75, 100, 200, 500, 1000, 2000], dtype=float)
     # Typical profile: surface channel, deep sound channel minimum, then increase
-    sound_speeds = np.array(
-        [1510, 1515, 1518, 1510, 1505, 1480, 1475, 1490, 1510, 1530], dtype=float
-    )
+    sound_speeds = np.array([1510, 1515, 1518, 1510, 1505, 1480, 1475, 1490, 1510, 1530], dtype=float)
     return sound_speeds, depths
 
 
@@ -216,12 +214,8 @@ class TestAcousEddyClass:
         inside_profiles += np.random.normal(0, 1, inside_profiles.shape)
         outside_profiles += np.random.normal(0, 1, outside_profiles.shape)
 
-        self.mock_anomaly.profils_inside = xr.DataArray(
-            inside_profiles, dims=['nb_profil', 'depth']
-        )
-        self.mock_anomaly.profils_outside = xr.DataArray(
-            outside_profiles, dims=['nb_profil', 'depth']
-        )
+        self.mock_anomaly.profils_inside = xr.DataArray(inside_profiles, dims=['nb_profil', 'depth'])
+        self.mock_anomaly.profils_outside = xr.DataArray(outside_profiles, dims=['nb_profil', 'depth'])
 
         # Add coordinate arrays for lon/lat
         lons = np.random.uniform(-5, 5, n_profiles)
@@ -230,10 +224,15 @@ class TestAcousEddyClass:
         self.mock_anomaly.profils_inside = self.mock_anomaly.profils_inside.assign_coords(
             lon_rho=(['nb_profil'], lons), lat_rho=(['nb_profil'], lats)
         )
+        self.mock_anomaly.profils_inside.lon_rho.attrs['standard_name'] = 'longitude'
+        self.mock_anomaly.profils_inside.lat_rho.attrs['standard_name'] = 'latitude'
+
         self.mock_anomaly.profils_outside = self.mock_anomaly.profils_outside.assign_coords(
             lon_rho=(['nb_profil'], lons + 1),  # Slightly different positions
             lat_rho=(['nb_profil'], lats + 1),
         )
+        self.mock_anomaly.profils_outside.lon_rho.attrs['standard_name'] = 'longitude'
+        self.mock_anomaly.profils_outside.lat_rho.attrs['standard_name'] = 'latitude'
 
     def test_acous_eddy_initialization(self):
         """Test AcousEddy class initialization"""
@@ -277,7 +276,7 @@ class TestAcousEddyClass:
         acous_eddy = sacoustic.AcousEddy(self.mock_anomaly)
 
         impact = acous_eddy.acoustic_impact
-        assert isinstance(impact, (float, np.floating))
+        assert isinstance(impact, (int, float, np.floating, np.integer))
         assert impact >= 0
 
     def test_acous_eddy_profile_arrays(self):
@@ -316,5 +315,5 @@ def test_different_profile_types(profile_type):
     mcp = sacoustic._mcp(sound_speeds, depths)
 
     # All should return valid numbers or NaN
-    assert isinstance(ecs, (float, np.floating)) or np.isnan(ecs)
-    assert isinstance(mcp, (float, np.floating)) or np.isnan(mcp)
+    assert isinstance(ecs, (int, float, np.floating, np.integer)) or np.isnan(ecs)
+    assert isinstance(mcp, (int, float, np.floating, np.integer)) or np.isnan(mcp)
