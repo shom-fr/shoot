@@ -1,4 +1,21 @@
-Commandline interface to shoot.
+.. _cli:
+
+Commandline interface
+#####################
+
+Available commands:
+
+.. toctree::
+    :maxdepth: 1
+    
+    cli.shoot
+    cli.shoot.eddies
+    cli.shoot.eddies.detect
+    cli.shoot.eddies.track
+    cli.shoot.eddies.track-detected
+    cli.shoot.eddies.diags
+
+
 
 :command:`shoot`
 ================
@@ -39,8 +56,8 @@ Commandline interface to shoot.
     :path: eddies track
     :nosubcommands:
 
-:command:`shoot diags`
-======================
+:command:`shoot eddies diags`
+=============================
 
 .. argparse::
     :module: shoot.cli

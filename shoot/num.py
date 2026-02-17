@@ -293,11 +293,16 @@ def find_signed_peaks_2d_jb_old(lnam, closed_lines):
     "(nd),(ne,nd)->()",
 )
 def points_in_polygon(point, poly, inside):
-    """
+    """Test if points are inside a polygon
 
     Parameters
     ----------
-    points: array(npts, 2)
+    point : array-like of shape (2,) or (npts, 2)
+        Point(s) to test, as (x, y) coordinates.
+    poly : ndarray of shape (n, 2)
+        Polygon vertices as (x, y) coordinates.
+    inside : bool array
+        Output array indicating whether each point is inside.
     """
 
     n = poly.shape[0]

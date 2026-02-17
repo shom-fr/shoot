@@ -7,6 +7,7 @@ import argparse
 import logging
 
 import xarray as xr
+import pandas as pd
 import numpy as np
 import cf_xarray  # noqa
 import matplotlib.pyplot as plt
@@ -65,9 +66,7 @@ def main():
     if hasattr(args, "func"):
         args.func(parser, args)
     elif hasattr(args, "subcommands"):
-        parser.exit(
-            0, "please use one of the subcommands: " f"{args.subcommands}\n"
-        )
+        parser.exit(0, "please use one of the subcommands: " f"{args.subcommands}\n")
     else:
         parser.print_usage()
 
@@ -104,34 +103,11 @@ def add_parser_eddies(subparsers):
     return parser_eddies
 
 
-# %% eddies detect
+# %% eddies shared helpers
 
 
-def add_parser_eddies_detect(subparsers):
-    parser_eddies_detect = subparsers.add_parser(
-        "detect",
-        help="detect eddies",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    add_arguments_eddies_detect(parser_eddies_detect)
-    parser_eddies_detect.set_defaults(func=main_eddies_detect)
-    return parser_eddies_detect
-
-
-def add_arguments_eddies_detect(parser):
-    parser.add_argument(
-        "nc_data_file", help="input netcdf data file", nargs="+"
-    )
-    parser.add_argument(
-        "--to-netcdf",
-        help="save detections to this netcdf file",
-        default="eddies.detect.nc",
-    )
-    parser.add_argument(
-        "--to-figure",
-        help="save detections to this figure file",
-        default="eddies.detect.png",
-    )
+def _add_detection_args(parser):
+    """Add detection-related arguments to a parser"""
     parser.add_argument(
         "--window-center",
         help="window size in km to find eddy centers",
@@ -163,21 +139,28 @@ def add_arguments_eddies_detect(parser):
     )
     parser.add_argument("--u-name", help="name of the U variable")
     parser.add_argument("--v-name", help="name of the V variable")
+    parser.add_argument("--ssh-name", help="name of the SSH or streamfunction variable")
+    parser.add_argument("--parallel", help="use parallel mode", action="store_true")
+    parser.add_argument("--nb-procs", help="number of procs to use in parallel mode", type=int)
+
+
+def _add_output_args(parser, netcdf_default, figure_default=None):
+    """Add output file arguments to a parser"""
     parser.add_argument(
-        "--ssh-name", help="name of the SSH or streamfunction variable"
+        "--to-netcdf",
+        help="save results to this netcdf file",
+        default=netcdf_default,
     )
-    parser.add_argument(
-        "--parallel", help="use parallel mode", action="store_true"
-    )
-    parser.add_argument(
-        "--nb-procs", help="number of procs to use in parallel mode", type=int
-    )
-    parser.add_argument(
-        "--all", help="Detect on all time steps", action="store_true"
-    )
-    parser.add_argument(
-        "--plot", help="Plot first time detection", action="store_true"
-    )
+    if figure_default is not None:
+        parser.add_argument(
+            "--to-figure",
+            help="save results to this figure file",
+            default=figure_default,
+        )
+
+
+def _add_meta_args(parser):
+    """Add meta config file argument to a parser"""
     parser.add_argument(
         "--meta-file",
         help="xoa.meta config file to help reading input datasets",
@@ -185,38 +168,93 @@ def add_arguments_eddies_detect(parser):
     )
 
 
-def main_eddies_detect(parser, args):
-    logger = logging.getLogger(__name__)
+def _add_tracking_args(parser):
+    """Add tracking-related arguments to a parser"""
+    parser.add_argument(
+        "--nbackward",
+        help="number of backward steps possible for tracking",
+        default=10,
+        type=int,
+    )
+    parser.add_argument(
+        "-b",
+        "--begin-date",
+        help="Start date for tracking",
+        type=pd.to_datetime,
+    )
+    parser.add_argument(
+        "-e",
+        "--end-date",
+        help="End date for tracking",
+        type=pd.to_datetime,
+    )
 
-    # Load custom meta file if provided
+
+def _load_meta(args, logger):
+    """Load custom meta config file if provided"""
     if args.meta_file:
         logger.info(f"Loading meta config from: {args.meta_file}")
         smeta.set_meta_specs(args.meta_file)
 
-    # Open files
+
+def _open_datasets(args, logger):
+    """Open input netcdf dataset(s) from args.nc_data_file"""
     if len(args.nc_data_file) == 1:
         ds = xr.open_dataset(args.nc_data_file[0])
     else:
         ds = xr.open_mfdataset(args.nc_data_file)
+    return ds
+
+
+def _get_uv_ssh(args, ds):
+    """Extract u, v, ssh variables from dataset"""
+    u = ds[args.u_name] if args.u_name else smeta.get_u(ds)
+    v = ds[args.v_name] if args.v_name else smeta.get_v(ds)
+    if not args.without_ssh:
+        ssh = ds[args.ssh_name] if args.ssh_name else smeta.get_ssh(ds, errors="warn")
+    else:
+        ssh = None
+    return u, v, ssh
+
+
+# %% eddies detect
+
+
+def add_parser_eddies_detect(subparsers):
+    parser_eddies_detect = subparsers.add_parser(
+        "detect",
+        help="detect eddies",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    add_arguments_eddies_detect(parser_eddies_detect)
+    parser_eddies_detect.set_defaults(func=main_eddies_detect)
+    return parser_eddies_detect
+
+
+def add_arguments_eddies_detect(parser):
+    parser.add_argument("nc_data_file", help="input netcdf data file", nargs="+")
+    _add_detection_args(parser)
+    _add_output_args(parser, "eddies.detect.nc", "eddies.detect.png")
+    _add_meta_args(parser)
+    parser.add_argument("--all", help="Detect on all time steps", action="store_true")
+    parser.add_argument("--plot", help="Plot first time detection", action="store_true")
+
+
+def main_eddies_detect(parser, args):
+    logger = logging.getLogger(__name__)
+    _load_meta(args, logger)
+    ds = _open_datasets(args, logger)
+
     time = smeta.get_time(ds)
     if time is not None:
         if not args.all:
             logger.warning("Selecting the first time step")
             ds = ds.isel({time.name: 0})
-        else : 
+        else:
             logger.warning("Performs detection at all times")
 
     # Get variables
-    u = ds[args.u_name] if args.u_name else smeta.get_u(ds)
-    v = ds[args.v_name] if args.v_name else smeta.get_v(ds)
-    if not args.without_ssh:
-        ssh = (
-            ds[args.ssh_name]
-            if args.ssh_name
-            else smeta.get_ssh(ds, errors="warn")
-        )
-    else:
-        ssh = None
+    u, v, ssh = _get_uv_ssh(args, ds)
 
     # Detect
     logger.debug("Starting detections")
@@ -259,9 +297,7 @@ def main_eddies_detect(parser, args):
         logger.debug("Plotting detections")
         if args.all:
             ds = ds.isel({time.name: 0})
-        fig, ax = splot.create_map(
-            ds.cf["longitude"], ds.cf["latitude"], figsize=(8, 5)
-        )
+        fig, ax = splot.create_map(ds.cf["longitude"], ds.cf["latitude"], figsize=(8, 5))
         ds.adt.plot(
             ax=ax,
             transform=splot.pcarr,
@@ -290,9 +326,7 @@ def main_eddies_detect(parser, args):
             )
             for eddy in eddies.eddies:
                 eddy.plot(transform=splot.pcarr, lw=1)
-        plt.title(
-            f"w_center {args.window_center} km, w_fit {args.window_fit}km, min_rad {args.min_radius}km"
-        )
+        plt.title(f"w_center {args.window_center} km, w_fit {args.window_fit}km, min_rad {args.min_radius}km")
         plt.tight_layout()
         plt.savefig(args.to_figure)
         logger.info(f"Detections plot saved to: {args.to_figure}")
@@ -313,94 +347,18 @@ def add_parser_eddies_track(subparsers):
 
 
 def add_arguments_eddies_track(parser):
-    parser.add_argument(
-        "nc_data_file", help="input netcdf data file", nargs="+"
-    )
-    parser.add_argument(
-        "--nbackward",
-        help="number of backward step possible or tracking",
-        default=10,
-        type=int,
-    )
-    parser.add_argument(
-        "--to-netcdf",
-        help="save tracking to this netcdf file",
-        default="eddies.track.nc",
-    )
-    parser.add_argument(
-        "--to-figure",
-        help="save detections to this figure file",
-        default="eddies.track.png",
-    )
-    parser.add_argument(
-        "--window-center",
-        help="window size in km to find eddy centers",
-        default=50,
-        type=float,
-    )
-    parser.add_argument(
-        "--window-fit",
-        help="window size in km to fit streamfunction and find contours",
-        default=120,
-        type=float,
-    )
-    parser.add_argument(
-        "--min-radius",
-        help="minimal eddy radius in km",
-        default=20,
-        type=float,
-    )
-    parser.add_argument(
-        "--max-ellipse-error",
-        help="maximal ellipse relative error (<1)",
-        default=0.05,
-        type=float,
-    )
-    parser.add_argument(
-        "--without-ssh",
-        help="do not use dataset ssh to compute contours",
-        action="store_true",
-    )
-    parser.add_argument("--u-name", help="name of the U variable")
-    parser.add_argument("--v-name", help="name of the V variable")
-    parser.add_argument(
-        "--ssh-name", help="name of the SSH or streamfunction variable"
-    )
-    parser.add_argument(
-        "--parallel", help="use parallel mode", action="store_true"
-    )
-    parser.add_argument(
-        "--nb-procs", help="number of procs to use in parallel mode", type=int
-    )
-    parser.add_argument(
-        "--plot", help="Plot first time detection", action="store_true"
-    )
-
+    parser.add_argument("nc_data_file", help="input netcdf data file", nargs="+")
+    _add_detection_args(parser)
+    _add_output_args(parser, "eddies.track.nc", "eddies.track.png")
+    _add_meta_args(parser)
+    _add_tracking_args(parser)
     parser.add_argument(
         "--update",
-        help="Update tracking based on the already traked file",
+        help="Update tracking based on the already tracked file",
         nargs=1,
         type=str,
     )
-    parser.add_argument(
-        "-b",
-        "--begin",
-        help="Start date for tracking (yyyy/mm/jj)",
-        nargs=1,
-        type=str,
-    )
-    parser.add_argument(
-        "-e",
-        "--end",
-        help="Start date for tracking (yyyy/mm/jj)",
-        nargs=1,
-        type=str,
-    )
-    parser.add_argument(
-        "--meta-file",
-        help="xoa.meta config file to help reading input datasets",
-        type=str,
-    )
+    parser.add_argument("--plot", help="Plot first time detection", action="store_true")
 
 
 def _eddies_track(parser, args, logger, ds):
@@ -437,28 +395,9 @@ def _eddies_update(parser, args, logger, ds):
     time = smeta.get_time(ds)
     if time is not None:
         logger.warning("Selecting the last time step")
-        # ds = ds.isel({time.name: -1})
-        # print("ds.time", ds.time)
 
-    # Get variables
-    u = (
-        ds[args.u_name].isel({time.name: -1})
-        if args.u_name
-        else smeta.get_u(ds).isel({time.name: -1})
-    )
-    v = (
-        ds[args.v_name].isel({time.name: -1})
-        if args.v_name
-        else smeta.get_v(ds).isel({time.name: -1})
-    )
-    if not args.without_ssh:
-        ssh = (
-            ds[args.ssh_name].isel({time.name: -1})
-            if args.ssh_name
-            else smeta.get_ssh(ds, errors="warn").isel({time.name: -1})
-        )
-    else:
-        ssh = None
+    ds_last = ds.isel({time.name: -1})
+    u, v, ssh = _get_uv_ssh(args, ds_last)
 
     logger.debug("Starting detection at last day")
     logger.debug(f"U velocity shape: {u.shape}, range: [{u.min().values:.3f}, {u.max().values:.3f}]")
@@ -491,31 +430,14 @@ def _eddies_update(parser, args, logger, ds):
 
 def main_eddies_track(parser, args):
     logger = logging.getLogger(__name__)
-
-    # Load custom meta file if provided
-    if args.meta_file:
-        logger.info(f"Loading meta config from: {args.meta_file}")
-        smeta.set_meta_specs(args.meta_file)
-
-    # Open files
-    if len(args.nc_data_file) == 1:
-        ds = xr.open_dataset(args.nc_data_file[0])
-    else:
-        ds = xr.open_mfdataset(args.nc_data_file)
+    _load_meta(args, logger)
+    ds = _open_datasets(args, logger)
 
     # time range
     time = smeta.get_time(ds)
-    if args.begin or args.end:
-        begin = (
-            args.begin[0]
-            if args.begin
-            else str(time[0].dt.strftime("%Y/%m/%d").values)
-        )
-        end = (
-            args.end[0]
-            if args.end
-            else str(time[-1].dt.strftime("%Y/%m/%d").values)
-        )
+    if args.begin_date or args.end_date:
+        begin = args.begin_date if args.begin_date else time.values[0]
+        end = args.end_date if args.end_date else time.values[-1]
         logger.info(f"Time range: {begin} to {end}")
         ds = ds.sel({time.name: slice(begin, end)})
 
@@ -528,11 +450,8 @@ def main_eddies_track(parser, args):
     if args.plot:
         logger.debug("Plotting detections")
         ds = ds.isel({time.name: -1})
-        u = ds[args.u_name] if args.u_name else smeta.get_u(ds)
-        v = ds[args.v_name] if args.v_name else smeta.get_v(ds)
-        fig, ax = splot.create_map(
-            ds.cf["longitude"], ds.cf["latitude"], figsize=(8, 5)
-        )
+        u, v, _ = _get_uv_ssh(args, ds)
+        fig, ax = splot.create_map(ds.cf["longitude"], ds.cf["latitude"], figsize=(8, 5))
         ds.adt.plot(
             ax=ax,
             transform=splot.pcarr,
@@ -563,9 +482,7 @@ def main_eddies_track(parser, args):
                 for e in track.eddies:
                     lon.append(e.lon)
                     lat.append(e.lat)
-                plt.plot(
-                    lon, lat, transform=splot.pcarr, c="gray", linewidth=2
-                )
+                plt.plot(lon, lat, transform=splot.pcarr, c="gray", linewidth=2)
 
         else:
             for eddy in eddies.eddies[-1].eddies:
@@ -582,17 +499,12 @@ def main_eddies_track(parser, args):
                 for e in track.eddies:
                     lon.append(e.lon)
                     lat.append(e.lat)
-                plt.plot(
-                    lon, lat, transform=splot.pcarr, c="gray", linewidth=2
-                )
+                plt.plot(lon, lat, transform=splot.pcarr, c="gray", linewidth=2)
 
-        plt.title(
-            f"w_center {args.window_center} km, w_fit {args.window_fit}km, min_rad {args.min_radius}km"
-        )
+        plt.title(f"w_center {args.window_center} km, w_fit {args.window_fit}km, min_rad {args.min_radius}km")
         plt.tight_layout()
         plt.savefig(args.to_figure)
         logger.info(f"Detections plot saved to: {args.to_figure}")
-
 
 
 # %% eddies track-detected
@@ -610,20 +522,7 @@ def add_parser_eddies_track_detected(subparsers):
 
 
 def add_arguments_eddies_track_detected(parser):
-    parser.add_argument(
-        "nc_data_files", help="list of detected netcdf file", nargs="+"
-    )
-    parser.add_argument(
-        "--nbackward",
-        help="number of backward step possible or tracking",
-        default=10,
-        type=int,
-    )
-    parser.add_argument(
-        "--to-netcdf",
-        help="save tracking to this netcdf file",
-        default="eddies.track.nc",
-    )
+    parser.add_argument("nc_data_files", help="list of detected netcdf file", nargs="+")
     parser.add_argument(
         "--max-ellipse-error",
         help="maximal ellipse relative error (<1)",
@@ -635,28 +534,14 @@ def add_arguments_eddies_track_detected(parser):
         help="do not use dataset ssh to compute contours",
         action="store_true",
     )
-    parser.add_argument(
-        "-b",
-        "--begin",
-        help="Start date for tracking (yyyy/mm/jj)",
-        nargs=1,
-        type=str,
-    )
-    parser.add_argument(
-        "-e",
-        "--end",
-        help="Start date for tracking (yyyy/mm/jj)",
-        nargs=1,
-        type=str,
-    )
+    _add_output_args(parser, "eddies.track.nc")
+    _add_tracking_args(parser)
 
 
 def _eddies_track_detected(parser, args, logger, dss):
     # Detect
     logger.debug("Merge detected files")
-    eddies = seddies.EvolEddies2D.merge_ds(
-        dss
-    )
+    eddies = seddies.EvolEddies2D.merge_ds(dss)
     logger.info("Merge finished")
 
     # track
@@ -670,14 +555,15 @@ def _eddies_track_detected(parser, args, logger, dss):
     logger.info(f"Detections saved to: {args.to_netcdf}")
     return eddies, tracks
 
+
 def main_eddies_track_detected(parser, args):
     logger = logging.getLogger(__name__)
 
     # Open files
-    dss=[xr.open_dataset(f) for f in args.nc_data_files]
+    dss = [xr.open_dataset(f) for f in args.nc_data_files]
     eddies, tracks = _eddies_track_detected(parser, args, logger, dss)
 
- 
+
 # %% Eddies diags
 
 
@@ -705,32 +591,21 @@ def add_arguments_eddies_diags(parser):
         default=1.2,
         type=float,
     )
-
     parser.add_argument(
         "--to-figure",
         help="save detections to this figure file",
         default="diags.png",
     )
-
     parser.add_argument(
         "-d",
         "--date",
-        help="date (yyyy/mm/jj)",
+        help="date (yyyy/mm/dd)",
         nargs=1,
         type=str,
     )
-
-    parser.add_argument(
-        "--acoustic", help="Acoustic impact diag", action="store_true"
-    )
-    parser.add_argument(
-        "--density", help="Acoustic impact diag", action="store_true"
-    )
-    parser.add_argument(
-        "--meta-file",
-        help="xoa.meta config file to help reading input datasets",
-        type=str,
-    )
+    parser.add_argument("--acoustic", help="Acoustic impact diag", action="store_true")
+    parser.add_argument("--density", help="Density anomaly diag", action="store_true")
+    _add_meta_args(parser)
 
 
 def _sel_eddies(eddies, date):
@@ -744,11 +619,7 @@ def _sel_eddies(eddies, date):
 
 def main_eddies_diags(parser, args):
     logger = logging.getLogger(__name__)
-
-    # Load custom meta file if provided
-    if args.meta_file:
-        logger.info(f"Loading meta config from: {args.meta_file}")
-        smeta.set_meta_specs(args.meta_file)
+    _load_meta(args, logger)
 
     # Open files
     ds_eddies = xr.open_dataset(args.nc_data_files[1])
@@ -756,12 +627,8 @@ def main_eddies_diags(parser, args):
 
     # Compute the sound celerity
     if not hasattr(ds_3d, "cs") and args.acoustic:
-        ct = gsw.conversions.CT_from_pt(
-            smeta.get_salt(ds_3d), smeta.get_temp(ds_3d)
-        )
-        pres = gsw.conversions.p_from_z(
-            smeta.get_depth(ds_3d), smeta.get_lat(ds_3d)
-        )
+        ct = gsw.conversions.CT_from_pt(smeta.get_salt(ds_3d), smeta.get_temp(ds_3d))
+        pres = gsw.conversions.p_from_z(smeta.get_depth(ds_3d), smeta.get_lat(ds_3d))
         ds_3d["cs"] = gsw.density.sound_speed(ds_3d.salt, ct, pres)
 
     # time range
@@ -793,9 +660,7 @@ def main_eddies_diags(parser, args):
         sacoustic.acoustic_points(eddies_r)
 
         # plot
-        fig, ax = splot.create_map(
-            ds_3d.lon_rho, ds_3d.lat_rho, figsize=(8, 5)
-        )
+        fig, ax = splot.create_map(ds_3d.lon_rho, ds_3d.lat_rho, figsize=(8, 5))
         ds_3d.zeta.plot(
             x="lon_rho",
             y="lat_rho",
@@ -806,7 +671,7 @@ def main_eddies_diags(parser, args):
         )
 
         colors = ["k", "#009E73", "#E69F00"]
-        labels = ["peu impactant", "impactant", "trés impactant"]
+        labels = ["peu impactant", "impactant", "très impactant"]
         cmap = ListedColormap(colors)
         norm = BoundaryNorm([0, 1, 2, 3], cmap.N)
 

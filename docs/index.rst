@@ -19,6 +19,7 @@
 
    algos
    lib
+   metaspec
    contributing
    Gitlab repository <https://gitlab.com/GitShom/STM/shoot>
 

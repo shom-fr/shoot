@@ -116,6 +116,20 @@ class Anomaly:
             )[::-1]
 
     def is_inside(self, x, y):
+        """Test if grid points are inside the eddy maximum velocity contour
+
+        Parameters
+        ----------
+        x : array-like
+            Grid indices along X.
+        y : array-like
+            Grid indices along Y.
+
+        Returns
+        -------
+        ndarray of bool
+            True for points inside the eddy contour.
+        """
         if len(smeta.get_lon(self.dens).shape) == 1:
             lon = [smeta.get_lon(self.dens).isel({self.xdim: xi}) for xi in x]
         else:
@@ -181,6 +195,23 @@ class Anomaly:
         )
 
     def is_valid(self, x, y):
+        """Test if grid points are outside all eddy boundary contours
+
+        Used to select background (outside) profiles that are not
+        contaminated by any eddy.
+
+        Parameters
+        ----------
+        x : array-like
+            Grid indices along X.
+        y : array-like
+            Grid indices along Y.
+
+        Returns
+        -------
+        ndarray of bool
+            True for points outside all eddy contours.
+        """
         if len(smeta.get_lon(self.dens).shape) == 1:
             lon = [smeta.get_lon(self.dens).isel({self.xdim: xi}) for xi in x]
         else:
@@ -205,7 +236,7 @@ class Anomaly:
     def _xy_outside(self):
         test = True
         r = self._r
-        while test:  # increase r factor if no outside point founded
+        while test:  # increase r factor if no outside point found
             X, Y = self._xy(r)
             # test validy
             valids = self.is_valid(X, Y)
@@ -373,6 +404,20 @@ class Anomaly:
         return self.anomaly[self._icore_depth]
 
     def anomaly_at_depth(self, depth_level, signed=False):
+        """Get the anomaly value at a specific depth
+
+        Parameters
+        ----------
+        depth_level : float
+            Target depth (sign is adjusted automatically).
+        signed : bool, default False
+            If True, return signed anomaly. Otherwise, return absolute value.
+
+        Returns
+        -------
+        float
+            Anomaly value at the requested depth.
+        """
         if np.sign(depth_level) != np.sign(self.depth_vector[1]):
             depth_level *= -1
 
@@ -400,6 +445,12 @@ def compute_anomalies(eddies, dens, nz=100, r_factor=1.2, eddy_type=True):
     Notes
     -----
     Modifies eddies in-place by adding .anomaly attribute to each eddy.
+
+    Example
+    -------
+    >>> from shoot.hydrology import compute_anomalies
+    >>> compute_anomalies(eddies, ds.density)  # doctest: +SKIP
+    >>> eddies.eddies[0].anomaly.core_depth  # doctest: +SKIP
     """
     for eddy in eddies.eddies:
         eddy.anomaly = Anomaly(eddy, eddies, dens, r_factor=r_factor, nz=nz, eddy_type=eddy_type)

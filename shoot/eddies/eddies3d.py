@@ -67,7 +67,7 @@ class Associate:
 
     @functools.cached_property
     def cost(self):
-        """ "cost function between each eddy pairs"""
+        """Cost function between each eddy pair"""
         M = np.zeros((len(self.new_eddies), len(self.parent_eddies)))
         for i in range(len(self.new_eddies)):
             for j in range(len(self.parent_eddies)):
@@ -140,7 +140,7 @@ class EddiesByDepth:
         self.u = u
         self.v = v
         self.depth = depth  # to change
-        self.eddies3d = eddies3d  # dictionnary with Eddies2D at each depth
+        self.eddies3d = eddies3d  # dictionary with Eddies2D at each depth
         self.nb_eddies = nb_eddies
 
     @classmethod
@@ -186,6 +186,16 @@ class EddiesByDepth:
 
 
 class RawEddy3D:
+    """A 3D eddy composed of 2D eddies at multiple depth levels
+
+    Parameters
+    ----------
+    depths : ndarray
+        Depth values where this eddy was detected.
+    eddies : list of GriddedEddy2D
+        2D eddy detections at each depth level.
+    """
+
     def __init__(self, depths, eddies):
         self.depths = depths
         self.eddies = eddies  # list of GriddedEddy2D
@@ -211,6 +221,25 @@ class RawEddy3D:
 
 
 class Eddies3D:
+    """Collection of 3D eddies detected across depth levels
+
+    Associates 2D eddy detections vertically to build coherent
+    3D structures. Use :meth:`detect_eddies_3d` for detection.
+
+    Parameters
+    ----------
+    u : xarray.DataArray
+        3D zonal velocity field.
+    v : xarray.DataArray
+        3D meridional velocity field.
+    depths : ndarray
+        Depth values.
+    eddies : list of RawEddy3D
+        3D eddy objects.
+    eddies_byslice : EddiesByDepth
+        2D detections organized by depth level.
+    """
+
     def __init__(self, u, v, depths, eddies, eddies_byslice):
         self.eddies = eddies
         self.eddies_byslice = eddies_byslice

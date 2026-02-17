@@ -102,7 +102,7 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
                 ecorio,
                 {"long_name": "Coriolis parameter"},
             ),
-            "ow": ("neddies", eow, {"long_name": "Okubow Weiss"}),
+            "ow": ("neddies", eow, {"long_name": "Okubo-Weiss"}),
         },
         coords={
             "gi": ("neddies", ii, {"long_name": "Grid indices along X"}),
@@ -193,7 +193,7 @@ class Ellipse:
         if self.sign == 0:
             return "undefined"
         if (self.sign * self.lat) > 0:
-            return "cylone"
+            return "cyclone"
         return "anticyclone"
 
     @property
@@ -239,7 +239,33 @@ class Ellipse:
 
 
 class GriddedEddy2D:
-    """A basic eddy attached to a grid point"""
+    """An eddy detected on a grid with contour and ellipse properties
+
+    Represents a single eddy candidate at a grid point. Given a local
+    velocity field, it computes SSH contours, fits ellipses, and determines
+    eddy boundaries and maximum velocity contours.
+
+    Parameters
+    ----------
+    i : int
+        Grid index along X for the eddy center.
+    j : int
+        Grid index along Y for the eddy center.
+    u : xarray.DataArray
+        Local zonal velocity field.
+    v : xarray.DataArray
+        Local meridional velocity field.
+    ssh : xarray.DataArray, optional
+        Local SSH field. If None, computed from streamfunction.
+    dx : xarray.DataArray, optional
+        Grid resolution along X in meters.
+    dy : xarray.DataArray, optional
+        Grid resolution along Y in meters.
+    max_ellipse_error : float, default 0.01
+        Maximum allowed ellipse fit error.
+    min_radius : float, optional
+        Minimum eddy radius in km.
+    """
 
     def __init__(
         self,
@@ -368,7 +394,7 @@ class GriddedEddy2D:
 
     @property
     def ellipse(self):
-        """Ellipse fited from :attr:`boundary_contour` or None"""
+        """Ellipse fitted from :attr:`boundary_contour` or None"""
         if self.ncontours:
             # return self.boundary_contour.ellipse
             return self.vmax_contour.ellipse
@@ -389,7 +415,7 @@ class GriddedEddy2D:
 
     @functools.cached_property
     def ro(self):
-        """Rosby number of the eddy"""
+        """Rossby number of the eddy"""
         f = 2 * sdyn.OMEGA * np.sin(self.glat)
         return self.vmax_contour.mean_velocity / (f * self.vmax_contour.radius)
 
@@ -557,7 +583,12 @@ class GriddedEddy2D:
 
 
 class Eddy:
-    """This mimic GriddedEddy2D class without computing capabilities"""
+    """Lightweight eddy representation reconstructed from saved data
+
+    Unlike :class:`GriddedEddy2D`, this class does not perform any computation.
+    It is used to reconstruct eddies from NetCDF datasets for visualization
+    and tracking purposes.
+    """
 
     def __init__(
         self,
@@ -686,7 +717,24 @@ class Eddy:
 
 
 class Eddies2D:
-    """This class contains a list of detected eddies at one time"""
+    """Collection of detected eddies at a single time step
+
+    Provides the main entry point for eddy detection via :meth:`detect_eddies`
+    and serialization to NetCDF via :meth:`to_netcdf`.
+
+    Parameters
+    ----------
+    time : numpy.datetime64 or None
+        Time of the detection.
+    eddies : list
+        List of :class:`GriddedEddy2D` or :class:`Eddy` objects.
+    window_center : float
+        Window size (km) used for center detection.
+    window_fit : float
+        Window size (km) used for contour fitting.
+    min_radius : float
+        Minimum eddy radius (km).
+    """
 
     def __init__(self, time, eddies, window_center, window_fit, min_radius):
         self.time = time
@@ -730,7 +778,46 @@ class Eddies2D:
         verbose=True,
         **kwargs,
     ):
-        """Detect all eddies in a velocity field"""
+        """Detect all eddies in a velocity field
+
+        Parameters
+        ----------
+        u : xarray.DataArray
+            Zonal velocity component (2D).
+        v : xarray.DataArray
+            Meridional velocity component (2D).
+        window_center : float
+            Window size (km) for LNAM computation and center detection.
+        window_fit : float, optional
+            Window size (km) for SSH contour fitting. Default: 1.5 * window_center.
+        ssh : xarray.DataArray, optional
+            Sea surface height. If None, estimated from streamfunction.
+        dx : xarray.DataArray, optional
+            Grid resolution along X in meters.
+        dy : xarray.DataArray, optional
+            Grid resolution along Y in meters.
+        min_radius : float, optional
+            Minimum eddy radius (km) to retain.
+        paral : bool, default False
+            Use parallel processing.
+        nb_procs : int, optional
+            Number of parallel processes.
+        ellipse_error : float, default 0.01
+            Maximum allowed ellipse fit error.
+
+        Returns
+        -------
+        Eddies2D
+            Collection of detected eddies.
+
+        Example
+        -------
+        >>> from shoot.eddies.eddies2d import Eddies2D
+        >>> eddies = Eddies2D.detect_eddies(
+        ...     ds.u, ds.v, window_center=50,
+        ...     window_fit=120, min_radius=10,
+        ... )  # doctest: +SKIP
+        """
         if window_fit is None:
             window_fit = 1.5 * window_center
 
@@ -849,8 +936,8 @@ class Eddies2D:
             wx2c += int(wx2c / 2)
             wy2c += int(wy2c / 2)
 
-        ## Cheking inclusion step
-        ## This step can be modify to account for eddy-eddy interaction
+        ## Checking inclusion step
+        ## This step can be modified to account for eddy-eddy interaction
         contain = np.ones(len(eddies)) * True
         for i in range(len(eddies)):
             for j in range(len(eddies)):
@@ -965,7 +1052,16 @@ class Eddies2D:
 
 
 class EvolEddies2D:
-    """This class contain a list of Eddies object for following times"""
+    """Time series of :class:`Eddies2D` detections
+
+    Stores detected eddies across multiple time steps for subsequent
+    tracking with :func:`~shoot.eddies.track.track_eddies`.
+
+    Parameters
+    ----------
+    eddies : list of Eddies2D
+        Eddies detected at each time step.
+    """
 
     def __init__(self, eddies):
         self.eddies = eddies  # list of Eddies object
@@ -987,9 +1083,20 @@ class EvolEddies2D:
 
     @classmethod
     def merge_ds(cls, dss):
-        """
-        take a list of xarray dataset that should be merged as argument
-        track_id are reset when mergin is performed
+        """Merge multiple detection datasets into one
+
+        Takes a list of xarray datasets and merges them.
+        Track IDs are reset when merging is performed.
+
+        Parameters
+        ----------
+        dss : list of xarray.Dataset
+            Datasets to merge.
+
+        Returns
+        -------
+        EvolEddies2D or None
+            Merged detections, or None if no datasets provided.
         """
         try:
             logger.info("Merging %i datasets", len(dss))
@@ -1027,7 +1134,32 @@ class EvolEddies2D:
         nb_procs=None,
         ellipse_error=0.1,
     ):
-        """Spatio-temporal detection of eddies"""
+        """Detect eddies across all time steps of a dataset
+
+        Parameters
+        ----------
+        ds : xarray.Dataset
+            Dataset with velocity and optional SSH fields with a time dimension.
+        window_center : float
+            Window size (km) for center detection.
+        window_fit : float
+            Window size (km) for contour fitting.
+        min_radius : float
+            Minimum eddy radius (km) to retain.
+        u : str, optional
+            Name of zonal velocity variable. Auto-detected if None.
+        v : str, optional
+            Name of meridional velocity variable. Auto-detected if None.
+        ssh : str, optional
+            Name of SSH variable. Auto-detected if None.
+        paral : bool, default False
+            Use parallel processing.
+
+        Returns
+        -------
+        EvolEddies2D
+            Detected eddies at all time steps.
+        """
         # Names
         time = smeta.get_time(ds)
         if u is None:

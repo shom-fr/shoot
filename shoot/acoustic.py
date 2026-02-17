@@ -125,16 +125,17 @@ def _get_mcp_wrapper_(cs, depth, xdim, ydim, nx, ny):
 
 
 def get_mcp(cs):
-    """Get the local ecs
+    """Compute deep sound speed minimum depth (MCP)
 
     Parameters
     ----------
-    cs: xarray.Dataset
-        sound speed
-    Return
-    ------
+    cs : xarray.DataArray
+        3D sound speed field.
+
+    Returns
+    -------
     xarray.DataArray
-        Minimum de célérité profond
+        Deep sound speed minimum depth (minimum de célérité profond).
     """
     xdim = smeta.get_xdim(cs)
     ydim = smeta.get_ydim(cs)
@@ -169,16 +170,17 @@ def _get_iminc_wrapper_(cs, depth, xdim, ydim, nx, ny):
 
 
 def get_iminc(cs):
-    """Get the local ecs
+    """Compute intermediate sound speed minimum depth (IMINC)
 
     Parameters
     ----------
-    cs: xarray.Dataset
-        sound speed
-    Return
-    ------
+    cs : xarray.DataArray
+        3D sound speed field.
+
+    Returns
+    -------
     xarray.DataArray
-        Minimum de célérité profond
+        Intermediate minimum depth in two-channel profiles.
     """
     xdim = smeta.get_xdim(cs)
     ydim = smeta.get_ydim(cs)

@@ -155,9 +155,10 @@ class Profiles:
         )
 
     def associate(self, eddies, nlag=2):
-        """
-        This method attributes profile to eddies (EvolEddies2D object) and add info to profiles
-        if they are considered colocalised in a structure
+        """Associate profiles with eddies
+
+        Attributes profiles to eddies (EvolEddies2D object) and adds info to profiles
+        if they are considered colocalized within a structure.
         """
         eddy_pos = np.ones(len(self.ds.profil)) * -1
         for eddy in eddies.eddies:  # list of Eddies2D object object

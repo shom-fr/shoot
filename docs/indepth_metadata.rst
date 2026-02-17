@@ -12,13 +12,13 @@ shoot uses the xoa package (located in ``xoa/`` directory) for:
 
 - **Coordinate detection** - Automatically find lon, lat, depth, time
 - **Variable search** - Locate variables by CF standard names
-- **Model support** - Handle ROMS/CROCO and other model grids
+- **Model support** - Handle CROCO and other model grids
 - **Flexible data** - Work with various naming conventions
 
 This approach allows shoot to work with:
 
 - Satellite altimetry (DUACS, AVISO)
-- Ocean models (ROMS, NEMO, MOM, CROCO)
+- Ocean models (CROCO, NEMO, MOM)
 - Reanalysis products (GLORYS, ORAS)
 - In-situ data (Argo, moorings)
 
@@ -121,15 +121,24 @@ If CF metadata is missing:
 Custom Specifications
 ~~~~~~~~~~~~~~~~~~~~~
 
-xoa uses configuration files to define additional patterns:
+xoa uses configuration files to define additional patterns.
+
+**Internal Specifications**
+
+shoot includes its own metadata specifications in ``shoot/meta.cfg`` that are automatically loaded on import. These specifications define extended lists of CF standard names for ocean variables (velocities, SSH, depth, etc.).
+
+See :ref:`metaspec` for complete details on the internal specifications and how to create your own.
+
+**Using Specifications**
 
 .. code-block:: python
 
-    # Register shoot's custom patterns
-    smeta.register_meta_specs()
+    # shoot's internal specs are automatically loaded
+    # when you import shoot
 
-    # Or set specific specs
+    # Or set specific specs for your data
     smeta.set_meta_specs("croco")  # Use CROCO conventions
+    smeta.set_meta_specs("mydata.cfg")  # Use custom file
 
 Working with Different Data Sources
 ------------------------------------
@@ -153,14 +162,14 @@ AVISO/DUACS data typically has:
     lat = smeta.get_lat(ds)    # latitude
     time = smeta.get_time(ds)  # time
 
-ROMS/CROCO Models
+CROCO Models
 ~~~~~~~~~~~~~~~~~
 
-Native ROMS grids use staggered coordinates:
+Native CROCO grids use staggered coordinates:
 
 .. code-block:: python
 
-    ds = xr.open_dataset("roms_his.nc")
+    ds = xr.open_dataset("croco_his.nc")
 
     # xoa handles rho/u/v/psi points
     u = smeta.get_u(ds)        # u on u-points (xi_u, eta_u)
@@ -300,7 +309,7 @@ Enhance your dataset:
 Multi-Grid Models
 ~~~~~~~~~~~~~~~~~
 
-For models with multiple grids (like ROMS):
+For models with multiple grids (like CROCO):
 
 .. code-block:: python
 
@@ -418,10 +427,10 @@ If variable search fails:
 3. Register custom patterns
 4. Access variable directly by name
 
-ROMS Grid Issues
+CROCO Grid Issues
 ~~~~~~~~~~~~~~~~
 
-For ROMS/CROCO:
+For CROCO:
 
 1. Ensure xoa is properly installed
 2. Check that grid variables (lon_rho, lat_rho, etc.) exist
@@ -431,6 +440,7 @@ For ROMS/CROCO:
 Further Reading
 ---------------
 
+- :ref:`metaspec` - Internal metadata specification details
 - xoa documentation (in ``xoa/`` directory)
 - `CF Conventions <http://cfconventions.org/>`_
 - :ref:`indepth_eddies_detection` - Using metadata in detection

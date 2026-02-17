@@ -33,6 +33,20 @@ def psi(u, v):
     Notes
     -----
     Assumes domain is centered on the feature of interest.
+
+    Example
+    -------
+    >>> import xarray as xr, numpy as np
+    >>> from shoot.streamline import psi
+    >>> lon = xr.DataArray(np.linspace(0, 1, 30), dims="lon",
+    ...     attrs={"standard_name": "longitude"})
+    >>> lat = xr.DataArray(np.linspace(43, 44, 20), dims="lat",
+    ...     attrs={"standard_name": "latitude"})
+    >>> u = xr.DataArray(np.random.rand(20, 30), dims=("lat", "lon"),
+    ...     coords={"lon": lon, "lat": lat})
+    >>> v = xr.DataArray(np.random.rand(20, 30), dims=("lat", "lon"),
+    ...     coords={"lon": lon, "lat": lat})
+    >>> sf = psi(u, v)  # doctest: +SKIP
     """
     # define center position assume that we provide a domain centered on the peak
     ci = u.shape[1] // 2

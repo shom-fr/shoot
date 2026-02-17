@@ -27,7 +27,7 @@ class Associate:
 
     @functools.cached_property
     def cost(self):
-        """ "cost function between each eddy pairs"""
+        """Cost function between each eddy pair"""
         M = np.zeros((len(self.eddies), len(self.ref_eddies)))
         for i in range(len(self.eddies)):
             for j in range(len(self.ref_eddies)):
@@ -48,7 +48,7 @@ class Associate:
                     self.ref_eddies[j].ro + self.eddies[i].ro
                 )
 
-                # Warning avoid couple cyclone with anticylone
+                # Warning: avoid coupling cyclone with anticyclone
                 M[i, j] += (
                     DR**2 + DR0**2
                     if self.ref_eddies[j].eddy_type == self.eddies[i].eddy_type

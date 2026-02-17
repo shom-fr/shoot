@@ -3,18 +3,20 @@
 Quick Start Guide
 #################
 
-Welcome to shoot! This guide will help you get started with detecting and tracking ocean objects like eddies, fronts, and other mesoscale features.
+Welcome to shoot! This guide will help you get started with detecting and tracking ocean eddies.
 
 What is shoot?
 ==============
 
-**SHom Ocean Objects Tracker** (shoot) is a Python package for detecting and tracking ocean mesoscale features from gridded velocity and SSH data. It can:
+**SHom Ocean Objects Tracker** (shoot) is a Python package for detecting and tracking ocean features from observations or simulated data.
+
+Currently implemented features:
 
 * Detect eddies using the Local Normalized Angular Momentum (LNAM) method
 * Track eddies through time using optimal matching algorithms
 * Analyze 3D eddy structure across depth levels
-* Compute acoustic impacts of eddies on sound propagation
-* Associate in-situ profiles with detected eddies
+
+Additional features (fronts, acoustic impacts, profile associations, etc.) are planned for future releases.
 
 Basic Concepts
 ==============
@@ -35,8 +37,8 @@ Each detected eddy includes:
 * Ellipse fit parameters
 * Speed contours and enclosed areas
 
-Detection Method
-----------------
+Eddy Detection Method
+~~~~~~~~~~~~~~~~~~~~~
 
 shoot uses the **LNAM method** (Local Normalized Angular Momentum):
 
@@ -46,8 +48,8 @@ shoot uses the **LNAM method** (Local Normalized Angular Momentum):
 4. Extract contours around centers
 5. Fit ellipses and compute properties
 
-Tracking
---------
+Eddy Tracking
+~~~~~~~~~~~~~
 
 Eddy tracking associates eddies between consecutive time steps:
 
@@ -256,17 +258,19 @@ Show Diagnostics
     # Display eddy statistics
     shoot eddies diags eddies_tracked.nc
 
-Working with xoa
-================
+Finding coordinates and variables
+=================================
 
 shoot uses **xoa** for metadata handling and CF convention support.
 
-The xoa package (located in ``xoa/`` directory) provides:
+The xoa package provides:
 
 * CF-compliant coordinate detection (lon, lat, depth, time)
 * Standard name searches (SSH, velocities, temperature, salinity)
-* ROMS/CROCO model support
+* CROCO model support
 * Coordinate transformations
+
+shoot includes internal metadata specifications in ``shoot/meta.cfg`` that define extended lists of CF standard names for ocean variables. See :ref:`metaspec` for details on the internal specifications.
 
 Example using shoot's metadata wrappers:
 
@@ -283,6 +287,24 @@ Example using shoot's metadata wrappers:
     u = smeta.get_u(ds)
     v = smeta.get_v(ds)
     ssh = smeta.get_ssh(ds)
+    
+You can easily use a configuration file for your own dataset (see :ref:`metaspec` for how to create custom specifications).
+
+From python:
+
+.. code-block:: python
+
+    from shoot import meta as smeta
+
+    smeta.set_meta_specs("my_config_file.cfg")
+
+From the commandline:
+
+.. code-block:: bash
+
+    # Detect eddies with custom metadata file
+    shoot eddies detect --meta-file my_config_file.cfg input.nc -o output.nc 
+
 
 Next Steps
 ==========
@@ -306,8 +328,8 @@ Common Questions
     Try reducing ``min_radius`` or adjusting ``window_center``.
 
 **Can I use model output?**
-    Yes! shoot works with any gridded velocity data. It supports ROMS/CROCO
-    native grids through xoa.
+    Yes! shoot works with any gridded velocity data. It supports CROCO
+    native grids and you can provide specifications for your own model.
 
 **How accurate is the tracking?**
     Tracking accuracy depends on time resolution. For daily data, use

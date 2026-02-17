@@ -82,13 +82,13 @@ shoot uses **xoa** for CF-compliant metadata handling:
 
 - Automatic coordinate detection (lon, lat, depth, time)
 - Standard name search (velocities, SSH, temperature, salinity)
-- Model-specific support (ROMS/CROCO grids)
+- Model-specific support (CROCO grids)
 - Dimension inference for flexible data structures
 
 This ensures compatibility with:
 
 - Satellite observations (altimetry, SST)
-- Ocean models (ROMS, NEMO, MOM, CROCO)
+- Ocean models (CROCO, NEMO, MOM)
 - Reanalysis products (GLORYS, ORAS)
 - In-situ data (Argo, moorings, gliders)
 

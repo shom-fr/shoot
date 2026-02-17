@@ -69,6 +69,16 @@ def fit_ellipse_from_coords(lons, lats, get_fit=False):
         - angle : Orientation angle in degrees
 
         If get_fit=True, returns (dict, error) tuple.
+
+    Example
+    -------
+    >>> import numpy as np
+    >>> from shoot.fit import fit_ellipse_from_coords
+    >>> theta = np.linspace(0, 2 * np.pi, 50)
+    >>> lons = 5.0 + 0.5 * np.cos(theta)
+    >>> lats = 43.0 + 0.3 * np.sin(theta)
+    >>> params = fit_ellipse_from_coords(lons, lats)  # doctest: +SKIP
+    >>> print(f"center: ({params['lon']:.1f}, {params['lat']:.1f})")  # doctest: +SKIP
     """
 
     lons = np.array(lons)

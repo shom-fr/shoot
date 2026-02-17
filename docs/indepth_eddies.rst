@@ -268,7 +268,7 @@ Ocean Models
 
 Provide 3D structure:
 
-- **Models**: ROMS, NEMO, MOM, CROCO
+- **Models**: CROCO, NEMO, MOM
 - **Resolution**: 1/12° to 1/36° (~2-8 km)
 - **Temporal**: Hourly to daily outputs
 - **Variables**: U, V, SSH, T, S at multiple depths

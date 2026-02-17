@@ -35,7 +35,14 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     Returns
     -------
     list of xarray.Dataset
-        Each dataset contains a closed contour with coordinates and metadata.
+        Each dataset contains a closed contour with coordinates and metadata,
+        including lon/lat coordinates, SSH level, and center position.
+
+    Example
+    -------
+    >>> from shoot.contours import get_closed_contours
+    >>> contours = get_closed_contours(5.0, 43.0, ssh_field)  # doctest: +SKIP
+    >>> len(contours)  # number of nested closed contours  # doctest: +SKIP
     """
     lon = smeta.get_lon(ssh)
     lat = smeta.get_lat(ssh)
@@ -51,7 +58,7 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
         ran = np.linspace(vmin, vmax, nlevels)
     for level in ran:
         for line in cont_gen.lines(level):
-            if (line[0] == line[-1]).all():  # chek if it is closed contour
+            if (line[0] == line[-1]).all():  # check if it is closed contour
                 xx = interp_to_line(lon2d.values, line)
                 yy = interp_to_line(lat2d.values, line)
                 if snum.points_in_polygon(
@@ -251,7 +258,7 @@ def get_lnam_peaks(lnam, K=0.7):
         yy = interp_to_line(lat2d.values, line)
         Lines_coords.append([xx, yy])
 
-        # get extremun of the polygon
+        # get extremum of the polygon
         lon_min = xx.min()
         lon_max = xx.max()
         lat_min = yy.min()

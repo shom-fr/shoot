@@ -233,6 +233,20 @@ def get_relvort(u, v, dx=None, dy=None):
     -------
     xarray.DataArray
         Relative vorticity in s^-1.
+
+    Example
+    -------
+    >>> import xarray as xr
+    >>> import numpy as np
+    >>> lon = xr.DataArray(np.linspace(0, 1, 50), dims="lon",
+    ...     attrs={"standard_name": "longitude"})
+    >>> lat = xr.DataArray(np.linspace(43, 44, 40), dims="lat",
+    ...     attrs={"standard_name": "latitude"})
+    >>> u = xr.DataArray(np.random.rand(40, 50), dims=("lat", "lon"),
+    ...     coords={"lon": lon, "lat": lat})
+    >>> v = xr.DataArray(np.random.rand(40, 50), dims=("lat", "lon"),
+    ...     coords={"lon": lon, "lat": lat})
+    >>> rv = get_relvort(u, v)  # doctest: +SKIP
     """
     dx, dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(u, errors="raise")
@@ -332,6 +346,18 @@ def get_geos(ssh, dx=None, dy=None):
         Zonal geostrophic velocity in m/s.
     v : xarray.DataArray
         Meridional geostrophic velocity in m/s.
+
+    Example
+    -------
+    >>> import xarray as xr, numpy as np
+    >>> from shoot.dyn import get_geos
+    >>> lon = xr.DataArray(np.linspace(0, 2, 50), dims="lon",
+    ...     attrs={"standard_name": "longitude"})
+    >>> lat = xr.DataArray(np.linspace(43, 44, 40), dims="lat",
+    ...     attrs={"standard_name": "latitude"})
+    >>> ssh = xr.DataArray(np.random.rand(40, 50) * 0.1, dims=("lat", "lon"),
+    ...     coords={"lon": lon, "lat": lat})
+    >>> u, v = get_geos(ssh)  # doctest: +SKIP
     """
     dx, dy = sgrid.get_dx_dy(ssh, dx=dx, dy=dy)
     xdim = xcoords.get_xdim(ssh, errors="raise")

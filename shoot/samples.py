@@ -34,5 +34,12 @@ def get_sample_file(sample_name):
     -------
     str
         Absolute path to cached sample file.
+
+    Example
+    -------
+    >>> from shoot.samples import get_sample_file
+    >>> path = get_sample_file("MODELS/CROCO/gigatl1-1000m.nc")  # doctest: +SKIP
+    >>> import xarray as xr
+    >>> ds = xr.open_dataset(path)  # doctest: +SKIP
     """
     return POOCH.fetch(sample_name)

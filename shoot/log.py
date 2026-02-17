@@ -1,11 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jul  2 10:26:02 2025 by sraynaud
-"""
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
 Logging utilities
 """
 
@@ -46,13 +41,13 @@ DEFAULT_LOGGING_CONFIG = {
         "file": {
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "precise",
-            "filename": "woom.log",
+            "filename": "shoot.log",
             "maxBytes": 1024 * 1000,
             "backupCount": 3,
             "level": "DEBUG",
         },
     },
-    "loggers": {"woom": {"handlers": ["console", "file"], "level": "DEBUG"}},
+    "loggers": {"shoot": {"handlers": ["console", "file"], "level": "DEBUG"}},
 }
 
 
@@ -64,7 +59,7 @@ def setup_logging(console_level=None, to_file=True, no_color=False, show_init_ms
     if console_level is not None:
         logging_config["handlers"]["console"]["level"] = console_level.upper()
     if to_file is False:
-        logging_config["loggers"]["woom"]["handlers"].remove("file")
+        logging_config["loggers"]["shoot"]["handlers"].remove("file")
     else:
         fconfig = logging_config["handlers"]["file"]
         if isinstance(to_file, str):

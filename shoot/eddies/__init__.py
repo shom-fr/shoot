@@ -1,1 +1,1 @@
-"""Eddy deteciton and tracking"""
+"""Eddy detection and tracking"""

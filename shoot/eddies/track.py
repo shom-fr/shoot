@@ -114,7 +114,7 @@ class Associate:
 
     @functools.cached_property
     def cost(self):
-        """ "cost function between each eddy pairs"""
+        """Cost function between each eddy pair"""
         M = np.zeros((len(self.new_eddies), len(self.parent_eddies)))
         for i in range(len(self.new_eddies)):
             for j in range(len(self.parent_eddies)):
@@ -138,7 +138,7 @@ class Associate:
                 )
                 DR0 = (self.parent_eddies[j].ro - self.new_eddies[i].ro) / (roj + self.new_eddies[i].ro)
 
-                # Warning avoid couple cyclone with anticylone
+                # Warning: avoid coupling cyclone with anticyclone
                 M[i, j] += (
                     DR**2 + DR0**2 if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type else 1e6
                 )
@@ -214,7 +214,7 @@ class AssociateMulti:
 
     @functools.cached_property
     def cost(self):
-        """cost function between each eddy pairs"""
+        """Cost function between each eddy pair"""
         nj = np.sum([len(self.parent_eddies[k]) for k in range(len(self.parent_eddies))])
         M = np.zeros((len(self.new_eddies), nj))
         for i in range(len(self.new_eddies)):
@@ -248,7 +248,7 @@ class AssociateMulti:
                         roj + self.new_eddies[i].ro
                     )
 
-                    # Warning avoid couple cyclone with anticylone
+                    # Warning: avoid coupling cyclone with anticyclone
                     M[i, cmp] += (
                         DR**2 + DR0**2
                         if self.parent_eddies[k][j].eddy_type == self.new_eddies[i].eddy_type
@@ -283,13 +283,13 @@ class AssociateMulti:
         Mclean = np.delete(M, jdel, axis=1)
         index = {i: index[k] for i, k in enumerate(index)}
 
-        # Clean this matrix with unpossible connexions
+        # Clean this matrix with impossible connections
         idel = []  # new eddies impossible to match
         for i in range(M.shape[0]):
             if (Mclean[i] > 1e3).all():
                 idel.append(i)
         Mclean = np.delete(Mclean, idel, axis=0)  # delete impossible solutions
-        # Connect raws with column with Hugarian algorithm
+        # Connect rows with columns with Hungarian algorithm
         raw, col = linear_sum_assignment(Mclean)
 
         for i, j in zip(raw, col):
@@ -302,7 +302,27 @@ class AssociateMulti:
 
 
 class Track:
-    """Individual eddy track containing temporal sequence of eddies"""
+    """Individual eddy track containing a temporal sequence of eddies
+
+    Represents a single eddy trajectory through time. Stores the sequence
+    of associated :class:`~shoot.eddies.eddies2d.GriddedEddy2D` objects
+    and their corresponding times.
+
+    Parameters
+    ----------
+    eddy : GriddedEddy2D or list
+        Initial eddy or list of eddies.
+    time : numpy.datetime64 or list
+        Time(s) of the eddy detection(s).
+    number : int
+        Unique track identifier.
+    dt : float
+        Time step between detections in seconds.
+    Tc : float
+        Characteristic time scale for tracking in seconds.
+    C : float, default 6.5*1e3/86400
+        Characteristic velocity scale (m/s).
+    """
 
     def __init__(
         self,
@@ -349,8 +369,19 @@ class Track:
 
 
 class Tracks:
-    """This class represents a list of tracks: track_eddies
-    It tracks the EvolEddies object
+    """Collection of eddy tracks over time
+
+    Performs eddy tracking on an :class:`~shoot.eddies.eddies2d.EvolEddies2D`
+    object using the Chelton et al. (2011) algorithm with backward association.
+
+    Parameters
+    ----------
+    eddies : EvolEddies2D
+        Detected eddies at multiple time steps.
+    nback : int
+        Number of backward time steps for multi-step association.
+    C : float, default 6.5*1e3/86400
+        Characteristic velocity scale (m/s).
     """
 
     def __init__(
@@ -373,13 +404,13 @@ class Tracks:
 
     @classmethod
     def reconstruct(cls, ds, nback):
-        """reconstruct the trackings from panda dataframe of eddies"""
-        ##reconstruction des eddies
+        """Reconstruct tracks from a tracked xarray dataset"""
+        ## Reconstruct eddies
         eddies = seddies.EvolEddies2D.reconstruct(ds)
-        ##reconstruction des traces
-        track_eddies = {}  # dictionnary of tracks
+        ## Reconstruct tracks
+        track_eddies = {}  # dictionary of tracks
         for i in np.unique(ds.track_id):
-            tmp = ds.where(ds.track_id == i, drop=True)  # selectionne les eddies de la trace  i
+            tmp = ds.where(ds.track_id == i, drop=True)  # select eddies belonging to track i
             trace_times = list(tmp.time.values)
             trace_number = i
             trace_eddies = []
@@ -416,9 +447,9 @@ class Tracks:
         logger.info("Initializing tracks from first time step")
         for i, eddy in enumerate(
             self.eddies.eddies[0].eddies
-        ):  # initialized with the the first detected eddies
+        ):  # initialized with the first detected eddies
             self.track_eddies[i] = Track(eddy, self.times[0], i, self._dt, self._Tc)
-            eddy.track_id = i  # actualise eddy track number
+            eddy.track_id = i  # update eddy track number
             self.nb_tracks += 1
 
     def track_steps(self):
@@ -435,17 +466,17 @@ class Tracks:
             for eddy in new_eddies:
                 if eddy.track_id is None:  # Create a new track
                     self.track_eddies[self.nb_tracks] = Track(eddy, t, self.nb_tracks, self._dt, self._Tc)
-                    eddy.track_id = self.nb_tracks  # actualise eddy track number
+                    eddy.track_id = self.nb_tracks  # update eddy track number
                     self.nb_tracks += 1
 
-                else:  ##æppend to existing track
+                else:  ## append to existing track
                     self.track_eddies[eddy.track_id].update(eddy, t)
 
     def track_step(self):
         """
-        track only for the last eddies
-        suppose the job has been done before for others
-        usefull for update concerns
+        Track only for the last eddies.
+        Supposes the job has been done before for others.
+        Useful for update concerns.
         """
         i = len(self.times) - 1
         t = self.times[i]
@@ -458,10 +489,10 @@ class Tracks:
         for eddy in new_eddies:
             if eddy.track_id is None:  # Create a new track
                 self.track_eddies[self.nb_tracks] = Track(eddy, t, self.nb_tracks, self._dt, self._Tc)
-                eddy.track_id = self.nb_tracks  # actualise eddy track number
+                eddy.track_id = self.nb_tracks  # update eddy track number
                 self.nb_tracks += 1
 
-            else:  ##æppend to existing track
+            else:  ## append to existing track
                 self.track_eddies[eddy.track_id].update(eddy, t)
 
     def tracking(self):
@@ -471,11 +502,11 @@ class Tracks:
         # return self.track_eddies
 
     def update(self, parent_eddies, new_eddies, Dt):
-        """update based on last detected eddies"""
+        """Update based on last detected eddies"""
         Associate(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc).order()
 
     def update_multi(self, parent_eddies, new_eddies, Dt):
-        """update based on sevral precdeding time eddies"""
+        """Update based on several preceding time eddies"""
         AssociateMulti(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc).order()
 
     def refresh(self, new_eddies):
@@ -486,23 +517,28 @@ class Tracks:
 
 
 def track_eddies(eddies, nback):
-    """Add anomaly to detected eddies
+    """Track eddies across time steps
 
     Parameters
     ----------
-    eddies: EvolEddies
-        Represent detections at several timestep.
-        Mind that the time interval is preferably constant
-
-    nback: int
-        number of backward time step for eddy tracking.
-        Typically around 10 days for satelitte altimetry
-        and 1 or 2 days for numerical simulations
+    eddies : EvolEddies2D
+        Detections at several time steps.
+        The time interval should preferably be constant.
+    nback : int
+        Number of backward time steps for eddy tracking.
+        Typically around 10 days for satellite altimetry
+        and 1 or 2 days for numerical simulations.
 
     Returns
     -------
-     tracks: Tracks object
-         directly appends anomaly object in each eddies
+    Tracks
+        Tracks object with eddy trajectories.
+
+    Example
+    -------
+    >>> from shoot.eddies.track import track_eddies
+    >>> tracks = track_eddies(evol_eddies, nback=10)  # doctest: +SKIP
+    >>> tracks.to_netcdf("tracked.nc")  # doctest: +SKIP
     """
     tracks = Tracks(eddies, nback)
     tracks.tracking()
@@ -514,21 +550,19 @@ def update_tracks(ds, new_eddies, nback):
 
     Parameters
     ----------
-    ds: xarray dataset
-        Already tracked perdiod
-
-    new_eddies: Eddies object
-        Represent detections at the new time step.
-
-    nback: int
-        number of backward time step for eddy tracking.
-        Typically around 10 days for satelitte altimetry
-        and 1 or 2 days for numerical simulations
+    ds : xarray.Dataset
+        Already tracked period.
+    new_eddies : Eddies2D
+        Detections at the new time step.
+    nback : int
+        Number of backward time steps for eddy tracking.
+        Typically around 10 days for satellite altimetry
+        and 1 or 2 days for numerical simulations.
 
     Returns
     -------
-     tracks: Tracks object
-         updated track object
+    Tracks
+        Updated tracks object.
     """
     tracks = Tracks.reconstruct(ds, nback)
     tracks.refresh(new_eddies)

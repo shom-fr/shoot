@@ -229,17 +229,17 @@ If not provided, spacing is computed from lat/lon coordinates.
 Working with Model Output
 --------------------------
 
-ROMS/CROCO Models
+CROCO Models
 ~~~~~~~~~~~~~~~~~
 
-shoot supports native ROMS grids through xoa:
+shoot supports native CROCO grids through xoa:
 
 .. code-block:: python
 
     from shoot import meta as smeta
 
-    # Load ROMS output
-    ds = xr.open_dataset("roms_output.nc")
+    # Load CROCO output
+    ds = xr.open_dataset("croco_output.nc")
 
     # xoa automatically handles rho-point grids
     u = smeta.get_u(ds)
