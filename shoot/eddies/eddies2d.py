@@ -9,11 +9,9 @@ horizontal velocity fields using local angular momentum and contour methods.
 import os, gc
 import psutil
 import functools
-import gc
 import json
 import logging
 import multiprocessing as mp
-import os
 from itertools import repeat
 
 import matplotlib.pyplot as plt
@@ -342,9 +340,7 @@ class GriddedEddy2D:
             ):
                 continue
             if ellipse.fit_error < self.max_ellipse_error:
-                # if True:
                 ds.attrs["ellipse"] = ellipse
-                # scontours.add_contour_uv(ds, self.ugeos.values, self.vgeos.values)
                 scontours.add_contour_uv(ds, self.u.values, self.v.values)
                 scontours.add_contour_dx_dy(ds)
                 valid_contours.append(ds)
@@ -355,21 +351,13 @@ class GriddedEddy2D:
     def ncontours(self):
         return len(self.contours)
 
-    def is_eddy(self, min_radius):  # a mettre dans GriddedEddy2D
-        # Checks if closed contour exists
+    def is_eddy(self, min_radius):
         if not self.ncontours:
-            # print(self.glon, self.glat, "no contour")
             return False
         if min_radius and self.radius < min_radius:
-            # print(self.glon, self.glat, "small radius")
             return False
         if np.isnan(self.vmax_contour.mean_velocity):
-            # print(self.glon, self.glat, "nan velocity")
             return False
-        # if self.vmax_contour.ellipse.fit_error > self.max_ellipse_error / 2: #ce test est inutile
-        #     # print(self.glon, self.glat, "ellipse error")
-        #     return False
-        # print(self.glon, self.glat, "is eddy")
         return True
 
     @functools.cached_property
@@ -380,7 +368,6 @@ class GriddedEddy2D:
         for ds in self.contours:
             if ds.length > dsb.length:
                 dsb = ds
-        # interpolation step using splrep
         ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
         ok = np.concatenate([ok, [len(dsb.lon) - 1]])
         try:
@@ -396,7 +383,6 @@ class GriddedEddy2D:
     def ellipse(self):
         """Ellipse fitted from :attr:`boundary_contour` or None"""
         if self.ncontours:
-            # return self.boundary_contour.ellipse
             return self.vmax_contour.ellipse
 
     @functools.cached_property
@@ -448,12 +434,10 @@ class GriddedEddy2D:
         dsv = self.contours[0]
         for ds in self.contours:
             if ds.mean_velocity > dsv.mean_velocity:
-                # if Ellipse.from_coords(ds.lon, ds.lat).fit_error > self.max_ellipse_error / 5:
-                #    continue
                 dsv = ds
         ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
         ok = np.concatenate([ok, [len(dsv.lon) - 1]])
-        tck, u = splprep([dsv.lon[ok], dsv.lat[ok]], s=0)  # avoid repeated values
+        tck, u = splprep([dsv.lon[ok], dsv.lat[ok]], s=0)
         xy_int = splev(np.linspace(0, 1, 50), tck)
         dsv["lon_int"] = xy_int[0]
         dsv["lat_int"] = xy_int[1]
@@ -482,8 +466,6 @@ class GriddedEddy2D:
         return COLORS.get(self.eddy_type, COLORS["undefined"])
 
     def contains_points(self, lons, lats):
-        # if not self.is_valid():
-        #     return np.zeros(lons.shape, dtype="?")
         points = np.array([lons, lats]).T
         return snum.points_in_polygon(
             points,
@@ -508,11 +490,7 @@ class GriddedEddy2D:
             color = self.color
         kw = dict(color=color, **kwargs)
         out = {"center": ax.scatter(self.lon, self.lat, **kw)}
-        # out = {"center": ax.scatter(self.glon, self.glat, s=10, **kw)}
         if self.ncontours:
-            # out["boundary"] = ax.plot(
-            #     self.boundary_contour.lon, self.boundary_contour.lat, lw=lw, **kw
-            # )
             out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
             if vmax:
                 out["velmax"] = ax.plot(
@@ -678,8 +656,6 @@ class Eddy:
         )
 
     def contains_points(self, lons, lats):
-        # if not self.is_valid():
-        #     return np.zeros(lons.shape, dtype="?")
         points = np.array([lons, lats]).T
         return snum.points_in_polygon(
             points,
@@ -756,7 +732,6 @@ class Eddies2D:
                 time = ds.isel(obs=i).time.values
         return cls(time, eddies, window_center, window_fit, min_radius)
 
-    # @staticmethod
     def test_eddy(eddy, min_radius):
         if eddy.is_eddy(min_radius):
             return eddy
@@ -1175,9 +1150,7 @@ class EvolEddies2D:
         for i in range(len(time)):
             process = psutil.Process(os.getpid())
             logger.debug("Used memory: %.2f MB", process.memory_info().rss / 1024**2)
-            # print(np.datetime_as_string(ds.time[i], unit='D'))
             dss = ds.isel({time.name: i})
-            # ssh_ = dss[ssh] if ssh is not None else None
             # check if ssh field is not full of nan
             if not ssh or (dss[ssh].isnull().mean().item() > 0.9):
                 logger.info("SSH field unavailable or mostly NaN, proceeding without SSH")

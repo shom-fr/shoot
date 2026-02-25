@@ -20,13 +20,14 @@ class Profile:
     def __init__(self, prf):
         # Extract scalar values for single-element arrays
         time_vals = prf.TIME.values
-        self.time = time_vals[0] if time_vals.size == 1 else time_vals
+        self.time = time_vals
 
         lat_vals = prf.LATITUDE.values
-        self.lat = float(lat_vals[0]) if lat_vals.size == 1 else lat_vals
+        self.lat =  lat_vals
 
         lon_vals = prf.LONGITUDE.values
-        self.lon = float(lon_vals[0]) if lon_vals.size == 1 else lon_vals
+        self.lon = lon_vals
+        
         self.depth = np.arange(1, 2001)
         self.temp = np.interp(
             self.depth,
