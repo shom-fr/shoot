@@ -23,11 +23,11 @@ class Profile:
         self.time = time_vals
 
         lat_vals = prf.LATITUDE.values
-        self.lat =  lat_vals
+        self.lat = lat_vals
 
         lon_vals = prf.LONGITUDE.values
         self.lon = lon_vals
-        
+
         self.depth = np.arange(1, 2001)
         self.temp = np.interp(
             self.depth,

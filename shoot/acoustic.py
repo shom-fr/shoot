@@ -103,9 +103,9 @@ def get_ecs(cs):
     nx = len(cs[xdim])
     ny = len(cs[ydim])
     depth = smeta.get_depth(cs)
-    if len(depth.shape) == 1 : 
+    if len(depth.shape) == 1:
         depth = depth.broadcast_like(cs)
-        
+
     ecs = xr.apply_ufunc(
         _get_ecs_wrapper_,
         cs,
@@ -150,7 +150,7 @@ def get_mcp(cs):
     nx = len(cs[xdim])
     ny = len(cs[ydim])
     depth = smeta.get_depth(cs)
-    if len(depth.shape) == 1 : 
+    if len(depth.shape) == 1:
         depth = depth.broadcast_like(cs)
     mcp = xr.apply_ufunc(
         _get_mcp_wrapper_,
@@ -197,7 +197,7 @@ def get_iminc(cs):
     nx = len(cs[xdim])
     ny = len(cs[ydim])
     depth = smeta.get_depth(cs)
-    if len(depth.shape) == 1 : 
+    if len(depth.shape) == 1:
         depth = depth.broadcast_like(cs)
     iminc = xr.apply_ufunc(
         _get_iminc_wrapper_,

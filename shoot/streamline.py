@@ -87,12 +87,8 @@ def psi(u, v):
     # integrate psi
     psi_xy11 = mcx11 - cumulative_trapezoid(u[cj:, ci:], y[cj:, ci:], initial=0, axis=0)
     psi_xy12 = mcx12 - cumulative_trapezoid(u[cj::-1, ci:], y[cj::-1, ci:], axis=0)
-    psi_xy21 = mcx21 - cumulative_trapezoid(
-        u[cj:, ci - 1 :: -1], y[cj:, ci - 1 :: -1], initial=0, axis=0
-    )
-    psi_xy22 = mcx22 - cumulative_trapezoid(
-        u[cj::-1, ci - 1 :: -1], y[cj::-1, ci - 1 :: -1], axis=0
-    )
+    psi_xy21 = mcx21 - cumulative_trapezoid(u[cj:, ci - 1 :: -1], y[cj:, ci - 1 :: -1], initial=0, axis=0)
+    psi_xy22 = mcx22 - cumulative_trapezoid(u[cj::-1, ci - 1 :: -1], y[cj::-1, ci - 1 :: -1], axis=0)
 
     # Concatenate the 4 parts (NE, SE, NO, SO)
     psi_xy = np.block(
@@ -115,12 +111,8 @@ def psi(u, v):
     # PSI from integrating u first and then v (4 parts of eq. A2)
     psi_yx11 = mcy11 + cumulative_trapezoid(v[cj:, ci:], x[cj:, ci:], initial=0, axis=-1)
     psi_yx21 = mcy21 + cumulative_trapezoid(v[cj:, ci::-1], x[cj:, ci::-1], axis=-1)
-    psi_yx12 = mcy12 + cumulative_trapezoid(
-        v[cj - 1 :: -1, ci:], x[cj - 1 :: -1, ci:], initial=0, axis=-1
-    )
-    psi_yx22 = mcy22 + cumulative_trapezoid(
-        v[cj - 1 :: -1, ci::-1], x[cj - 1 :: -1, ci::-1], axis=-1
-    )
+    psi_yx12 = mcy12 + cumulative_trapezoid(v[cj - 1 :: -1, ci:], x[cj - 1 :: -1, ci:], initial=0, axis=-1)
+    psi_yx22 = mcy22 + cumulative_trapezoid(v[cj - 1 :: -1, ci::-1], x[cj - 1 :: -1, ci::-1], axis=-1)
 
     # Concatenate the 4 parts (NE, SE, NO, SO)
     psi_yx = np.block(

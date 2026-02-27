@@ -4,6 +4,7 @@ channels:
   - conda-forge
 
 dependencies:
+  - argopy>=1.4
   - cartopy
   - cmocean
   - colorlog
@@ -11,6 +12,7 @@ dependencies:
   - gsw
   - matplotlib
   - netCDF4
+  - psutil
   - owslib
   - scipy
   - xarray

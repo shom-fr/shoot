@@ -4,6 +4,7 @@ Hydrologic functions
 
 Anomaly detection and profile analysis for eddies.
 """
+
 import functools
 
 import numpy as np

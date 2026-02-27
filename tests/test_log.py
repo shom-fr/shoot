@@ -93,9 +93,7 @@ class TestParserArguments:
         parser = argparse.ArgumentParser()
         add_logging_parser_arguments(parser)
 
-        args = parser.parse_args(
-            ["--log-level", "debug", "--log-file", "test.log", "--log-no-color"]
-        )
+        args = parser.parse_args(["--log-level", "debug", "--log-file", "test.log", "--log-no-color"])
 
         assert args.log_level == "debug"
         assert args.log_file == "test.log"

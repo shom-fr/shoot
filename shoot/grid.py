@@ -3,6 +3,7 @@
 """
 Grid utilities for computing spatial resolutions and window sizes
 """
+
 import numpy as np
 import xarray as xr
 

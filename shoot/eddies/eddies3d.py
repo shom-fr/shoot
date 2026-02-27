@@ -77,9 +77,7 @@ class Associate:
                 y = sgeo.deg2m(dlat)
                 dxy = np.sqrt(x**2 + y**2) / 1000
                 dxy = dxy if dxy < self._max_distance else 1e6
-                M[i, j] = (
-                    dxy if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type else 1e6
-                )
+                M[i, j] = dxy if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type else 1e6
         return M
 
     def order(self):

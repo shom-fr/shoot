@@ -21,9 +21,7 @@ class Associate:
     def __init__(self, eddies, ref_eddies, dmax):
         self.ref_eddies = ref_eddies  # list reference eddies
         self.eddies = eddies  # list of eddies
-        self.dmax = (
-            dmax * 1000
-        )  # convert to meter as all is performed in meters
+        self.dmax = dmax * 1000  # convert to meter as all is performed in meters
 
     @functools.cached_property
     def cost(self):
@@ -49,11 +47,7 @@ class Associate:
                 )
 
                 # Warning: avoid coupling cyclone with anticyclone
-                M[i, j] += (
-                    DR**2 + DR0**2
-                    if self.ref_eddies[j].eddy_type == self.eddies[i].eddy_type
-                    else 1e6
-                )
+                M[i, j] += DR**2 + DR0**2 if self.ref_eddies[j].eddy_type == self.eddies[i].eddy_type else 1e6
         return np.sqrt(M)
 
     def order(self):
@@ -153,14 +147,10 @@ class BiMod:
                 if reddy.id == eddy.id:
                     if hasattr(eddy, "x_vmax"):  # Eddy case
                         points = np.array([eddy.x_vmax, eddy.y_vmax]).T
-                        if snum.points_in_polygon(
-                            points, np.array([reddy.x_vmax, reddy.y_vmax]).T
-                        ).any():
+                        if snum.points_in_polygon(points, np.array([reddy.x_vmax, reddy.y_vmax]).T).any():
                             eddy.intersect = True
                     else:  # GriddedEddy2D case
-                        points = np.array(
-                            [eddy.vmax_contour.lon, eddy.vmax_contour.lat]
-                        ).T
+                        points = np.array([eddy.vmax_contour.lon, eddy.vmax_contour.lat]).T
                         if snum.points_in_polygon(
                             points,
                             np.array(
