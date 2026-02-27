@@ -132,7 +132,7 @@ class Profiles:
                 "sal": (("profil", "depth"), sal),
             },
             coords={
-                "nb_prof": np.arange(0, len(lats)),
+                "profil": np.arange(0, len(lats)),
                 "depth": self.profiles[0].depth,
             },
         )
@@ -143,8 +143,7 @@ class Profiles:
         if not path:
             path = self.root_path
         if not name:
-            name = "profil_%s_%i_%i.nc" % (
-                self.region,
+            name = "profil_%i_%i.nc" % (
                 self.years[0],
                 self.years[-1],
             )
