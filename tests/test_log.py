@@ -23,7 +23,7 @@ class TestLoggingSetup:
         # First call may modify the config, but that's ok
         setup_logging(to_file=False, show_init_msg=False)
 
-        logger = logging.getLogger("woom")
+        logger = logging.getLogger("shoot")
         assert logger is not None
         assert logger.level == logging.DEBUG
 
@@ -32,7 +32,7 @@ class TestLoggingSetup:
         # This test may fail if already configured, just check it doesn't raise
         try:
             setup_logging(console_level="warning", to_file=False, show_init_msg=False)
-            logger = logging.getLogger("woom")
+            logger = logging.getLogger("shoot")
             assert logger is not None
         except ValueError:
             # Config may already be modified from previous test, that's ok
@@ -43,7 +43,7 @@ class TestLoggingSetup:
         # This test may fail if already configured, just check it doesn't raise
         try:
             setup_logging(to_file=False, no_color=True, show_init_msg=False)
-            logger = logging.getLogger("woom")
+            logger = logging.getLogger("shoot")
             assert logger is not None
         except ValueError:
             # Config may already be modified from previous test, that's ok
