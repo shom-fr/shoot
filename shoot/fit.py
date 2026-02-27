@@ -5,11 +5,11 @@ Optimization and fitting routines
 
 Functions for fitting geometric shapes to spatial data.
 """
+
 import numpy as np
 from scipy.optimize import least_squares
 
 from . import geo as sgeo
-
 
 GRAVITY = 9.81
 OMEGA = 2 * np.pi / 86400

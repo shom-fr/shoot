@@ -8,6 +8,7 @@ import pytest
 import numpy as np
 from shoot.plot import plot_ellipse
 import matplotlib
+
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 
@@ -71,13 +72,7 @@ class TestPlotEllipse:
         """Test that kwargs are passed to plot"""
         fig, ax = plt.subplots()
 
-        result = plot_ellipse(
-            10.0, 42.0, 50, 30, 45,
-            ax=ax,
-            color='red',
-            linewidth=2,
-            linestyle='--'
-        )
+        result = plot_ellipse(10.0, 42.0, 50, 30, 45, ax=ax, color='red', linewidth=2, linestyle='--')
 
         assert result is not None
         assert result[0].get_color() == 'red'

@@ -6,6 +6,7 @@
 Functions and classes for detecting and analyzing mesoscale eddies from
 horizontal velocity fields using local angular momentum and contour methods.
 """
+
 import os, gc
 import psutil
 import functools
@@ -936,7 +937,7 @@ class Eddies2D:
         )
 
     def transfer_eddy_attr(self, other_eddy, attr_name):
-        if len(self.eddies) == 0 : 
+        if len(self.eddies) == 0:
             raise AssertionError("obj does not contains any Gridededdies")
         if not hasattr(self.eddies[0], attr_name):
             raise AttributeError(f"{attr_name} does not exists in parent")
@@ -945,11 +946,11 @@ class Eddies2D:
         if not hasattr(other_eddy.eddies[0], 'id'):
             raise AttributeError(f"{id} does not exists in child")
         ids = [self.eddies[i].id for i in range(len(self.eddies))]
-        for eddy in other_eddy.eddies :
-            if eddy.id in ids : 
-                i = ids.index(eddy.id) 
+        for eddy in other_eddy.eddies:
+            if eddy.id in ids:
+                i = ids.index(eddy.id)
                 setattr(eddy, attr_name, getattr(self.eddies[i], attr_name))
-            else : 
+            else:
                 setattr(eddy, attr_name, None)
 
     @property

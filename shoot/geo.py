@@ -3,6 +3,7 @@
 """
 Geographic utilities
 """
+
 import numpy as np
 
 #: Earth radius in meters

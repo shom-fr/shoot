@@ -6,6 +6,7 @@ Ocean dynamics utilities
 Functions for computing kinematic quantities from velocity fields including
 vorticity, divergence, angular momentum, and geostrophic currents.
 """
+
 import math
 import numpy as np
 import numba
@@ -51,9 +52,9 @@ def _get_lnam_(uu, vv, wx, dx2dy, lnam):
                     lnam[j, i] -= jl * uu[j + jl, i + il] * dx2dy
                     denom1 += il * uu[j + jl, i + il]
                     denom1 += jl * vv[j + jl, i + il] * dx2dy
-                    denom2 += math.sqrt(
-                        uu[j + jl, i + il] ** 2 + vv[j + jl, i + il] ** 2
-                    ) * math.sqrt(il**2 + (jl * dx2dy) ** 2)
+                    denom2 += math.sqrt(uu[j + jl, i + il] ** 2 + vv[j + jl, i + il] ** 2) * math.sqrt(
+                        il**2 + (jl * dx2dy) ** 2
+                    )
                     # count += 1.0
             if (denom1 + denom2) > 1e-6:
                 # print(lnam[j, i], denom1, denom2)

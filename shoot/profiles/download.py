@@ -98,7 +98,7 @@ class Download:
             else:
                 tmin = str(time.sel(time=str(year)).min().dt.strftime("%Y-%m-%d").values)
                 tmax = str(time.sel(time=str(year)).max().dt.strftime("%Y-%m-%d").values)
-                print(tmin,tmax)
+                print(tmin, tmax)
                 profiles_tmp = self._load(tmin, tmax)
                 profiles_tmp.to_netcdf(path_tmp)
             if self.profiles:

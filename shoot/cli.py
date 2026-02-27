@@ -3,6 +3,7 @@
 """
 Command-line interface
 """
+
 import argparse
 import logging
 
@@ -23,7 +24,6 @@ from . import acoustic as sacoustic
 
 from . import meta as smeta
 from . import plot as splot
-
 
 # %% Main
 

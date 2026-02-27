@@ -445,9 +445,7 @@ class Tracks:
 
     def track_init(self):
         logger.info("Initializing tracks from first time step")
-        for i, eddy in enumerate(
-            self.eddies.eddies[0].eddies
-        ):  # initialized with the first detected eddies
+        for i, eddy in enumerate(self.eddies.eddies[0].eddies):  # initialized with the first detected eddies
             self.track_eddies[i] = Track(eddy, self.times[0], i, self._dt, self._Tc)
             eddy.track_id = i  # update eddy track number
             self.nb_tracks += 1
