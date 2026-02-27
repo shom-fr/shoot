@@ -12,6 +12,7 @@ from .download import Download, load_from_ds
 import xarray as xr
 import numpy as np
 from .. import meta as smeta
+from .. import geo as sgeo
 
 
 class Profile:
@@ -94,7 +95,7 @@ class Profiles:
                 self.profiles.append(prf)
 
     @classmethod
-    def from_ds(cls, ds, root_path):
+    def from_ds(cls, ds, root_path, max_depth=1000):
         """Create Profiles from an xarray Dataset
 
         Parameters
@@ -109,7 +110,7 @@ class Profiles:
         Profiles
             New Profiles instance.
         """
-        brut_prf = load_from_ds(ds, root_path)
+        brut_prf = load_from_ds(ds, root_path, max_depth=max_depth)
         return cls(ds.time, root_path, brut_prf)
 
     @functools.cached_property
@@ -120,7 +121,7 @@ class Profiles:
         times = np.array([prf.time for prf in self.profiles])
         temp = np.array([prf.temp for prf in self.profiles])
         sal = np.array([prf.sal for prf in self.profiles])
-        p_id = np.arange(0, len(lats))
+        p_id = np.arange(0, len(lats),dtype="int32")
 
         ds = xr.Dataset(
             {
@@ -175,3 +176,29 @@ class Profiles:
                         e.p_id.append(prf.isel(profil=i).p_id.values)
                         eddy_pos[prf.isel(profil=i).p_id.values] = e.track_id
         self.ds = self.ds.assign(eddy_pos=("profil", np.array(eddy_pos, dtype=np.int32)))
+        
+    def background(self, eddies, nlag, dlag): 
+        """ Define background profile for each eddies 
+        profiles are considered when they are in a window of nlag around the detection
+        date and at a maximum of dlag. 
+        
+        eddies is a EvolEddies2D object 
+        nlag is a number of day 
+        dlag is a distance expected in kilometers
+        """
+        assert hasattr(self.ds, "eddy_pos"), "Please associate eddies with profile before computing background"
+        ds_bck = self.ds.where(self.ds.eddy_pos==-1, drop= True)
+        for eddy in eddies.eddies:  # list of Eddies2D object object
+            tstart = eddy.time - np.timedelta64(nlag, "D")
+            tend = eddy.time + np.timedelta64(nlag, "D")
+            ind_prf = np.where((ds_bck.time >= tstart) & (ds_bck.time <= tend))[0]
+            prf_bck = ds_bck.isel(profil=ind_prf)
+            for e in eddy.eddies:            
+                dlon = prf_bck.lon - e.lon
+                dlat = prf_bck.lat - e.lat
+                dx = sgeo.deg2m(dlon, e.lat)
+                dy = sgeo.deg2m(dlat)
+                dxy = np.sqrt(dx**2 + dy**2)
+                e_prf_bck = prf_bck.where(dxy < 1000*dlag, drop = True)
+                e.bck_id = list(e_prf_bck.p_id.astype("int32").values)   
+

@@ -155,7 +155,7 @@ class Download:
         return cls(time, lat_min, lat_max, lon_min, lon_max, root_path, max_depth=max_depth)
 
 
-def load_from_ds(ds, root_path="/local/tmp/data"):
+def load_from_ds(ds, root_path="/local/tmp/data", max_depth=1000):
     """Load Argo profiles for a dataset's spatiotemporal extent
 
     Parameters
@@ -170,5 +170,5 @@ def load_from_ds(ds, root_path="/local/tmp/data"):
     xarray.Dataset
         Downloaded Argo profiles.
     """
-    do = Download.from_ds(ds, root_path)
+    do = Download.from_ds(ds, root_path, max_depth=max_depth)
     return do.profiles
