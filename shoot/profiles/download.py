@@ -6,7 +6,6 @@ Created on Thu Aug  19 10:21:12 2025
 @author: jbroust
 """
 
-import copernicusmarine as cm
 import logging
 import os
 import numpy as np
