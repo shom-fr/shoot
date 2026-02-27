@@ -96,8 +96,9 @@ class Download:
                 logger.info("Data already exists for year %s", year)
                 profiles_tmp = xr.open_dataset(path_tmp)
             else:
-                tmin = str(time.sel(time=str(year)).min().dt.strftime("%Y-%d-%m").values)
-                tmax = str(time.sel(time=str(year)).max().dt.strftime("%Y-%d-%m").values)
+                tmin = str(time.sel(time=str(year)).min().dt.strftime("%Y-%m-%d").values)
+                tmax = str(time.sel(time=str(year)).max().dt.strftime("%Y-%m-%d").values)
+                print(tmin,tmax)
                 profiles_tmp = self._load(tmin, tmax)
                 profiles_tmp.to_netcdf(path_tmp)
             if self.profiles:

@@ -44,13 +44,17 @@ def _iminc(profile, depth):
         if np.abs(depth[0]) > np.abs(depth[-1]):  # bottom to surf case
             maxd = ilmaxs[-2]
             maxs = ilmaxs[-1]
+            for l in ilmins:
+                if (l > maxd) and (l < maxs):
+                    pos_iminc = l
+                    break
         else:  # surface to bottom
             maxd = ilmaxs[1]
             maxs = ilmaxs[0]
-        for l in ilmins:
-            if (l > maxd) and (l < maxs):
-                pos_iminc = l
-                break
+            for l in ilmins:
+                if (l > maxs) and (l < maxd):
+                    pos_iminc = l
+                    break
     if pos_iminc:
         return depth[pos_iminc]
     else:
@@ -99,6 +103,9 @@ def get_ecs(cs):
     nx = len(cs[xdim])
     ny = len(cs[ydim])
     depth = smeta.get_depth(cs)
+    if len(depth.shape) == 1 : 
+        depth = depth.broadcast_like(cs)
+        
     ecs = xr.apply_ufunc(
         _get_ecs_wrapper_,
         cs,
@@ -143,6 +150,8 @@ def get_mcp(cs):
     nx = len(cs[xdim])
     ny = len(cs[ydim])
     depth = smeta.get_depth(cs)
+    if len(depth.shape) == 1 : 
+        depth = depth.broadcast_like(cs)
     mcp = xr.apply_ufunc(
         _get_mcp_wrapper_,
         cs,
@@ -188,6 +197,8 @@ def get_iminc(cs):
     nx = len(cs[xdim])
     ny = len(cs[ydim])
     depth = smeta.get_depth(cs)
+    if len(depth.shape) == 1 : 
+        depth = depth.broadcast_like(cs)
     iminc = xr.apply_ufunc(
         _get_iminc_wrapper_,
         cs,

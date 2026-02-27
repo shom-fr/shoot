@@ -935,6 +935,23 @@ class Eddies2D:
             min_radius,
         )
 
+    def transfer_eddy_attr(self, other_eddy, attr_name):
+        if len(self.eddies) == 0 : 
+            raise AssertionError("obj does not contains any Gridededdies")
+        if not hasattr(self.eddies[0], attr_name):
+            raise AttributeError(f"{attr_name} does not exists in parent")
+        if not hasattr(self.eddies[0], 'id'):
+            raise AttributeError(f"{id} does not exists in parent")
+        if not hasattr(other_eddy.eddies[0], 'id'):
+            raise AttributeError(f"{id} does not exists in child")
+        ids = [self.eddies[i].id for i in range(len(self.eddies))]
+        for eddy in other_eddy.eddies :
+            if eddy.id in ids : 
+                i = ids.index(eddy.id) 
+                setattr(eddy, attr_name, getattr(self.eddies[i], attr_name))
+            else : 
+                setattr(eddy, attr_name, None)
+
     @property
     def ds(self):
         # Check whether we have GriddedEddy2D or Eddy object
