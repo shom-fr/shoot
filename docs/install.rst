@@ -38,7 +38,7 @@ From sources
 
 Clone the repository::
 
-    $ git clone https://gitlab.com/GitShom/STM/shoot
+    $ git clone https://github.com/shom-fr/shoot.git
 
 Run the installation command from the root directory::
 

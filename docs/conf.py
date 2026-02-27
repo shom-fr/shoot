@@ -5,6 +5,7 @@
 
 import sys
 import os
+
 # import sphinx_autosummary_accessors
 import warnings
 from matplotlib import MatplotlibDeprecationWarning
@@ -14,12 +15,11 @@ sys.path.insert(0, os.path.abspath(".."))
 
 import shoot
 
-
 # %% Project information
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'Shom Ocean Objects Tracker'
-copyright = '2024, The Shom team'
+copyright = '2024-2026, The Shom team'
 author = 'The Shom team'
 version = shoot.__version__
 release = version
@@ -40,7 +40,7 @@ extensions = [
     'genlogos',
 ]
 
-templates_path = ['_templates'] #, sphinx_autosummary_accessors.templates_path]
+templates_path = ['_templates']  # , sphinx_autosummary_accessors.templates_path]
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 
@@ -54,7 +54,7 @@ html_theme_options = {
         "image_light": "_static/shoot-logo-light.png",
         "image_dark": "_static/shoot-logo-dark.png",
     },
-    "repository_url": "https://gitlab.com/GitShom/STM/shoot",
+    "repository_url": "https://github.com/shom-fr/shoot",
     "use_repository_button": True,
     "use_issues_button": True,
     "use_source_button": True,

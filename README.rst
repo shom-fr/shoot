@@ -14,13 +14,13 @@ Documentation
 -------------
 
 The shoot documentation:
-https://apps.shom.fr/shoot
+https://shoot.readthedocs.io
 
 Sources
 -------
 
 Sources are available on the shoot github page:
-https://gitlab.com/GitShom/STM/shoot
+https://github.com/shom-fr/shoot
 
 License
 -------

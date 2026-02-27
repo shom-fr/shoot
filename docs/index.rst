@@ -21,7 +21,7 @@
    lib
    metaspec
    contributing
-   Gitlab repository <https://gitlab.com/GitShom/STM/shoot>
+   Github repository <https://github.com/shom-fr/shoot>
 
 Indices and tables
 ------------------
