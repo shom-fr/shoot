@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Detect and Track eddies from satellite sea level
 ================================================
@@ -13,7 +12,8 @@ Detect and Track eddies from satellite sea level
 import os
 import tempfile
 import time
-import cmocean as cm
+
+import cmocean  # noqa
 import matplotlib.pyplot as plt
 import xarray as xr
 
@@ -67,7 +67,7 @@ eddies = EvolEddies2D.detect_eddies(
     paral=True,
 )
 end = time.time()
-print("Temps de calcul pour %i pas de temps : %.2f s" % (len(ds.time), end - start))
+print(f"Temps de calcul pour {len(ds.time)} pas de temps : {end - start:.2f} s")
 # %%
 # Tracking
 # ~~~~~~~~

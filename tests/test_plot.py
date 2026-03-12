@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for plotting utilities
 """
 
-import pytest
-import numpy as np
-from shoot.plot import plot_ellipse
 import matplotlib
+
+from shoot.plot import plot_ellipse
 
 matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Ocean dynamics utilities
 
@@ -8,10 +7,10 @@ vorticity, divergence, angular momentum, and geostrophic currents.
 """
 
 import math
-import numpy as np
-import numba
-import xarray as xr
 
+import numba
+import numpy as np
+import xarray as xr
 import xoa.coords as xcoords
 
 from . import grid as sgrid

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for contour utilities
 """
 
-import pytest
 import numpy as np
-from shoot.contours import interp_to_line, area
 import xarray as xr
+
+from shoot.contours import area, interp_to_line
 
 
 class TestInterpToLine:

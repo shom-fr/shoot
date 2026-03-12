@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Jan  9 13:24:21 2025
 
 @author: jbroust
 """
 
+import functools
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
-import functools
 from shapely.geometry import Polygon
 
 from .. import geo as sgeo

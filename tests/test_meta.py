@@ -1,11 +1,10 @@
 """Tests for shoot.meta module"""
 
-import pytest
 import numpy as np
+import pytest
 import xarray as xr
-from unittest.mock import patch
+
 import shoot.meta as smeta
-from shoot import ShootError
 
 
 @pytest.fixture

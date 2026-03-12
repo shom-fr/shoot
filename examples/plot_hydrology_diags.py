@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Profile anomalies diags
 =======================
@@ -7,21 +6,23 @@ Profile anomalies diags
 This example requires 3D dataset including depth dimension
 Hydrology anomalies can be performes in every 3D fields.
 """
+
 # %%
 # Initialisations
 # -----------------
 #
 # Import needed stuff.
 import time
+
 import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 
-from shoot.meta import set_meta_specs
+from shoot.dyn import get_relvort
 from shoot.eddies.eddies2d import Eddies2D
 from shoot.hydrology import Anomaly, compute_anomalies
+from shoot.meta import set_meta_specs
 from shoot.plot import create_map, pcarr
-from shoot.dyn import get_relvort
 from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")

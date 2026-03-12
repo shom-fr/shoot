@@ -1,7 +1,8 @@
 """Tests for shoot.geo module"""
 
-import pytest
 import numpy as np
+import pytest
+
 import shoot.geo as sgeo
 
 

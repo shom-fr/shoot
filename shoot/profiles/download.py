@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Aug  19 10:21:12 2025
 
@@ -8,10 +7,11 @@ Created on Thu Aug  19 10:21:12 2025
 
 import logging
 import os
-import numpy as np
 
+import numpy as np
 import xarray as xr
 from argopy import DataFetcher
+
 from .. import meta as smeta
 
 logger = logging.getLogger(__name__)

@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Aug  19 10:20:12 2025
 
 @author: jbroust
 """
 
-import os, glob
 import functools
-from .download import Download, load_from_ds
-import xarray as xr
+import os
+
 import numpy as np
-from .. import meta as smeta
+import xarray as xr
+
 from .. import geo as sgeo
+from .download import load_from_ds
 
 
 class Profile:
@@ -21,13 +21,13 @@ class Profile:
     def __init__(self, prf):
         # Extract scalar values for single-element arrays
         time_vals = prf.TIME.values
-        self.time = time_vals
+        self.time = time_vals[0] if time_vals.ndim > 0 and time_vals.size == 1 else time_vals
 
         lat_vals = prf.LATITUDE.values
-        self.lat = lat_vals
+        self.lat = float(lat_vals.flat[0]) if lat_vals.size >= 1 else lat_vals
 
         lon_vals = prf.LONGITUDE.values
-        self.lon = lon_vals
+        self.lon = float(lon_vals.flat[0]) if lon_vals.size >= 1 else lon_vals
 
         self.depth = np.arange(1, 2001)
         self.temp = np.interp(
@@ -121,7 +121,7 @@ class Profiles:
         times = np.array([prf.time for prf in self.profiles])
         temp = np.array([prf.temp for prf in self.profiles])
         sal = np.array([prf.sal for prf in self.profiles])
-        p_id = np.arange(0, len(lats),dtype="int32")
+        p_id = np.arange(0, len(lats), dtype="int32")
 
         ds = xr.Dataset(
             {
@@ -144,10 +144,7 @@ class Profiles:
         if not path:
             path = self.root_path
         if not name:
-            name = "profil_%i_%i.nc" % (
-                self.years[0],
-                self.years[-1],
-            )
+            name = f"profil_{self.years[0]}_{self.years[-1]}.nc"
         self.ds.to_netcdf(
             os.path.join(
                 path,
@@ -176,29 +173,30 @@ class Profiles:
                         e.p_id.append(prf.isel(profil=i).p_id.values)
                         eddy_pos[prf.isel(profil=i).p_id.values] = e.track_id
         self.ds = self.ds.assign(eddy_pos=("profil", np.array(eddy_pos, dtype=np.int32)))
-        
-    def background(self, eddies, nlag, dlag): 
-        """ Define background profile for each eddies 
+
+    def background(self, eddies, nlag, dlag):
+        """Define background profile for each eddies
         profiles are considered when they are in a window of nlag around the detection
-        date and at a maximum of dlag. 
-        
-        eddies is a EvolEddies2D object 
-        nlag is a number of day 
+        date and at a maximum of dlag.
+
+        eddies is a EvolEddies2D object
+        nlag is a number of day
         dlag is a distance expected in kilometers
         """
-        assert hasattr(self.ds, "eddy_pos"), "Please associate eddies with profile before computing background"
-        ds_bck = self.ds.where(self.ds.eddy_pos==-1, drop= True)
+        assert hasattr(self.ds, "eddy_pos"), (
+            "Please associate eddies with profile before computing background"
+        )
+        ds_bck = self.ds.where(self.ds.eddy_pos == -1, drop=True)
         for eddy in eddies.eddies:  # list of Eddies2D object object
             tstart = eddy.time - np.timedelta64(nlag, "D")
             tend = eddy.time + np.timedelta64(nlag, "D")
             ind_prf = np.where((ds_bck.time >= tstart) & (ds_bck.time <= tend))[0]
             prf_bck = ds_bck.isel(profil=ind_prf)
-            for e in eddy.eddies:            
+            for e in eddy.eddies:
                 dlon = prf_bck.lon - e.lon
                 dlat = prf_bck.lat - e.lat
                 dx = sgeo.deg2m(dlon, e.lat)
                 dy = sgeo.deg2m(dlat)
                 dxy = np.sqrt(dx**2 + dy**2)
-                e_prf_bck = prf_bck.where(dxy < 1000*dlag, drop = True)
-                e.bck_id = list(e_prf_bck.p_id.astype("int32").values)   
-
+                e_prf_bck = prf_bck.where(dxy < 1000 * dlag, drop=True)
+                e.bck_id = list(e_prf_bck.p_id.astype("int32").values)

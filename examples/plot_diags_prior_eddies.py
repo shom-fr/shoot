@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Diagnostics prior to eddy detection
 ===================================
@@ -10,12 +9,12 @@ Diagnostics prior to eddy detection
 # -----------------
 #
 # Import needed stuff.
-import os
 import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
+
+from shoot.dyn import get_geos, get_lnam, get_okuboweiss
 from shoot.grid import get_dx_dy
-from shoot.dyn import get_lnam, get_okuboweiss, get_geos
 from shoot.plot import create_map, pcarr
 from shoot.samples import get_sample_file
 
@@ -49,9 +48,7 @@ ugeos, vgeos = get_geos(ds.adt, dx=dx, dy=dy)
 # Compare them to dataset currents
 fig0, ax0 = create_map(ds.longitude, ds.latitude, figsize=(8, 5))
 kwqv = dict(units="dots", width=1, scale_units="dots", scale=1 / 20, transform=pcarr)
-ds.plot.quiver(
-    x="longitude", y="latitude", u="ugos", v="vgos", color="k", ax=ax0, label="dataset", **kwqv
-)
+ds.plot.quiver(x="longitude", y="latitude", u="ugos", v="vgos", color="k", ax=ax0, label="dataset", **kwqv)
 ax0.quiver(
     ds.longitude.values,
     ds.latitude.values,

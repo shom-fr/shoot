@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Metadata utilities for finding variables and coordinates using CF conventions
 
@@ -9,9 +8,9 @@ coordinates from xarray datasets using CF metadata conventions and custom specs.
 
 import os
 
-import xoa.meta as xmeta
 import xoa.coords as xcoords
 import xoa.dyn as xdyn
+import xoa.meta as xmeta
 import xoa.thermdyn as xthermdyn
 
 # from .__init__ import ShootError, shoot_warn

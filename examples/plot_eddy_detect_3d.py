@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Detect CROCO-MED1.8 eddies at different depths and link the detections
 ======================================================================
 
-In this example,  3D eddies are detected from CROCO model currents interpolated at several depths and collocated at RHO points.
+In this example, 3D eddies are detected from CROCO model currents interpolated at several depths
+and collocated at RHO points.
 """
+
 # %%
 # Initialisations
 # -----------------
 #
 # Import needed stuff.
-import cmocean
+import cmocean  # noqa
 import matplotlib.pyplot as plt
 import xarray as xr
 
-from shoot.meta import set_meta_specs
-from shoot.eddies.eddies3d import Eddies3D
-from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
+from shoot.eddies.eddies3d import Eddies3D
+from shoot.meta import set_meta_specs
+from shoot.plot import create_map, pcarr
 from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
@@ -88,7 +89,7 @@ for i in range(len(ds_3d.depth)):
         add_colorbar=False,
         transform=pcarr,
     )
-    plt.colorbar(cb, label = r"$\zeta$")
+    plt.colorbar(cb, label=r"$\zeta$")
 
     plt.quiver(
         ds_3d.lon_rho[::5, ::5].values,
@@ -105,9 +106,9 @@ for i in range(len(ds_3d.depth)):
         plt.text(
             eddy.glon,
             eddy.glat,
-            "%.i - %.2f m/s" % (eddy.z_id, eddy.vmax_contour.mean_velocity),
+            f"{eddy.z_id} - {eddy.vmax_contour.mean_velocity:.2f} m/s",
             transform=pcarr,
         )
 
-    plt.title("Relative vorticity at %i m depth" % ds_3d.isel(depth=i).depth)
+    plt.title(f"Relative vorticity at {ds_3d.isel(depth=i).depth} m depth")
     plt.tight_layout()

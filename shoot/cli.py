@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Command-line interface
 """
@@ -7,23 +6,22 @@ Command-line interface
 import argparse
 import logging
 
-import xarray as xr
-import pandas as pd
-import numpy as np
 import cf_xarray  # noqa
-import matplotlib.pyplot as plt
+import cmocean  # noqa
 import gsw
-import cmocean
-from matplotlib.colors import ListedColormap, BoundaryNorm
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import xarray as xr
+from matplotlib.colors import BoundaryNorm, ListedColormap
 
-from . import log as slog
-from .eddies import eddies2d as seddies
-from .eddies import track as strack
-from . import hydrology as shydrology
 from . import acoustic as sacoustic
-
+from . import hydrology as shydrology
+from . import log as slog
 from . import meta as smeta
 from . import plot as splot
+from .eddies import eddies2d as seddies
+from .eddies import track as strack
 
 # %% Main
 
@@ -66,7 +64,7 @@ def main():
     if hasattr(args, "func"):
         args.func(parser, args)
     elif hasattr(args, "subcommands"):
-        parser.exit(0, "please use one of the subcommands: " f"{args.subcommands}\n")
+        parser.exit(0, f"please use one of the subcommands: {args.subcommands}\n")
     else:
         parser.print_usage()
 

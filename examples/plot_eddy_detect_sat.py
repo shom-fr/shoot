@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Detect eddies from satellite sea level
 ======================================
@@ -10,8 +9,9 @@ Detect eddies from satellite sea level
 # -----------------
 
 # Import needed stuff.
-import os
 import time
+
+import cmocean  # noqa
 import matplotlib.pyplot as plt
 import xarray as xr
 
@@ -93,5 +93,5 @@ plt.quiver(
 for eddy in eddies.eddies:
     # for eddy in eddies_ssh:
     eddy.plot(transform=pcarr, lw=1)
-plt.title("w_center %i km, w_fit %ikm min_rad %ikm" % (window_center, window_fit, min_radius))
+plt.title(f"w_center {window_center} km, w_fit {window_fit}km min_rad {min_radius}km")
 plt.tight_layout()

@@ -1,7 +1,8 @@
 """Tests for shoot.fit module"""
 
-import pytest
 import numpy as np
+import pytest
+
 import shoot.fit as sfit
 import shoot.geo as sgeo
 
@@ -265,7 +266,7 @@ def test_ellipse_fitting_edge_cases():
     try:
         result = sfit.fit_ellipse_from_coords(lons, lats)
         assert isinstance(result, dict)
-    except:
+    except Exception:
         # It's acceptable for degenerate cases to fail
         pass
 

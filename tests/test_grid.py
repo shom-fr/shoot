@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for grid utilities
 """
 
-import pytest
 import numpy as np
 import xarray as xr
+
 from shoot.grid import get_dx_dy, get_wx_wy
 
 

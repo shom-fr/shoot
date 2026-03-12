@@ -1,29 +1,25 @@
 #!/usr/bin/env python
-# coding: utf-8
 """
 Open and analyse shoot output netcdf
 ====================================
 """
 
-import os
-import xarray as xr
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import cmocean as cm
 import cartopy.crs as ccrs
-
-pmerc = ccrs.Mercator()
-pcarr = ccrs.PlateCarree()
+import cmocean as cm
+import matplotlib.pyplot as plt
+import numpy as np
+import xarray as xr
 
 from shoot.num import points_in_polygon
 from shoot.plot import create_map, pcarr
 from shoot.samples import get_sample_file
 
+pmerc = ccrs.Mercator()
 
 # %%
 # Usefull function
 # ----------------
+
 
 def create_map_ax(
     lons,
@@ -108,7 +104,7 @@ cb = dss.adt.plot(
     transform=pcarr,
 )
 
-plt.colorbar(cb, label = "ADT [m]")
+plt.colorbar(cb, label="ADT [m]")
 
 nj = 1
 plt.quiver(
@@ -173,7 +169,6 @@ Xlons, Xlats = np.meshgrid(lons, lats)
 
 
 for i in range(len(shoot_anti.obs)):
-
     line = np.array(
         [
             shoot_anti.isel(obs=i).x_vmax_contour,

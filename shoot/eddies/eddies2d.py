@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 2D eddy detection and analysis
 
@@ -7,30 +6,31 @@ Functions and classes for detecting and analyzing mesoscale eddies from
 horizontal velocity fields using local angular momentum and contour methods.
 """
 
-import os, gc
-import psutil
 import functools
+import gc
 import json
 import logging
 import multiprocessing as mp
+import os
 from itertools import repeat
 
 import matplotlib.pyplot as plt
 import numpy as np
+import psutil
 import xarray as xr
 from scipy.interpolate import splev, splprep
 
-logger = logging.getLogger(__name__)
-
-from .. import meta as smeta
 from .. import contours as scontours
 from .. import dyn as sdyn
 from .. import fit as sfit
+from .. import geo as sgeo
 from .. import grid as sgrid
+from .. import meta as smeta
 from .. import num as snum
 from .. import plot as splot
 from .. import streamline as strl
-from .. import geo as sgeo
+
+logger = logging.getLogger(__name__)
 
 COLORS = {"anticyclone": "tab:red", "cyclone": "tab:blue", "undefined": "0.5"}
 
@@ -525,19 +525,18 @@ class GriddedEddy2D:
             "Liste_Points(lon/lat)\n",
         ]
         list_points = [
-            "%.4f/%.4f\n" % (lon, lat)
-            for lon, lat in zip(self.vmax_contour.lon_int, self.vmax_contour.lat_int)
+            f"{lon:.4f}/{lat:.4f}\n" for lon, lat in zip(self.vmax_contour.lon_int, self.vmax_contour.lat_int)
         ]
         lignes_tmp += list_points
         lignes_tmp += [
-            f"{'Surface(km2)':<38}{np.pi*self.ellipse.a*self.ellipse.b:<3.0f}\n",
-            f"{'Longueur(km)':<38}{2*self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
-            f"{'Largeur(km)':<38}{2*self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
+            f"{'Surface(km2)':<38}{np.pi * self.ellipse.a * self.ellipse.b:<3.0f}\n",
+            f"{'Longueur(km)':<38}{2 * self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
+            f"{'Largeur(km)':<38}{2 * self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
             f"{'Tendance':<38}{'-':<3}\n",
             f"{'Module_de_vitesse(m/s)':<38}{self.vmax_contour.mean_velocity:<3.3f}\n",
             f"{'Orientation/E(deg)':<38}{self.ellipse.angle:<3.1f}\n",
             f"{'Centre(lon/lat)':<38}{f'{self.lon:.4f}/{self.lat:.4f}':<3}\n"
-            f"{'Sens_de_rotation':<38}{self.eddy_type.capitalize()[:-1]+'ique':<3}\n",
+            f"{'Sens_de_rotation':<38}{self.eddy_type.capitalize()[:-1] + 'ique':<3}\n",
             f"{'Valeur_pointee_interieure(lon/lat)':<38}{'-':<3}\n",
             f"{'Valeur_pointee_exterieure(lon/lat)':<38}{'-':<3}\n",
             f"{'Profil_hydro_interieur(lon/lat)':<38}{'-':<3}\n",
@@ -822,7 +821,7 @@ class Eddies2D:
         xdim = smeta.get_xdim(u)
         ydim = smeta.get_ydim(u)
 
-        if not type(xdim) == str:
+        if not isinstance(xdim, str):
             xdim = xdim[0]
             ydim = ydim[0]
 
@@ -894,7 +893,7 @@ class Eddies2D:
 
             ind_good = []
             for i, eddy in enumerate(eddies_tmp):
-                if not eddy is None:
+                if eddy is not None:
                     if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
                         eddies.append(eddy)
                     else:

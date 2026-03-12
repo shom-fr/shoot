@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Sample data management
 
@@ -7,6 +6,7 @@ Functions for downloading and accessing example datasets via pooch.
 """
 
 import os
+
 import pooch
 
 pooch.get_logger().setLevel("DEBUG")

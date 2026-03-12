@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Acoustic analysis functions
 
@@ -6,10 +5,11 @@ Functions for computing acoustic parameters from sound speed profiles.
 """
 
 import functools
-import numpy as np
-from scipy.signal import argrelmax, argrelmin
+
 import numba
+import numpy as np
 import xarray as xr
+from scipy.signal import argrelmax, argrelmin
 
 from . import meta as smeta
 
@@ -44,16 +44,16 @@ def _iminc(profile, depth):
         if np.abs(depth[0]) > np.abs(depth[-1]):  # bottom to surf case
             maxd = ilmaxs[-2]
             maxs = ilmaxs[-1]
-            for l in ilmins:
-                if (l > maxd) and (l < maxs):
-                    pos_iminc = l
+            for idx in ilmins:
+                if (idx > maxd) and (idx < maxs):
+                    pos_iminc = idx
                     break
         else:  # surface to bottom
             maxd = ilmaxs[1]
             maxs = ilmaxs[0]
-            for l in ilmins:
-                if (l > maxs) and (l < maxd):
-                    pos_iminc = l
+            for idx in ilmins:
+                if (idx > maxs) and (idx < maxd):
+                    pos_iminc = idx
                     break
     if pos_iminc:
         return depth[pos_iminc]
@@ -349,7 +349,7 @@ class AcousEddy:
         elif e1 == 0 and e2 == 0:
             return 0
         else:
-            return np.abs(e1 - e2) / np.abs((0.5 * (e1 + e2)))
+            return np.abs(e1 - e2) / np.abs(0.5 * (e1 + e2))
 
     @functools.cached_property
     def acoustic_impact(self):
