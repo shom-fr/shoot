@@ -1,0 +1,3 @@
+eval "$(/local/tmp/jbroust/Soft/conda3-shoot/bin/conda shell.posix hook)"
+conda activate  /local/tmp/jbroust/Soft/conda3-shoot
+/local/tmp/jbroust/Soft/conda3-shoot/bin/python3.11 -Xfrozen_modules=off -m spyder_kernels.console -f /home/shom/jbroust/.local/share/jupyter/runtime/kernel-407d95271d71.json

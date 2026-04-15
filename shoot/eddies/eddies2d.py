@@ -450,7 +450,6 @@ class GriddedEddy2D:
 
         lon = dsv.lon.values[ok]
         lat = dsv.lat.values[ok]
-
         t = np.linspace(0, 1, len(lon))
         spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
         spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
