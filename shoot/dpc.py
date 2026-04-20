@@ -12,7 +12,6 @@ import numpy as np
 from .hydrology import Field2D
 
 
-
 class DPCEddy:
     """DPC based acoustic analysis for an eddy 
 
