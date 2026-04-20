@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import psutil
 import xarray as xr
-from scipy.interpolate import splev, splprep
+from scipy.interpolate import make_interp_spline
 
 from .. import contours as scontours
 from .. import dyn as sdyn
@@ -371,11 +371,20 @@ class GriddedEddy2D:
                 dsb = ds
         ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
         ok = np.concatenate([ok, [len(dsb.lon) - 1]])
-        try:
-            tck, u = splprep([dsb.lon[ok], dsb.lat[ok]], s=0, per=1)  # avoid repeated values
-        except ValueError:
-            logger.warning("Potential point redundancy issue in boundary contour interpolation")
-        xy_int = splev(np.linspace(0, 1, 50), tck)
+
+        lon = dsb.lon.values[ok]
+        lat = dsb.lat.values[ok]
+        
+        # paramètre (équivalent de u)
+        t = np.linspace(0, 1, len(lon))
+        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
+        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
+        t_new = np.linspace(0, 1, 50)
+        lon_int = spl_lon(t_new)
+        lat_int = spl_lat(t_new)
+        
+        xy_int = [lon_int, lat_int]
+        
         dsb["lon_int"] = xy_int[0]
         dsb["lat_int"] = xy_int[1]
         return dsb
@@ -438,8 +447,17 @@ class GriddedEddy2D:
                 dsv = ds
         ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
         ok = np.concatenate([ok, [len(dsv.lon) - 1]])
-        tck, u = splprep([dsv.lon[ok], dsv.lat[ok]], s=0)
-        xy_int = splev(np.linspace(0, 1, 50), tck)
+
+        lon = dsv.lon.values[ok]
+        lat = dsv.lat.values[ok]
+        t = np.linspace(0, 1, len(lon))
+        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
+        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
+        t_new = np.linspace(0, 1, 50)
+        lon_int = spl_lon(t_new)
+        lat_int = spl_lat(t_new)
+        xy_int = [lon_int, lat_int]
+
         dsv["lon_int"] = xy_int[0]
         dsv["lat_int"] = xy_int[1]
         return dsv

@@ -14,6 +14,219 @@ from . import meta as smeta
 from . import num as snum
 
 
+class Field2D:
+    """Compute 2D inside and outside position of an eddy
+
+    Parameters
+    ----------
+    eddy : RawEddy2D
+        Eddy object with location and contour information.
+    eddies : Eddies2D
+        Collection of all eddies (to exclude from background).
+    ds : xarray.DataArray/Dataset
+        grid where computation will be performed
+    r_factor : float, default 1.2
+        Radius factor for selecting outside profiles.
+    """
+
+    def __init__(self, eddy, eddies, ds,  r_factor=1.2):
+
+        self.lon = eddy.lon
+        self.lat = eddy.lat
+        self.eddy = eddy
+        if hasattr(eddy, "boundary_contour"):
+            self.radius = eddy.boundary_contour.radius  # eddy.vmax_contour.radius  # eddy.radius in meters
+        else:
+            self.radius = eddy.eff_radius  # boundary contour radius in meters
+
+        self.ds = ds
+
+        self.xdim = smeta.get_xdim(self.ds, errors="raise")
+        self.ydim = smeta.get_ydim(self.ds, errors="raise")
+        self._jmax = len(self.ds[self.xdim])
+        self._imax = len(self.ds[self.ydim])
+        self._r = r_factor
+        self.eddies = eddies  # The whole eddies file
+
+
+    @functools.cached_property
+    def _dist(self):
+        lon_name = smeta.get_lon(self.ds).name
+        lat_name = smeta.get_lat(self.ds).name
+        dist = np.sqrt((self.ds[lon_name] - self.lon) ** 2 + (self.ds[lat_name] - self.lat) ** 2)
+        # dist = dist.transpose(lat_name, lon_name)
+        if len(self.ds[lon_name].dims) == 1:
+            dim_x = self.ds[lon_name].dims[0]
+            dim_y = self.ds[lat_name].dims[0]
+            dist = dist.transpose(dim_y, dim_x)
+        return dist.values
+
+    @property
+    def _i(self):
+        # return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[0]
+        return np.unravel_index(np.argmin(self._dist), self._dist.shape)[0]
+
+    @property
+    def _j(self):
+        # return np.unravel_index(np.argmin(self._dist), self.dens[lon_name].shape)[1]
+        return np.unravel_index(np.argmin(self._dist), self._dist.shape)[1]
+
+    @functools.cached_property
+    def profil_inside(self):
+        return self.ds.isel({self.xdim: self._j, self.ydim: self._i})
+
+    def is_inside(self, x, y):
+        """Test if grid points are inside the eddy maximum velocity contour
+
+        Parameters
+        ----------
+        x : array-like
+            Grid indices along X.
+        y : array-like
+            Grid indices along Y.
+
+        Returns
+        -------
+        ndarray of bool
+            True for points inside the eddy contour.
+        """
+        if len(smeta.get_lon(self.ds).shape) == 1:
+            lon = [smeta.get_lon(self.ds).isel({self.xdim: xi}) for xi in x]
+        else:
+            lon = [smeta.get_lon(self.ds).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
+        if len(smeta.get_lat(self.ds).shape) == 1:
+            lat = [smeta.get_lat(self.ds).isel({self.ydim: yi}) for yi in y]
+        else:
+            lat = [smeta.get_lat(self.ds).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
+        points = np.array([lon, lat]).T
+
+        if hasattr(self.eddy, "x_vmax"):
+            xx = self.eddy.x_vmax
+            yy = self.eddy.y_vmax
+        else:
+            xx = self.eddy.vmax_contour.lon
+            yy = self.eddy.vmax_contour.lat
+        result = snum.points_in_polygon(points, np.array([xx, yy]).T)
+        return result
+
+    def _xy(self, r):
+        dx, dy = sgrid.get_dx_dy(self.ds)
+        dxm = np.nanmean(dx)
+        dym = np.nanmean(dy)
+        nx = int(r * self.radius / dxm)
+        ny = int(r * self.radius / dym)
+
+        stepx = max(int(2 * nx / 10), 1)
+        stepy = max(int(2 * ny / 10), 1)
+
+        X = np.arange(max(self._j - nx, 0), min(self._j + nx, self._jmax - 1) + 1, stepx)
+        Y = np.arange(max(self._i - ny, 0), min(self._i + ny, self._imax - 1) + 1, stepy)
+
+        X, Y = np.meshgrid(X, Y)
+        X = X.flatten()
+        Y = Y.flatten()
+        return X, Y
+
+    @functools.cached_property
+    def _xy_inside(self):
+        X, Y = self._xy(self._r)
+        # test validy
+        valids = self.is_inside(X, Y)
+        X = [X[i] for i in range(len(X)) if valids[i]]
+        Y = [Y[i] for i in range(len(Y)) if valids[i]]
+        return (X, Y)
+
+    @functools.cached_property
+    def ds_inside(self):
+        X = self._xy_inside[0]
+        Y = self._xy_inside[1]
+
+        return self.ds.isel(
+            {
+                self.xdim: xr.DataArray(
+                    X,
+                    dims="nb_profil",
+                ),
+                self.ydim: xr.DataArray(
+                    Y,
+                    dims="nb_profil",
+                ),
+            }
+        )
+
+    def is_valid(self, x, y):
+        """Test if grid points are outside all eddy boundary contours
+
+        Used to select background (outside) profiles that are not
+        contaminated by any eddy.
+
+        Parameters
+        ----------
+        x : array-like
+            Grid indices along X.
+        y : array-like
+            Grid indices along Y.
+
+        Returns
+        -------
+        ndarray of bool
+            True for points outside all eddy contours.
+        """
+        if len(smeta.get_lon(self.ds).shape) == 1:
+            lon = [smeta.get_lon(self.dens).isel({self.xdim: xi}) for xi in x]
+        else:
+            lon = [smeta.get_lon(self.ds).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
+        if len(smeta.get_lat(self.ds).shape) == 1:
+            lat = [smeta.get_lat(self.ds).isel({self.ydim: yi}) for yi in y]
+        else:
+            lat = [smeta.get_lat(self.ds).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
+        points = np.array([lon, lat]).T
+        result = np.ones(len(x)) * True
+        for eddy in self.eddies.eddies:
+            if hasattr(eddy, "x_eff"):
+                xx = eddy.x_eff
+                yy = eddy.y_eff
+            else:
+                xx = eddy.boundary_contour.lon
+                yy = eddy.boundary_contour.lat
+            result *= np.invert(snum.points_in_polygon(points, np.array([xx, yy]).T))
+        return result
+
+    @functools.cached_property
+    def _xy_outside(self):
+        test = True
+        r = self._r
+        while test:  # increase r factor if no outside point found
+            X, Y = self._xy(r)
+            # test validy
+            valids = self.is_valid(X, Y)
+            X = [X[i] for i in range(len(X)) if valids[i]]
+            Y = [Y[i] for i in range(len(Y)) if valids[i]]
+            if len(X) > 0 and len(Y) > 0:
+                test = False
+            else:
+                r *= 2
+        return (X, Y)
+
+    @functools.cached_property
+    def ds_outside(self):
+        X = self._xy_outside[0]
+        Y = self._xy_outside[1]
+        return self.ds.isel(
+            {
+                self.xdim: xr.DataArray(
+                    X,
+                    dims="nb_profil",
+                ),
+                self.ydim: xr.DataArray(
+                    Y,
+                    dims="nb_profil",
+                ),
+            }
+        )
+
+
+
 class Anomaly:
     """Compute 3D anomalies inside and outside an eddy
 

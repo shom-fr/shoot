@@ -295,7 +295,7 @@ def main_eddies_detect(parser, args):
         logger.debug("Plotting detections")
         if args.all:
             ds = ds.isel({time.name: 0})
-        fig, ax = splot.create_map(ds.cf["longitude"], ds.cf["latitude"], figsize=(8, 5))
+        fig, ax = splot.create_map(smeta.get_lon(u), smeta.get_lat(u), figsize=(8, 5))
         ds.adt.plot(
             ax=ax,
             transform=splot.pcarr,
@@ -306,8 +306,8 @@ def main_eddies_detect(parser, args):
 
         if args.all:
             plt.quiver(
-                ds.cf["longitude"].values,
-                ds.cf["latitude"].values,
+                smeta.get_lon(u),
+                smeta.get_lat(u),
                 u[0].values,
                 v[0].values,
                 transform=splot.pcarr,
@@ -316,8 +316,8 @@ def main_eddies_detect(parser, args):
                 eddy.plot(transform=splot.pcarr, lw=1)
         else:
             plt.quiver(
-                ds.cf["longitude"].values,
-                ds.cf["latitude"].values,
+                smeta.get_lon(u).values,
+                smeta.get_lat(u).values,
                 u.values,
                 v.values,
                 transform=splot.pcarr,
@@ -449,7 +449,7 @@ def main_eddies_track(parser, args):
         logger.debug("Plotting detections")
         ds = ds.isel({time.name: -1})
         u, v, _ = _get_uv_ssh(args, ds)
-        fig, ax = splot.create_map(ds.cf["longitude"], ds.cf["latitude"], figsize=(8, 5))
+        fig, ax = splot.create_map(smeta.get_lon(u), smeta.get_lat(u), figsize=(8, 5))
         ds.adt.plot(
             ax=ax,
             transform=splot.pcarr,
@@ -458,8 +458,8 @@ def main_eddies_track(parser, args):
             alpha=0.6,
         )
         plt.quiver(
-            ds.cf["longitude"].values,
-            ds.cf["latitude"].values,
+            smeta.get_lon(u),
+            smeta.get_lat(u),
             u.values,
             v.values,
             transform=splot.pcarr,

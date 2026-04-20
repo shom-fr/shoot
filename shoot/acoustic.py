@@ -499,3 +499,4 @@ def acoustic_points(eddies):
         eddy.mcp_insides = acous.mcp_insides
         eddy.mcp_outsides = acous.mcp_outsides
         eddy.acoustic_impact = acous.acoustic_impact
+
