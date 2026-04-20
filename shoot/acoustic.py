@@ -316,29 +316,29 @@ class AcousEddy:
         """
         self.anomaly = anomaly
 
-    @functools.cached_property
-    def ecs_inside(self):
-        return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).ecs
+    # @functools.cached_property
+    # def ecs_inside(self):
+    #     return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).ecs
 
-    @functools.cached_property
-    def iminc_inside(self):
-        return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).iminc
+    # @functools.cached_property
+    # def iminc_inside(self):
+    #     return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).iminc
 
-    @functools.cached_property
-    def mcp_inside(self):
-        return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).mcp
+    # @functools.cached_property
+    # def mcp_inside(self):
+    #     return ProfileAcous(self.anomaly.mean_profil_inside, self.anomaly.depth_vector).mcp
 
-    @functools.cached_property
-    def ecs_outside(self):
-        return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).ecs
+    # @functools.cached_property
+    # def ecs_outside(self):
+    #     return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).ecs
 
-    @functools.cached_property
-    def iminc_outside(self):
-        return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).iminc
+    # @functools.cached_property
+    # def iminc_outside(self):
+    #     return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).iminc
 
-    @functools.cached_property
-    def mcp_outside(self):
-        return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).mcp
+    # @functools.cached_property
+    # def mcp_outside(self):
+    #     return ProfileAcous(self.anomaly.mean_profil_outside, self.anomaly.depth_vector).mcp
 
     @staticmethod
     def _distance(e1, e2):
@@ -354,17 +354,14 @@ class AcousEddy:
     @functools.cached_property
     def acoustic_impact(self):
         ecs_in = self.ecs_inside
-        mcp_in = self.mcp_inside
         iminc_in = self.iminc_inside
         ecs_out = self.ecs_outside
-        mcp_out = self.mcp_outside
         iminc_out = self.iminc_outside
 
-        d_mcp = AcousEddy._distance(mcp_in, mcp_out)
         d_iminc = AcousEddy._distance(iminc_in, iminc_out)
         d_ecs = AcousEddy._distance(ecs_in, ecs_out)
 
-        return d_mcp + d_iminc + d_ecs
+        return d_iminc + d_ecs
 
     @functools.cached_property
     def ecs_insides(self):
@@ -473,6 +470,30 @@ class AcousEddy:
             coords=dict(lon_rho=(["nb_profil"], lon), lat_rho=(["nb_profil"], lat)),
         )
         return iminc
+
+    @functools.cached_property
+    def ecs_inside(self):
+        return self.ecs_insides.mean(dim="nb_profil") if np.sum(np.isnan(self.ecs_insides))<0.5*len(self.ecs_insides) else np.nan 
+
+    @functools.cached_property
+    def iminc_inside(self):
+        return self.iminc_insides.mean(dim="nb_profil") if np.sum(np.isnan(self.iminc_insides))<0.5*len(self.iminc_insides) else np.nan 
+
+    @functools.cached_property
+    def mcp_inside(self):
+        return self.mcp_insides.mean(dim="nb_profil") if np.sum(np.isnan(self.mcp_insides))<0.5*len(self.mcp_insides) else np.nan 
+
+    @functools.cached_property
+    def ecs_outside(self):
+        return self.ecs_outsides.mean(dim="nb_profil") if np.sum(np.isnan(self.ecs_outsides))<0.5*len(self.ecs_outsides) else np.nan 
+
+    @functools.cached_property
+    def iminc_outside(self):
+        return self.iminc_outsides.mean(dim="nb_profil") if np.sum(np.isnan(self.iminc_outsides))<0.5*len(self.iminc_outsides) else np.nan 
+
+    @functools.cached_property
+    def mcp_outside(self):
+        return self.mcp_outsides.mean(dim="nb_profil") if np.sum(np.isnan(self.mcp_outsides))<0.5*len(self.mcp_outsides) else np.nan 
 
 
 def acoustic_points(eddies):
