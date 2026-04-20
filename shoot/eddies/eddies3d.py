@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Wed Jul  3 15:39:51 2024 by jbroust
 """
 
 import functools
-import numpy as np
+
 import matplotlib.pyplot as plt
+import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-
-from .. import geo as sgeo
-from . import eddies2d
-from .. import plot as splot
 from .. import dyn as sdyn
+from .. import geo as sgeo
 from .. import meta as smeta
+from .. import plot as splot
+from . import eddies2d
 
 
 class Associate:
@@ -61,7 +60,7 @@ class Associate:
         for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
             Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_contour.radius
             n += 1
-        # print('Dij components', self._C*(1+self._Dt)/2, Ravg/n/1e3 , eddyi.vmax_contour.radius/1e3, eddyi.radius)
+        # print('Dij components', self._C*(1+self._Dt)/2, Ravg/n/1e3, eddyi.vmax_contour.radius/1e3)
         Dij = self._C * (1 + self._Dt) / 2 + Ravg / n + eddyi.vmax_contour.radius
         return Dij
 

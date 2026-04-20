@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Rossby radius utilities
 
 Functions for accessing first baroclinic Rossby radius climatology.
 """
 
-from scipy.io import loadmat
 import numpy as np
 import xarray as xr
+from scipy.io import loadmat
 
 LATS = ['Lat', 'lat', 'Lat_Rd', 'lat_Rd']
 LONS = ['Lon', 'lon', 'Lon_Rd', 'lon_Rd']

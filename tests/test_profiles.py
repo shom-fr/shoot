@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for profile utilities
 """
 
-import pytest
 import numpy as np
 import xarray as xr
+
 from shoot.profiles.profiles import Profile
 
 

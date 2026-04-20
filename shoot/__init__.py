@@ -4,8 +4,8 @@ import warnings
 
 import xoa
 
+from . import eddies as eddies
 from . import meta as smeta
-from . import eddies
 
 try:
     from ._version import version as __version__

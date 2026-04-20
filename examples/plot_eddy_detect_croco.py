@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Detect CROCO-GIGATL1 eddies at 1000m
 ====================================
-In this example, eddies are detected from CROCO model currents interpolated to 1000 m and collocated at RHO points.
+In this example, eddies are detected from CROCO model currents interpolated to 1000 m
+and collocated at RHO points.
 
 """
+
 # %%
 # Initialisations
 # -----------------
 #
 # Import needed stuff.
-import cmocean as cm
 import time
+
+import cmocean as cm
 import matplotlib.pyplot as plt
 import xarray as xr
 
-from shoot.meta import set_meta_specs
-from shoot.eddies.eddies2d import Eddies2D
-from shoot.plot import create_map, pcarr
 from shoot.dyn import get_relvort
+from shoot.eddies.eddies2d import Eddies2D
+from shoot.meta import set_meta_specs
+from shoot.plot import create_map, pcarr
 from shoot.samples import get_sample_file
 
 xr.set_options(display_style="text")
@@ -72,7 +74,7 @@ eddies = Eddies2D.detect_eddies(
     ellipse_error=ellipse_error,
 )
 end = time.time()
-print("Number of detected eddies %i in %.1f s" % (len(eddies.eddies), end - start))
+print(f"Number of detected eddies {len(eddies.eddies)} in {end - start:.1f} s")
 
 # %%
 # Plots

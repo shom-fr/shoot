@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Hydrologic functions
 
@@ -10,8 +9,8 @@ import functools
 import numpy as np
 import xarray as xr
 
-from . import meta as smeta
 from . import grid as sgrid
+from . import meta as smeta
 from . import num as snum
 
 
@@ -262,7 +261,7 @@ class Anomaly:
             self.radius = eddy.eff_radius  # boundary contour radius in meters
 
         self.dens = dens.squeeze()
-        if not depth is None:
+        if depth is not None:
             self.depth = depth.squeeze()
         else:
             self.depth = smeta.get_depth(dens).squeeze()
@@ -595,7 +594,6 @@ class Anomaly:
         if np.isnan(self.anomaly).all():
             return None
         if self.eddy_type:
-
             if self.eddy.eddy_type == "anticyclone":
                 icore = np.nanargmin(self.anomaly.values)
             else:

@@ -5,8 +5,8 @@ Functions for computing streamfunctions from velocity fields.
 """
 
 import numpy as np
-from scipy.integrate import cumulative_trapezoid
 import xarray as xr
+from scipy.integrate import cumulative_trapezoid
 
 from . import geo as sgeo
 from . import meta as smeta
@@ -98,7 +98,7 @@ def psi(u, v):
         ]
     )
 
-    ### ---------- yx integration ------------- ## il faudra inverser les signes sur les integration en variable neg
+    ### ---------- yx integration ------------- # TODO: inverser les signes (integration en variable neg)
 
     cy1 = -cumulative_trapezoid(u[cj:, ci], y[cj:, ci], initial=0)
     cy2 = -cumulative_trapezoid(u[cj::-1, ci], y[cj::-1, ci])

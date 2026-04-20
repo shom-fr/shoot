@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for eddy association
 """
 
-import pytest
-import numpy as np
 from shoot.eddies.associate import Associate
 
 

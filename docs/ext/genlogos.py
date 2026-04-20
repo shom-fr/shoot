@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 To generate the shoot logos
 """
-import os
-import logging
 
-import matplotlib
-import matplotlib.pyplot as plt
+import logging
+import os
+
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
 
 shomlightblue = (90, 194, 231)

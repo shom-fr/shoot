@@ -1,9 +1,11 @@
 """Tests for shoot.acoustic module"""
 
-import pytest
-import numpy as np
-import xarray as xr
 from unittest.mock import MagicMock
+
+import numpy as np
+import pytest
+import xarray as xr
+
 import shoot.acoustic as sacoustic
 
 

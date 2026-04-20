@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Thu Jan  9 13:24:21 2025
 
@@ -11,8 +10,8 @@ import logging
 
 import numpy as np
 import xarray as xr
-from scipy.optimize import linear_sum_assignment
 import xoa.geo as xgeo
+from scipy.optimize import linear_sum_assignment
 
 from .. import geo as sgeo
 from . import eddies2d as seddies
@@ -88,7 +87,7 @@ class Associate:
         for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
             Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_contour.radius
             n += 1
-        # print('Dij components', self._C*(1+self._Dt)/2, Ravg/n/1e3 , eddyi.vmax_contour.radius/1e3, eddyi.radius)
+        # print('Dij components', self._C*(1+self._Dt)/2, Ravg/n/1e3, eddyi.vmax_contour.radius/1e3)
         Dij = self._C * (1 + self._Dt) / 2 + Ravg / n + eddyi.vmax_contour.radius
         return Dij
 
@@ -333,10 +332,10 @@ class Track:
         Tc,
         C=6.5 * 1e3 / 86400,  # 6.5 km.day in m/s
     ):
-        self.eddies = [eddy] if not type(eddy) == list else eddy
+        self.eddies = [eddy] if not isinstance(eddy, list) else eddy
         self.number = number
         self.active = True
-        self.times = [time] if not type(time) == list else time
+        self.times = [time] if not isinstance(time, list) else time
         self._dt = dt
         self._Tc = Tc
         self._C = C

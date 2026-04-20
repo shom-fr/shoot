@@ -1,7 +1,8 @@
 """Tests for shoot.num module"""
 
-import pytest
 import numpy as np
+import pytest
+
 import shoot.num as snum
 
 
@@ -23,8 +24,8 @@ class TestPointsInPolygon:
         result_outside = snum.points_in_polygon(point_outside, polygon)
         result_vertex = snum.points_in_polygon(point_on_vertex, polygon)
 
-        assert result_inside == True
-        assert result_outside == False
+        assert result_inside
+        assert not result_outside
         # Point on vertex behavior can vary by implementation
         assert isinstance(result_vertex, (bool, np.bool_))
 
@@ -40,8 +41,8 @@ class TestPointsInPolygon:
         result_inside = snum.points_in_polygon(point_inside, polygon)
         result_outside = snum.points_in_polygon(point_outside, polygon)
 
-        assert result_inside == True
-        assert result_outside == False
+        assert result_inside
+        assert not result_outside
 
     def test_points_in_polygon_complex_shape(self):
         """Test point in polygon for a more complex shape"""
@@ -57,9 +58,9 @@ class TestPointsInPolygon:
         result_upper = snum.points_in_polygon(point_inside_upper, polygon)
         result_outside = snum.points_in_polygon(point_outside, polygon)
 
-        assert result_lower == True
-        assert result_upper == True
-        assert result_outside == False
+        assert result_lower
+        assert result_upper
+        assert not result_outside
 
     def test_points_in_polygon_edge_case(self):
         """Test point exactly on polygon edge"""

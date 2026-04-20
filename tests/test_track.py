@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for eddy tracking
 """
 
-import pytest
 import numpy as np
+
 from shoot.eddies.track import Track
 
 
@@ -107,7 +106,7 @@ class TestTrack:
 
         for i in range(1, 5):
             new_eddy = MockEddy(10.0 + i * 0.1, 42.0 + i * 0.1)
-            new_time = np.datetime64(f"2024-01-0{i+1}")
+            new_time = np.datetime64(f"2024-01-0{i + 1}")
             track.update(new_eddy, new_time)
 
         assert len(track.eddies) == 5

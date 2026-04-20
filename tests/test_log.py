@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for logging utilities
 """
 
-import pytest
-import logging
 import argparse
+import logging
+
 from shoot.log import (
-    setup_logging,
-    add_logging_parser_arguments,
-    add_log_level_parser_arguments,
     DEFAULT_LOGGING_CONFIG,
+    add_log_level_parser_arguments,
+    add_logging_parser_arguments,
+    setup_logging,
 )
 
 

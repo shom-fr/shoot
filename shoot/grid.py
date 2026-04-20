@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Grid utilities for computing spatial resolutions and window sizes
 """
@@ -43,8 +42,6 @@ def get_dx_dy(da, dx=None, dy=None):
     dlaty = np.gradient(lat2d.values, axis=-2)
 
     # cf = smeta.get_cf_specs()
-    kw = dict(format_coords=False, rename_dims=False)
-
     if dx is None:
         dx = sgeo.deg2m(dlonx, lat2d.values) ** 2
         dx += sgeo.deg2m(dlatx) ** 2

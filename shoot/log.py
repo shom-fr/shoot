@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Logging utilities
 """
 
 import logging.config
+
+try:
+    import colorlog as _colorlog  # noqa: F401
+
+    _COLORLOG_AVAILABLE = True
+except ImportError:
+    _COLORLOG_AVAILABLE = False
 
 DEFAULT_LOGGING_CONFIG = {
     "version": 1,
@@ -64,7 +70,7 @@ def setup_logging(console_level=None, to_file=True, no_color=False, show_init_ms
         fconfig = logging_config["handlers"]["file"]
         if isinstance(to_file, str):
             fconfig["filename"] = to_file
-    if no_color:
+    if no_color or not _COLORLOG_AVAILABLE:
         logging_config["handlers"]["console"]["formatter"] = "brief_no_color"
 
     # Update config

@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Contouring utilities
 
 Functions for extracting and analyzing closed contours from 2D fields.
 """
 
-import numpy as np
 import contourpy as cpy
+import numpy as np
 import scipy.ndimage as scin
 import xarray as xr
 
+from . import geo as sgeo
 from . import meta as smeta
 from . import num as snum
-from . import geo as sgeo
 
 
 def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):

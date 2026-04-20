@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Tests for streamline calculations
 """
 
-import pytest
 import numpy as np
 import xarray as xr
+
 from shoot.streamline import psi
 
 
