@@ -75,7 +75,9 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
 
     # Find local peaks
     wx, wy = sgrid.get_wx_wy(window, dxm, dym)  ## WARNING IT HAS BEEN MODIFIED
-    minima, maxima = snum.find_signed_peaks_2d(lnam.values, wx, wy, paral=paral)
+    minima, maxima = snum.find_signed_peaks_2d(
+        lnam.values, wx, wy, paral=paral
+    )
     extrema = np.vstack((minima, maxima))
     ii = extrema[:, 0]
     jj = extrema[:, 1]
@@ -151,7 +153,10 @@ class Ellipse:
         )
         self.fit_error = fit
         self.radius = np.sqrt(self.a * self.b)
-        self.length = np.pi * (3 * (self.a + self.b) - np.sqrt((3 * self.a + self.b) * (self.a + 3 * self.b)))
+        self.length = np.pi * (
+            3 * (self.a + self.b)
+            - np.sqrt((3 * self.a + self.b) * (self.a + 3 * self.b))
+        )
 
     @classmethod
     def from_coords(cls, lons, lats):
@@ -369,22 +374,24 @@ class GriddedEddy2D:
         for ds in self.contours:
             if ds.length > dsb.length:
                 dsb = ds
-        ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
+        ok = np.where(
+            np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10
+        )[0]
         ok = np.concatenate([ok, [len(dsb.lon) - 1]])
 
         lon = dsb.lon.values[ok]
         lat = dsb.lat.values[ok]
-        
+
         # paramètre (équivalent de u)
         t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
+        spl_lon = make_interp_spline(t, lon, k=3, bc_type="periodic")
+        spl_lat = make_interp_spline(t, lat, k=3, bc_type="periodic")
         t_new = np.linspace(0, 1, 50)
         lon_int = spl_lon(t_new)
         lat_int = spl_lat(t_new)
-        
+
         xy_int = [lon_int, lat_int]
-        
+
         dsb["lon_int"] = xy_int[0]
         dsb["lat_int"] = xy_int[1]
         return dsb
@@ -445,14 +452,16 @@ class GriddedEddy2D:
         for ds in self.contours:
             if ds.mean_velocity > dsv.mean_velocity:
                 dsv = ds
-        ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
+        ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[
+            0
+        ]
         ok = np.concatenate([ok, [len(dsv.lon) - 1]])
 
         lon = dsv.lon.values[ok]
         lat = dsv.lat.values[ok]
         t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
+        spl_lon = make_interp_spline(t, lon, k=3, bc_type="periodic")
+        spl_lat = make_interp_spline(t, lat, k=3, bc_type="periodic")
         t_new = np.linspace(0, 1, 50)
         lon_int = spl_lon(t_new)
         lat_int = spl_lat(t_new)
@@ -492,16 +501,26 @@ class GriddedEddy2D:
         )
 
     def contains_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
-        valid = snum.points_in_polygon(points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T)
+        points = np.array(
+            [eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]
+        ).T
+        valid = snum.points_in_polygon(
+            points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T
+        )
         return valid.all()
 
     def intersects_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
-        valid = snum.points_in_polygon(points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T)
+        points = np.array(
+            [eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]
+        ).T
+        valid = snum.points_in_polygon(
+            points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T
+        )
         return valid.any()
 
-    def plot(self, ax=None, lw=1, color=None, vmax=False, boundary=False, **kwargs):
+    def plot(
+        self, ax=None, lw=1, color=None, vmax=False, boundary=False, **kwargs
+    ):
         """Quickly plot the eddy"""
         if ax is None:
             ax = plt.gca()
@@ -543,7 +562,10 @@ class GriddedEddy2D:
             "Liste_Points(lon/lat)\n",
         ]
         list_points = [
-            f"{lon:.4f}/{lat:.4f}\n" for lon, lat in zip(self.vmax_contour.lon_int, self.vmax_contour.lat_int)
+            f"{lon:.4f}/{lat:.4f}\n"
+            for lon, lat in zip(
+                self.vmax_contour.lon_int, self.vmax_contour.lat_int
+            )
         ]
         lignes_tmp += list_points
         lignes_tmp += [
@@ -574,7 +596,9 @@ class GriddedEddy2D:
         out = {"center": ax.scatter(self.lon, self.lat, **kw)}
         if self.ncontours:
             out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
-            out["velmax"] = ax.plot(self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw)
+            out["velmax"] = ax.plot(
+                self.vmax_contour.lon, self.vmax_contour.lat, "--", lw=lw, **kw
+            )
         return out
 
 
@@ -639,7 +663,8 @@ class Eddy:
     @classmethod
     def reconstruct(cls, ds, track):
         if track:
-            eddy_type = str(ds.track_type[int(ds.track_id.values)].values)
+            ind = np.where(ds.id_track == ds.track_id.values)[0][0]
+            eddy_type = str(ds.track_type[ind].values)
             track_id = int(ds.track_id.values)
         else:
             eddy_type = str(ds.eddy_type.values)
@@ -684,7 +709,9 @@ class Eddy:
     def color(self):
         return COLORS.get(self.eddy_type, COLORS["undefined"])
 
-    def plot(self, ax=None, lw=1, color=None, **kwargs):
+    def plot(
+        self, ax=None, lw=1, color=None, vmax=False, boundary=False, **kwargs
+    ):
         """Quickly plot the eddy"""
         if ax is None:
             ax = plt.gca()
@@ -692,10 +719,23 @@ class Eddy:
             color = self.color
         kw = dict(color=color, **kwargs)
         out = {"center": ax.scatter(self.lon, self.lat, **kw)}
-        out["boundary"] = ax.plot(self.x_eff, self.y_eff, lw=lw, **kw)
+
         out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
-        out["velmax"] = ax.plot(self.x_vmax, self.y_vmax, "--", lw=lw, **kw)
-        return out
+        if vmax:
+            out["velmax"] = ax.plot(
+                self.vmax_contour.lon,
+                self.vmax_contour.lat,
+                "--",
+                lw=lw,
+                **kw,
+            )
+        if boundary:
+            out["boundary"] = ax.plot(
+                self.boundary_contour.lon_int,
+                self.boundary_contour.lat_int,
+                lw=lw,
+                **kw,
+            )
 
     def plot_previ(self, ax=None, lw=1, color=None, **kwargs):
         """Quickly plot the eddy"""
@@ -743,7 +783,9 @@ class Eddies2D:
         window_fit = float(ds.window_fit[:-3])
         min_radius = float(ds.min_radius[:-3])
         eddies = []
-        track = hasattr(ds, "track_type")  # if ds.eddy_type.dims[0] == "obs" else True
+        track = hasattr(
+            ds, "track_type"
+        )  # if ds.eddy_type.dims[0] == "obs" else True
         for i in range(len(ds.obs)):
             eddies.append(Eddy.reconstruct(ds.isel(obs=i), track))
             if i == 0:
@@ -828,7 +870,9 @@ class Eddies2D:
         lat2d, lon2d = xr.broadcast(lat, lon)
 
         # find eddy centers
-        centers = find_eddy_centers(u, v, window_center, dx=dxm, dy=dym, paral=False)
+        centers = find_eddy_centers(
+            u, v, window_center, dx=dxm, dy=dym, paral=False
+        )
 
         # Fit window
         wx, wy = sgrid.get_wx_wy(
@@ -889,7 +933,11 @@ class Eddies2D:
         wy2c = wy2
         if paral:
             if verbose:
-                logger.info("%i cpus and %i cores available", mp.cpu_count(), len(os.sched_getaffinity(0)))
+                logger.info(
+                    "%i cpus and %i cores available",
+                    mp.cpu_count(),
+                    len(os.sched_getaffinity(0)),
+                )
             if nb_procs:
                 nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
             else:
@@ -905,19 +953,29 @@ class Eddies2D:
 
             if paral:
                 with mp.Pool(nb_procs, maxtasksperchild=5) as p:
-                    eddies_tmp = p.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
+                    eddies_tmp = p.starmap(
+                        Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius))
+                    )
             else:
-                eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
+                eddies_tmp = [
+                    Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp
+                ]
 
             ind_good = []
             for i, eddy in enumerate(eddies_tmp):
                 if eddy is not None:
-                    if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
+                    if (
+                        wx2c + int(wx2c / 2) >= 2 * wx2
+                    ):  # no more chance to be conserved
                         eddies.append(eddy)
                     else:
                         if (
-                            len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line)
-                            and (eddy.vmax_contour.line == eddy.boundary_contour.line).all()
+                            len(eddy.vmax_contour.line)
+                            == len(eddy.boundary_contour.line)
+                            and (
+                                eddy.vmax_contour.line
+                                == eddy.boundary_contour.line
+                            ).all()
                         ):
                             ind_good.append(i)
                         else:
@@ -938,7 +996,10 @@ class Eddies2D:
                     continue
                 # if eddies[i].contains_eddy(eddies[j]): #avoid full inclusion
                 if eddies[i].intersects_eddy(eddies[j]):  # avoid intersection
-                    if eddies[i].vmax_contour.mean_velocity > eddies[j].vmax_contour.mean_velocity:
+                    if (
+                        eddies[i].vmax_contour.mean_velocity
+                        > eddies[j].vmax_contour.mean_velocity
+                    ):
                         contain[j] = False
                     else:
                         contain[i] = False
@@ -958,9 +1019,9 @@ class Eddies2D:
             raise AssertionError("obj does not contains any Gridededdies")
         if not hasattr(self.eddies[0], attr_name):
             raise AttributeError(f"{attr_name} does not exists in parent")
-        if not hasattr(self.eddies[0], 'id'):
+        if not hasattr(self.eddies[0], "id"):
             raise AttributeError(f"{id} does not exists in parent")
-        if not hasattr(other_eddy.eddies[0], 'id'):
+        if not hasattr(other_eddy.eddies[0], "id"):
             raise AttributeError(f"{id} does not exists in child")
         ids = [self.eddies[i].id for i in range(len(self.eddies))]
         for eddy in other_eddy.eddies:
@@ -997,15 +1058,42 @@ class Eddies2D:
         # Fields that depend on eddy type
         if has_contours:
             type_specific_data = {
-                "eff_radius": (("obs"), [e.boundary_contour.radius for e in self.eddies]),
-                "eff_length": (("obs"), [e.boundary_contour.length for e in self.eddies]),
-                "vmax_radius": (("obs"), [e.vmax_contour.radius for e in self.eddies]),
-                "vmax_length": (("obs"), [e.vmax_contour.length for e in self.eddies]),
-                "vmax": (("obs"), [e.vmax_contour.mean_velocity for e in self.eddies]),
-                "x_eff_contour": (("obs", "nb_sample"), [e.boundary_contour.lon_int for e in self.eddies]),
-                "y_eff_contour": (("obs", "nb_sample"), [e.boundary_contour.lat_int for e in self.eddies]),
-                "x_vmax_contour": (("obs", "nb_sample"), [e.vmax_contour.lon_int for e in self.eddies]),
-                "y_vmax_contour": (("obs", "nb_sample"), [e.vmax_contour.lat_int for e in self.eddies]),
+                "eff_radius": (
+                    ("obs"),
+                    [e.boundary_contour.radius for e in self.eddies],
+                ),
+                "eff_length": (
+                    ("obs"),
+                    [e.boundary_contour.length for e in self.eddies],
+                ),
+                "vmax_radius": (
+                    ("obs"),
+                    [e.vmax_contour.radius for e in self.eddies],
+                ),
+                "vmax_length": (
+                    ("obs"),
+                    [e.vmax_contour.length for e in self.eddies],
+                ),
+                "vmax": (
+                    ("obs"),
+                    [e.vmax_contour.mean_velocity for e in self.eddies],
+                ),
+                "x_eff_contour": (
+                    ("obs", "nb_sample"),
+                    [e.boundary_contour.lon_int for e in self.eddies],
+                ),
+                "y_eff_contour": (
+                    ("obs", "nb_sample"),
+                    [e.boundary_contour.lat_int for e in self.eddies],
+                ),
+                "x_vmax_contour": (
+                    ("obs", "nb_sample"),
+                    [e.vmax_contour.lon_int for e in self.eddies],
+                ),
+                "y_vmax_contour": (
+                    ("obs", "nb_sample"),
+                    [e.vmax_contour.lat_int for e in self.eddies],
+                ),
             }
         else:
             type_specific_data = {
@@ -1014,10 +1102,22 @@ class Eddies2D:
                 "vmax_radius": (("obs"), [e.vmax_radius for e in self.eddies]),
                 "vmax_length": (("obs"), [e.vmax_length for e in self.eddies]),
                 "vmax": (("obs"), [e.vmax for e in self.eddies]),
-                "x_eff_contour": (("obs", "nb_sample"), [e.x_eff for e in self.eddies]),
-                "y_eff_contour": (("obs", "nb_sample"), [e.y_eff for e in self.eddies]),
-                "x_vmax_contour": (("obs", "nb_sample"), [e.x_vmax for e in self.eddies]),
-                "y_vmax_contour": (("obs", "nb_sample"), [e.y_vmax for e in self.eddies]),
+                "x_eff_contour": (
+                    ("obs", "nb_sample"),
+                    [e.x_eff for e in self.eddies],
+                ),
+                "y_eff_contour": (
+                    ("obs", "nb_sample"),
+                    [e.y_eff for e in self.eddies],
+                ),
+                "x_vmax_contour": (
+                    ("obs", "nb_sample"),
+                    [e.x_vmax for e in self.eddies],
+                ),
+                "y_vmax_contour": (
+                    ("obs", "nb_sample"),
+                    [e.y_vmax for e in self.eddies],
+                ),
             }
 
         ds = xr.Dataset(
@@ -1060,6 +1160,9 @@ class Eddies2D:
         "Save to NetCDF format"
         self.ds.to_netcdf(path_nc)
 
+    def clean(self, ind):
+        self.eddies = [e for e in self.eddies if e.track_id in ind]
+
 
 class EvolEddies2D:
     """Time series of :class:`Eddies2D` detections
@@ -1078,7 +1181,8 @@ class EvolEddies2D:
         if len(eddies) > 1:
             self.dt = np.mean(
                 [
-                    (eddies[i].time - eddies[i - 1].time) / np.timedelta64(1, "s")
+                    (eddies[i].time - eddies[i - 1].time)
+                    / np.timedelta64(1, "s")
                     for i in range(1, len(eddies))
                 ]
             )
@@ -1184,11 +1288,15 @@ class EvolEddies2D:
         verbose = True
         for i in range(len(time)):
             process = psutil.Process(os.getpid())
-            logger.debug("Used memory: %.2f MB", process.memory_info().rss / 1024**2)
+            logger.debug(
+                "Used memory: %.2f MB", process.memory_info().rss / 1024**2
+            )
             dss = ds.isel({time.name: i})
             # check if ssh field is not full of nan
             if not ssh or (dss[ssh].isnull().mean().item() > 0.9):
-                logger.info("SSH field unavailable or mostly NaN, proceeding without SSH")
+                logger.info(
+                    "SSH field unavailable or mostly NaN, proceeding without SSH"
+                )
                 ssh_ = None
             else:
                 ssh_ = dss[ssh]
@@ -1216,7 +1324,9 @@ class EvolEddies2D:
     @property
     def ds(self):
         ds = None
-        for eddies in self.eddies:  # warning ifno eddies have been detected it crashes
+        for (
+            eddies
+        ) in self.eddies:  # warning ifno eddies have been detected it crashes
             if len(eddies.eddies) == 0:
                 continue
             if ds is None:
@@ -1228,7 +1338,9 @@ class EvolEddies2D:
     @property
     def ds_track(self):
         ds = None
-        for eddies in self.eddies:  # warning info eddies have been detected it crashes
+        for (
+            eddies
+        ) in self.eddies:  # warning info eddies have been detected it crashes
             if len(eddies.eddies) == 0:
                 continue
             if ds is None:
@@ -1240,3 +1352,7 @@ class EvolEddies2D:
     def to_netcdf(self, path_nc):
         "Save to NetCDF format"
         self.ds.to_netcdf(path_nc)
+
+    def clean(self, ind):
+        for eddie in self.eddies:
+            eddie.clean(ind)
