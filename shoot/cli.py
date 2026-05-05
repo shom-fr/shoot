@@ -20,6 +20,7 @@ from . import hydrology as shydrology
 from . import log as slog
 from . import meta as smeta
 from . import plot as splot
+from . import dpc as sdpc
 from .eddies import eddies2d as seddies
 from .eddies import track as strack
 
@@ -99,6 +100,7 @@ def add_parser_eddies(subparsers):
     add_parser_eddies_track(subparsers_eddies)
     add_parser_eddies_track_detected(subparsers_eddies)
     add_parser_eddies_diags(subparsers_eddies)
+    add_parser_eddies_acoustic(subparsers_eddies)
 
     return parser_eddies
 
@@ -264,8 +266,9 @@ def main_eddies_detect(parser, args):
     time = smeta.get_time(ds)
     if time is not None:
         if not args.all:
-            logger.warning("Selecting the first time step")
-            ds = ds.isel({time.name: 0})
+            if time.size > 1:
+                logger.warning("Selecting the first time step")
+                ds = ds.isel({time.name: 0})
         else:
             logger.warning("Performs detection at all times")
 
@@ -760,3 +763,103 @@ def main_eddies_diags(parser, args):
 
         plt.savefig(args.to_figure)
         logger.info(f"Detections plot saved to: {args.to_figure}")
+
+
+# %% eddies acoustic
+
+
+def add_parser_eddies_acoustic(subparsers):
+    parser_eddies_acoustic = subparsers.add_parser(
+        "acoustic",
+        help="compute eddy acoustic impact",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    add_arguments_eddies_acoustic(parser_eddies_acoustic)
+    parser_eddies_acoustic.set_defaults(func=main_eddies_acoustic)
+    return parser_eddies_acoustic
+
+
+def add_arguments_eddies_acoustic(parser):
+    parser.add_argument(
+        "nc_files", help="track detected and acoustic netcdf file", nargs="+"
+    )
+    _add_output_args(parser, "eddies.acoustic.nc")
+    _add_meta_args(parser)
+    parser.add_argument("--dpc", help="Clean old eddies", action="store_true")
+    parser.add_argument(
+        "--compute-cs",
+        help="Compute sound velocity from T-S variables",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--rfactor",
+        help="distance in radius to search outside profiles (>1)",
+        default=1.2,
+        type=float,
+    )
+
+
+def _eddies_reconstruct(parser, args, logger):
+    # load detected file
+    ds_tracks = xr.open_dataset(args.nc_files[0])
+    # ici il faut de la redondance pour être capable
+    # de gérer d'autre type de données
+    if len(np.unique(ds_tracks.time)) > 1:
+        ds_tracks = ds_tracks.where(
+            ds_tracks.time == ds_tracks.time[-1].values, drop=True
+        )
+    # reconstruct track
+    eddies = seddies.Eddies2D.reconstruct(ds_tracks)
+    logger.info("Eddies reconstructed")
+    return eddies
+
+
+def _eddies_acous_save(parser, args, logger, eddies):
+    ds_eddies = eddies.ds
+    ai = [e.acoustic_impact for e in eddies.eddies]
+    ds_eddies = ds_eddies.assign({"ai": (("obs"), ai)})
+    ds_eddies.to_netcdf(args.to_netcdf)
+    logger.info("eddies with acoustic impact saved")
+
+
+def _eddies_acoustic(parser, args, logger, eddies):
+
+    # load acoustic file
+    ds_acous = xr.open_dataset(args.nc_files[1])
+
+    if args.dpc:
+        logger.info("DPC based acoustic analysis")
+        sdpc.acoustic_points_dpc(eddies, ds_acous, r_factor=args.rfactor)
+        _eddies_acous_save(parser, args, logger, eddies)
+        return eddies
+
+    # Compute Cs if needed
+    if args.compute_cs:
+        # Compute the density
+        so = smeta.get_salt(ds_acous)
+        thetao = smeta.get_temp(ds_acous)
+        depth = smeta.get_depth(
+            ds_acous
+        )  ## attention il faut un depth negative
+        lat = smeta.get_latitude(ds_acous)
+        ct = gsw.conversions.CT_from_pt(so, thetao)
+        pres = gsw.conversions.p_from_z(
+            depth if depth.min() < 0 else -depth, lat
+        )
+        # Compute the sound celerity
+        cs = gsw.density.sound_speed(so, ct, pres)
+    else:
+        cs = ds_acous.cs
+
+    shydrology.compute_anomalies(eddies, cs, r_factor=args.rfactor)
+    sacoustic.acoustic_points(eddies)
+    return eddies
+
+
+def main_eddies_acoustic(parser, args):
+    logger = logging.getLogger(__name__)
+    _load_meta(args, logger)
+
+    eddies = _eddies_reconstruct(parser, args, logger)
+    eddies = _eddies_acoustic(parser, args, logger, eddies)
+    _eddies_acous_save(parser, args, logger, eddies)

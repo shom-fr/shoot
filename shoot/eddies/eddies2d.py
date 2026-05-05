@@ -723,16 +723,16 @@ class Eddy:
         out["ellipse"] = self.ellipse.plot(ax=ax, lw=lw / 2, **kw)
         if vmax:
             out["velmax"] = ax.plot(
-                self.vmax_contour.lon,
-                self.vmax_contour.lat,
+                self.x_vmax,
+                self.y_vmax,
                 "--",
                 lw=lw,
                 **kw,
             )
         if boundary:
             out["boundary"] = ax.plot(
-                self.boundary_contour.lon_int,
-                self.boundary_contour.lat_int,
+                self.x_eff,
+                self.y_eff,
                 lw=lw,
                 **kw,
             )
