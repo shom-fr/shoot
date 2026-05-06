@@ -529,6 +529,10 @@ class GriddedEddy2D:
         return out
 
     def lignes(self, nb_eddy, date):
+        if hasattr(self, 'acoustic_impact') : 
+            tendance = 2 if self.acoustic_impact <1  else 3
+        else : 
+            tendance = '-'
         "provide the expected lignes for plan vecteur format"
         lignes_tmp = [
             f"{'Nom':<38}{f'A{nb_eddy:02d}':<3}\n",
@@ -550,7 +554,8 @@ class GriddedEddy2D:
             f"{'Surface(km2)':<38}{np.pi * self.ellipse.a * self.ellipse.b:<3.0f}\n",
             f"{'Longueur(km)':<38}{2 * self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
             f"{'Largeur(km)':<38}{2 * self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
-            f"{'Tendance':<38}{'-':<3}\n",
+            #f"{'Tendance':<38}{'-':<3}\n",
+            f"{'Tendance':<38}{tendance:<3}\n",
             f"{'Module_de_vitesse(m/s)':<38}{self.vmax_contour.mean_velocity:<3.3f}\n",
             f"{'Orientation/E(deg)':<38}{self.ellipse.angle:<3.1f}\n",
             f"{'Centre(lon/lat)':<38}{f'{self.lon:.4f}/{self.lat:.4f}':<3}\n"
