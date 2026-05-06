@@ -754,6 +754,47 @@ class Eddy:
         out["velmax"] = ax.plot(self.x_vmax, self.y_vmax, "--", lw=lw, **kw)
         return out
 
+    def lignes(self, nb_eddy, date):
+        if hasattr(self, 'acoustic_impact') : 
+            tendance = 2 if self.acoustic_impact <1  else 3
+        else : 
+            tendance = '-'
+        "provide the expected lignes for plan vecteur format"
+        lignes_tmp = [
+            f"{'Nom':<38}{f'A{nb_eddy:02d}':<3}\n",
+            f"{'Reference':<38}{nb_eddy:<3.0f}\n",
+            f"{'Commentaire':<38}{'-':<3}\n",
+            f"{'Indice_de_fiabilite':<38}{'-':<3}\n",
+            f"{'Antecedents':<38}{'-':<3}\n",
+            f"{'Gisements':<38}{'toto.gisement':<3}\n",
+            f"{'Origines':<38}{'MODELsea_surface_elevation':<26}\n",
+            f"{'Date':<38}{str(date).replace('T', '/')[:16]:<3}\n",
+            f"{'Suivi':<38}{f'/A{nb_eddy:.0f}/-':<3}\n",
+            "Liste_Points(lon/lat)\n",
+        ]
+        list_points = [
+            f"{lon:.4f}/{lat:.4f}\n" for lon, lat in zip(self.x_vmax, self.y_vmax)
+        ]
+        lignes_tmp += list_points
+        lignes_tmp += [
+            f"{'Surface(km2)':<38}{np.pi * self.ellipse.a * self.ellipse.b:<3.0f}\n",
+            f"{'Longueur(km)':<38}{2 * self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
+            f"{'Largeur(km)':<38}{2 * self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
+            #f"{'Tendance':<38}{'-':<3}\n",
+            f"{'Tendance':<38}{tendance:<3}\n",
+            f"{'Module_de_vitesse(m/s)':<38}{self.vmax:<3.3f}\n",
+            f"{'Orientation/E(deg)':<38}{self.ellipse.angle:<3.1f}\n",
+            f"{'Centre(lon/lat)':<38}{f'{self.lon:.4f}/{self.lat:.4f}':<3}\n"
+            f"{'Sens_de_rotation':<38}{self.eddy_type.capitalize()[:-1] + 'ique':<3}\n",
+            f"{'Valeur_pointee_interieure(lon/lat)':<38}{'-':<3}\n",
+            f"{'Valeur_pointee_exterieure(lon/lat)':<38}{'-':<3}\n",
+            f"{'Profil_hydro_interieur(lon/lat)':<38}{'-':<3}\n",
+            f"{'Profil_hydro_exterieur(lon/lat)':<38}{'-':<3}\n",
+            "\n",
+            "\n",
+        ]
+        return lignes_tmp
+
 
 class Eddies2D:
     """Collection of detected eddies at a single time step
