@@ -1084,10 +1084,10 @@ class Eddies2D:
 
         return ds
 
-    def to_pv(self, path_pv):
+    def to_pv(self, path_pv, name_pv="TOTO"):
         "Save to plan vecteur format"
         lignes = [
-            f"{'NomPV':<12}{'PVS-CSAMENG_MED_PSY4_0M':<3}\n",
+            f"{'NomPV':<12}{name_pv:<3}\n",
             f"{'TypePV':<12}{'PVT':<3}\n",
             f"{'Nb_Tourb':<12}{len(self.eddies):>4}\n",
             f"{'Nb_Front':<12}{0:>4}\n",
