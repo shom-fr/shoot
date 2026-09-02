@@ -58,15 +58,15 @@ class DPCEddy:
     
     @functools.cached_property
     def iminc_insides(self):
-        return self.field2d.ds_inside.z_iminc
+        return self.field2d.ds_inside.z_min_global
 
     @functools.cached_property
     def iminops_insides(self):
-        return self.field2d.ds_inside.z_iminops
+        return self.field2d.ds_inside.z_min_ops
 
     @functools.cached_property
     def mcp_insides(self):
-        return self.field2d.ds_inside.z_maxdeep
+        return self.field2d.ds_inside.z_max_deep
 
     @functools.cached_property
     def ecs_outsides(self):
@@ -74,15 +74,15 @@ class DPCEddy:
     
     @functools.cached_property
     def iminc_outsides(self):
-        return self.field2d.ds_outside.z_iminc
+        return self.field2d.ds_outside.z_min_global
 
     @functools.cached_property
     def iminops_outsides(self):
-        return self.field2d.ds_outside.z_iminops
+        return self.field2d.ds_outside.z_min_ops
 
     @functools.cached_property
     def mcp_outsides(self):
-        return self.field2d.ds_outside.z_maxdeep
+        return self.field2d.ds_outside.z_max_deep
 
 
     @functools.cached_property

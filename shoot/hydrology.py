@@ -173,7 +173,7 @@ class Field2D:
             True for points outside all eddy contours.
         """
         if len(smeta.get_lon(self.ds).shape) == 1:
-            lon = [smeta.get_lon(self.dens).isel({self.xdim: xi}) for xi in x]
+            lon = [smeta.get_lon(self.ds).isel({self.xdim: xi}) for xi in x]
         else:
             lon = [smeta.get_lon(self.ds).isel({self.xdim: xi, self.ydim: yi}) for xi, yi in zip(x, y)]
         if len(smeta.get_lat(self.ds).shape) == 1:
