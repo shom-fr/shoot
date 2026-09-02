@@ -855,7 +855,7 @@ class Eddies2D:
         min_radius=None,
         paral=False,
         nb_procs=None,
-        ellipse_error=0.01,
+        ellipse_error=0.1,
         verbose=True,
         **kwargs,
     ):

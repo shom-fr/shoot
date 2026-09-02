@@ -465,6 +465,7 @@ class Tracks:
             )
         my_tracks = cls(eddies, nback)
         my_tracks.track_eddies = track_eddies
+        my_tracks.nb_tracks = len(track_eddies)
         return my_tracks
 
     @property
