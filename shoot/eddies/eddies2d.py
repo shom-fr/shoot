@@ -264,6 +264,10 @@ class GriddedEddy2D:
         Maximum allowed ellipse fit error.
     min_radius : float, optional
         Minimum eddy radius in km.
+    lon2d : ndarray, optional
+        2D longitudes of the local fields. Inferred from `u` if not provided.
+    lat2d : ndarray, optional
+        2D latitudes of the local fields. Inferred from `u` if not provided.
     """
 
     def __init__(
@@ -279,15 +283,16 @@ class GriddedEddy2D:
         max_ellipse_error=0.01,  # 0.1,  # 0.03,  # 0.01,
         nlevels=100,
         robust=0.03,
+        lon2d=None,
+        lat2d=None,
         **attrs,
     ):
         self.i, self.j = i, j
-        lat = smeta.get_lat(u)
-        lon = smeta.get_lon(u)
-        if lon.ndim == 1:
-            self.glon, self.glat = float(lon[i]), float(lat[j])
-        else:
-            self.glon, self.glat = float(lon[j, i]), float(lat[j, i])
+        if lon2d is None or lat2d is None:
+            lat2d, lon2d = xr.broadcast(smeta.get_lat(u), smeta.get_lon(u))
+            lon2d, lat2d = lon2d.values, lat2d.values
+        self._lon2d, self._lat2d = lon2d, lat2d
+        self.glon, self.glat = float(lon2d[j, i]), float(lat2d[j, i])
         self.u, self.v = u, v
         self._ssh = ssh
         self._dx, self._dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
@@ -323,17 +328,17 @@ class GriddedEddy2D:
     @functools.cached_property
     def contours(self):
         # Closed contours
-        dss = scontours.get_closed_contours(
-            self.glon,
-            self.glat,
-            self.ssh,
-            nlevels=self.nlevels,
-            robust=self.robust,
+        lines = scontours.core_find_closed_contours(
+            self.ssh.values, self.i, self.j, nlevels=self.nlevels, robust=self.robust
         )
+        dss = [
+            scontours.contour_to_dataset(level, line, self._lon2d, self._lat2d, self.glon, self.glat)
+            for level, line in lines
+        ]
         # Fit ellipses, add currents and filter
         valid_contours = []
         for ds in dss:
-            ellipse = Ellipse.from_coords(ds.lon, ds.lat)
+            ellipse = Ellipse.from_coords(ds.lon.values, ds.lat.values)
             # check if ellipse center fall inside the eddy contour
             if not snum.points_in_polygon(
                 np.array([ellipse.lon, ellipse.lat]),
@@ -374,17 +379,17 @@ class GriddedEddy2D:
 
         lon = dsb.lon.values[ok]
         lat = dsb.lat.values[ok]
-        
+
         # paramètre (équivalent de u)
         t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
+        spl_lon = make_interp_spline(t, lon, k=3, bc_type="periodic")
+        spl_lat = make_interp_spline(t, lat, k=3, bc_type="periodic")
         t_new = np.linspace(0, 1, 50)
         lon_int = spl_lon(t_new)
         lat_int = spl_lat(t_new)
-        
+
         xy_int = [lon_int, lat_int]
-        
+
         dsb["lon_int"] = xy_int[0]
         dsb["lat_int"] = xy_int[1]
         return dsb
@@ -451,8 +456,8 @@ class GriddedEddy2D:
         lon = dsv.lon.values[ok]
         lat = dsv.lat.values[ok]
         t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
+        spl_lon = make_interp_spline(t, lon, k=3, bc_type="periodic")
+        spl_lat = make_interp_spline(t, lat, k=3, bc_type="periodic")
         t_new = np.linspace(0, 1, 50)
         lon_int = spl_lon(t_new)
         lat_int = spl_lat(t_new)
@@ -491,15 +496,17 @@ class GriddedEddy2D:
             np.array([self.boundary_contour.lon, self.boundary_contour.lat]).T,
         )
 
+    @functools.cached_property
+    def _vmax_polygon(self):
+        """Numpy (n, 2) array of the :attr:`vmax_contour` coordinates"""
+        return np.ascontiguousarray(np.array([self.vmax_contour.lon.values, self.vmax_contour.lat.values]).T)
+
     def contains_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
-        valid = snum.points_in_polygon(points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T)
+        valid = snum.points_in_polygon(eddy._vmax_polygon, self._vmax_polygon)
         return valid.all()
 
     def intersects_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
-        valid = snum.points_in_polygon(points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T)
-        return valid.any()
+        return snum.any_points_in_polygon(eddy._vmax_polygon, self._vmax_polygon)
 
     def plot(self, ax=None, lw=1, color=None, vmax=False, boundary=False, **kwargs):
         """Quickly plot the eddy"""
@@ -529,9 +536,9 @@ class GriddedEddy2D:
         return out
 
     def lignes(self, nb_eddy, date):
-        if hasattr(self, 'acoustic_impact') : 
-            tendance = 2 if self.acoustic_impact <1  else 3
-        else : 
+        if hasattr(self, 'acoustic_impact'):
+            tendance = 2 if self.acoustic_impact < 1 else 3
+        else:
             tendance = '-'
         "provide the expected lignes for plan vecteur format"
         lignes_tmp = [
@@ -554,7 +561,7 @@ class GriddedEddy2D:
             f"{'Surface(km2)':<38}{np.pi * self.ellipse.a * self.ellipse.b:<3.0f}\n",
             f"{'Longueur(km)':<38}{2 * self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
             f"{'Largeur(km)':<38}{2 * self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
-            #f"{'Tendance':<38}{'-':<3}\n",
+            # f"{'Tendance':<38}{'-':<3}\n",
             f"{'Tendance':<38}{tendance:<3}\n",
             f"{'Module_de_vitesse(m/s)':<38}{self.vmax_contour.mean_velocity:<3.3f}\n",
             f"{'Orientation/E(deg)':<38}{self.ellipse.angle:<3.1f}\n",
@@ -715,9 +722,9 @@ class Eddy:
         return out
 
     def lignes(self, nb_eddy, date):
-        if hasattr(self, 'acoustic_impact') : 
-            tendance = 2 if self.acoustic_impact <1  else 3
-        else : 
+        if hasattr(self, 'acoustic_impact'):
+            tendance = 2 if self.acoustic_impact < 1 else 3
+        else:
             tendance = '-'
         "provide the expected lignes for plan vecteur format"
         lignes_tmp = [
@@ -732,15 +739,13 @@ class Eddy:
             f"{'Suivi':<38}{f'/A{nb_eddy:.0f}/-':<3}\n",
             "Liste_Points(lon/lat)\n",
         ]
-        list_points = [
-            f"{lon:.4f}/{lat:.4f}\n" for lon, lat in zip(self.x_vmax, self.y_vmax)
-        ]
+        list_points = [f"{lon:.4f}/{lat:.4f}\n" for lon, lat in zip(self.x_vmax, self.y_vmax)]
         lignes_tmp += list_points
         lignes_tmp += [
             f"{'Surface(km2)':<38}{np.pi * self.ellipse.a * self.ellipse.b:<3.0f}\n",
             f"{'Longueur(km)':<38}{2 * self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
             f"{'Largeur(km)':<38}{2 * self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
-            #f"{'Tendance':<38}{'-':<3}\n",
+            # f"{'Tendance':<38}{'-':<3}\n",
             f"{'Tendance':<38}{tendance:<3}\n",
             f"{'Module_de_vitesse(m/s)':<38}{self.vmax:<3.3f}\n",
             f"{'Orientation/E(deg)':<38}{self.ellipse.angle:<3.1f}\n",
@@ -891,6 +896,8 @@ class Eddies2D:
 
         nx = u.sizes[xdim]
         ny = u.sizes[ydim]
+        lon2d = lon2d.transpose(ydim, xdim).values
+        lat2d = lat2d.transpose(ydim, xdim).values
 
         def def_eddy(ic, wx2c, wy2c):
             # Local selection
@@ -920,6 +927,8 @@ class Eddies2D:
                 dx=dxl,
                 dy=dyl,
                 max_ellipse_error=ellipse_error,
+                lon2d=lon2d[jmin:jmax, imin:imax],
+                lat2d=lat2d[jmin:jmax, imin:imax],
                 **kwargs,
             )
             eddy.attrs.update(

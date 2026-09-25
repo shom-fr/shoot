@@ -321,27 +321,61 @@ def points_in_polygon(point, poly, inside):
         p1x, p1y = p2x, p2y
 
 
-def get_coord_name(data):
-    """Extract longitude and latitude coordinate names from xarray object
+@numba.njit(cache=True)
+def point_in_polygon(x, y, poly):
+    """Test if a single point is inside a polygon (ray casting)
 
     Parameters
     ----------
-    data : xarray.Dataset or xarray.DataArray
-        Data object with coordinates.
+    x, y : float
+        Point coordinates.
+    poly : ndarray of shape (n, 2)
+        Polygon vertices as (x, y) coordinates.
 
     Returns
     -------
-    lon_name : str or None
-        Name of longitude coordinate.
-    lat_name : str or None
-        Name of latitude coordinate.
+    bool
     """
-    coords_name = [k for k in data.coords.keys()]
-    lon_name = None
-    lat_name = None
-    for var in coords_name:
-        if var[:3] in ['LON', 'Lon', 'lon', 'longitude', 'Longitude', 'lon_rho']:
-            lon_name = var
-        if var[:3] in ['LAT', 'Lat', 'lat', 'latitude', 'Latitude', 'lat_rho']:
-            lat_name = var
-    return lon_name, lat_name
+    n = poly.shape[0]
+    inside = False
+    p1x, p1y = poly[0, 0], poly[0, 1]
+    for i in range(1, n + 1):
+        p2x, p2y = poly[i % n, 0], poly[i % n, 1]
+        if y > min(p1y, p2y) and y <= max(p1y, p2y) and x <= max(p1x, p2x):
+            xints = p1x
+            if p1y != p2y:
+                xints = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
+            if p1x == p2x or x <= xints:
+                inside = not inside
+        p1x, p1y = p2x, p2y
+    return inside
+
+
+@numba.njit(cache=True)
+def any_points_in_polygon(points, poly):
+    """Test if at least one point is inside a polygon
+
+    Points outside the polygon bounding box are skipped quickly.
+
+    Parameters
+    ----------
+    points : ndarray of shape (npts, 2)
+        Points to test, as (x, y) coordinates.
+    poly : ndarray of shape (n, 2)
+        Polygon vertices as (x, y) coordinates.
+
+    Returns
+    -------
+    bool
+    """
+    xmin = poly[:, 0].min()
+    xmax = poly[:, 0].max()
+    ymin = poly[:, 1].min()
+    ymax = poly[:, 1].max()
+    for k in range(points.shape[0]):
+        x, y = points[k, 0], points[k, 1]
+        if x < xmin or x > xmax or y < ymin or y > ymax:
+            continue
+        if point_in_polygon(x, y, poly):
+            return True
+    return False

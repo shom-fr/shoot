@@ -181,66 +181,6 @@ class TestPeakFinding:
         assert len(maxima_serial) == len(maxima_parallel)
 
 
-class TestCoordinateUtilities:
-    """Test coordinate name detection utilities"""
-
-    def test_get_coord_name_standard(self):
-        """Test coordinate name detection with standard names"""
-        import xarray as xr
-
-        # Create dataset with standard coordinate names
-        ds = xr.Dataset(coords={'lon': range(10), 'lat': range(5)})
-
-        lon_name, lat_name = snum.get_coord_name(ds)
-
-        assert lon_name == 'lon'
-        assert lat_name == 'lat'
-
-    def test_get_coord_name_longitude_latitude(self):
-        """Test coordinate name detection with full names"""
-        import xarray as xr
-
-        ds = xr.Dataset(coords={'longitude': range(10), 'latitude': range(5)})
-
-        lon_name, lat_name = snum.get_coord_name(ds)
-
-        assert lon_name == 'longitude'
-        assert lat_name == 'latitude'
-
-    def test_get_coord_name_roms_style(self):
-        """Test coordinate name detection with ROMS-style names"""
-        import xarray as xr
-
-        ds = xr.Dataset(coords={'lon_rho': range(10), 'lat_rho': range(5)})
-
-        lon_name, lat_name = snum.get_coord_name(ds)
-
-        assert lon_name == 'lon_rho'
-        assert lat_name == 'lat_rho'
-
-    def test_get_coord_name_capitalized(self):
-        """Test coordinate name detection with capitalized names"""
-        import xarray as xr
-
-        ds = xr.Dataset(coords={'Longitude': range(10), 'Latitude': range(5)})
-
-        lon_name, lat_name = snum.get_coord_name(ds)
-
-        assert lon_name == 'Longitude'
-        assert lat_name == 'Latitude'
-
-    def test_get_coord_name_missing(self):
-        """Test coordinate name detection when coordinates are missing"""
-        import xarray as xr
-
-        ds = xr.Dataset(coords={'x': range(10), 'y': range(5)})
-
-        lon_name, lat_name = snum.get_coord_name(ds)
-
-        assert lon_name is None
-        assert lat_name is None
-
-
 @pytest.mark.parametrize("window_size", [3, 5, 7])
 def test_peak_finding_different_windows(window_size):
     """Test peak finding with different window sizes"""
