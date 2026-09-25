@@ -6,21 +6,30 @@ Develop
 
 New features
 ------------
-- 2D eddy detection is about 15 times faster on large fields:
+- New :mod:`shoot.core` subpackage of pure numeric routines (numpy arrays only,
+  no xarray nor xoa), on which the other modules are xarray interfaces
+  (see ``mds/core-subpackage-plan.md``):
+  :mod:`~shoot.core.contours`, :mod:`~shoot.core.dyn`, :mod:`~shoot.core.eddies`,
+  :mod:`~shoot.core.fit`, :mod:`~shoot.core.geo`, :mod:`~shoot.core.num`
+  and :mod:`~shoot.core.track`.
+  :mod:`shoot.geo`, :mod:`shoot.num`, :mod:`shoot.fit` and :mod:`shoot.dyn`
+  re-export their former content from it.
+- 2D eddy detection is about 20 times faster on large fields
+  (see ``mds/speedup-eddy-detection.md``):
 
-  - :func:`shoot.fit.fit_ellipse_from_coords` uses a numba
+  - the ellipse fit (:func:`shoot.core.fit.fit_ellipse`) uses a numba
     Levenberg-Marquardt solver with an analytical Jacobian
     instead of :func:`scipy.optimize.least_squares`;
-  - :func:`shoot.contours.core_find_closed_contours` performs the closed,
-    center-inclusion and land-inclusion tests in grid-index space,
-    so that only the retained contours are interpolated to lon/lat
-    by :func:`shoot.contours.contour_to_dataset`;
+  - closed contours are found by :func:`shoot.core.contours.find_closed_contours`,
+    which performs the closed, center-inclusion and land-inclusion tests in
+    grid-index space, so that only the retained contours are interpolated to lon/lat;
+  - the per-center contour processing (:func:`shoot.core.eddies.find_eddy_contours`)
+    and the removal of intersecting eddies (:func:`shoot.core.eddies.filter_intersecting`)
+    are pure numeric, and contour datasets are built once;
   - :class:`shoot.eddies.eddies2d.GriddedEddy2D` accepts ``lon2d`` and ``lat2d``
-    to avoid inferring coordinates for each sub-window;
-  - :func:`shoot.contours.add_contour_uv`, :func:`shoot.contours.add_contour_dx_dy`
-    and ``GriddedEddy2D.intersects_eddy`` avoid xarray overhead;
-  - new numba functions :func:`shoot.num.point_in_polygon` and
-    :func:`shoot.num.any_points_in_polygon`.
+    to avoid inferring coordinates for each sub-window.
+- Eddy tracking and association are about 25 times faster thanks to
+  the numba cost matrix :func:`shoot.core.track.association_cost`.
 
 Breaking changes
 ----------------
@@ -31,9 +40,13 @@ Breaking changes
 - ``shoot.num.get_coord_name`` is replaced by :func:`shoot.meta.get_lon_lat_names`,
   which relies on :func:`shoot.meta.get_lon` and :func:`shoot.meta.get_lat`
   (xoa) instead of a name-prefix heuristic.
+- The private numeric functions of :mod:`shoot.dyn` (``_get_lnam_``, ``_get_div_``…)
+  are replaced by public ones in :mod:`shoot.core.dyn` (:func:`~shoot.core.dyn.lnam`,
+  :func:`~shoot.core.dyn.div`…).
 
 Deprecations
 ------------
+- ``shoot.fit._residuals`` is an alias of :func:`shoot.core.fit.ellipse_residuals`.
 
 Bug fixes
 ---------
@@ -42,6 +55,7 @@ Bug fixes
 
 Documentation
 -------------
+- The library reference separates the xarray interface from the numeric core.
 
 
 YYYY-0M-MICRO

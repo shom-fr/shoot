@@ -18,9 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import psutil
 import xarray as xr
-from scipy.interpolate import make_interp_spline
 
-from .. import contours as scontours
 from .. import dyn as sdyn
 from .. import fit as sfit
 from .. import geo as sgeo
@@ -29,6 +27,8 @@ from .. import meta as smeta
 from .. import num as snum
 from .. import plot as splot
 from .. import streamline as strl
+from ..core import contours as ccontours
+from ..core import eddies as ceddies
 
 logger = logging.getLogger(__name__)
 
@@ -66,19 +66,9 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
     dxm = np.nanmean(dx)
     dym = np.nanmean(dy)
 
-    # Local angular momentum
-    lnam = sdyn.get_lnam(u, v, window, dx=dxm, dy=dym)
-
-    # Mask with positive OW
-    ow = sdyn.get_okuboweiss(u, v, dx=dxm, dy=dym)
-    lnam = lnam.where(ow < 0)
-
-    # Find local peaks
-    wx, wy = sgrid.get_wx_wy(window, dxm, dym)  ## WARNING IT HAS BEEN MODIFIED
-    minima, maxima = snum.find_signed_peaks_2d(lnam.values, wx, wy, paral=paral)
-    extrema = np.vstack((minima, maxima))
-    ii = extrema[:, 0]
-    jj = extrema[:, 1]
+    # LNAM peaks where OW < 0
+    centers = ceddies.find_centers(u.values, v.values, dxm, dym, window, paral=paral)
+    ii, jj, wx, wy = centers.i, centers.j, centers.wx, centers.wy
 
     # Sort cyclones and anti-cyclones
     lat2d, lon2d = xr.broadcast(smeta.get_lat(u), smeta.get_lon(u))
@@ -86,8 +76,8 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
     ecorio = sdyn.get_coriolis(yy[jj, ii])
     elons = xx[jj, ii]
     elats = yy[jj, ii]
-    elnam = lnam.values[jj, ii]
-    eow = ow.values[jj, ii]
+    elnam = centers.lnam
+    eow = centers.ow
 
     return xr.Dataset(
         {
@@ -237,6 +227,36 @@ class Ellipse:
         )
 
 
+def _eddy_contour_to_dataset(contour, lon_center, lat_center):
+    """Convert a :class:`shoot.core.eddies.EddyContour` to a dataset"""
+    ellipse = Ellipse(*contour.ellipse.values(), 0, contour.fit_error)
+    ellipse.sign = np.sign(contour.mean_angular_momentum)
+    return xr.Dataset(
+        {
+            "line": (("npts", "ncoords"), contour.line),
+            "u": ("npts", contour.u, {"long_name": "Velocity along X"}),
+            "v": ("npts", contour.v, {"long_name": "Velocity along Y"}),
+            "am": ("npts", contour.am, {"long_name": "Angular momentum", "units": "m2.s-2"}),
+            "dx": ("npts", contour.dx, {"units": "m"}),
+            "dy": ("npts", contour.dy, {"units": "m"}),
+        },
+        coords={
+            "lon": ("npts", contour.lon, {"long_name": "Longitude"}),
+            "lat": ("npts", contour.lat, {"long_name": "Latitude"}),
+        },
+        attrs={
+            "ssh": contour.level,
+            "lon_center": lon_center,
+            "lat_center": lat_center,
+            "ellipse": ellipse,
+            "mean_velocity": contour.mean_velocity,
+            "mean_angular_momentum": contour.mean_angular_momentum,
+            "radius": contour.radius,
+            "length": contour.length,
+        },
+    )
+
+
 class GriddedEddy2D:
     """An eddy detected on a grid with contour and ellipse properties
 
@@ -327,31 +347,20 @@ class GriddedEddy2D:
 
     @functools.cached_property
     def contours(self):
-        # Closed contours
-        lines = scontours.core_find_closed_contours(
-            self.ssh.values, self.i, self.j, nlevels=self.nlevels, robust=self.robust
+        """Closed contours around the center that are well fitted by an ellipse"""
+        contours = ceddies.find_eddy_contours(
+            self.ssh.values,
+            self.u.values,
+            self.v.values,
+            self._lon2d,
+            self._lat2d,
+            self.i,
+            self.j,
+            nlevels=self.nlevels,
+            robust=self.robust,
+            max_ellipse_error=self.max_ellipse_error,
         )
-        dss = [
-            scontours.contour_to_dataset(level, line, self._lon2d, self._lat2d, self.glon, self.glat)
-            for level, line in lines
-        ]
-        # Fit ellipses, add currents and filter
-        valid_contours = []
-        for ds in dss:
-            ellipse = Ellipse.from_coords(ds.lon.values, ds.lat.values)
-            # check if ellipse center fall inside the eddy contour
-            if not snum.points_in_polygon(
-                np.array([ellipse.lon, ellipse.lat]),
-                np.array([ds.lon, ds.lat]).T,
-            ):
-                continue
-            if ellipse.fit_error < self.max_ellipse_error:
-                ds.attrs["ellipse"] = ellipse
-                scontours.add_contour_uv(ds, self.u.values, self.v.values)
-                scontours.add_contour_dx_dy(ds)
-                valid_contours.append(ds)
-                ellipse.sign = np.sign(ds.mean_angular_momentum)
-        return valid_contours
+        return [_eddy_contour_to_dataset(contour, self.glon, self.glat) for contour in contours]
 
     @functools.cached_property
     def ncontours(self):
@@ -370,28 +379,8 @@ class GriddedEddy2D:
     def boundary_contour(self):
         if not self.ncontours:
             return
-        dsb = self.contours[0]
-        for ds in self.contours:
-            if ds.length > dsb.length:
-                dsb = ds
-        ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
-        ok = np.concatenate([ok, [len(dsb.lon) - 1]])
-
-        lon = dsb.lon.values[ok]
-        lat = dsb.lat.values[ok]
-
-        # paramètre (équivalent de u)
-        t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type="periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type="periodic")
-        t_new = np.linspace(0, 1, 50)
-        lon_int = spl_lon(t_new)
-        lat_int = spl_lat(t_new)
-
-        xy_int = [lon_int, lat_int]
-
-        dsb["lon_int"] = xy_int[0]
-        dsb["lat_int"] = xy_int[1]
+        dsb = self.contours[ceddies.argmax_first([ds.length for ds in self.contours])]
+        dsb["lon_int"], dsb["lat_int"] = ccontours.smooth_contour(dsb.lon.values, dsb.lat.values, tol=1e-10)
         return dsb
 
     @property
@@ -446,25 +435,8 @@ class GriddedEddy2D:
     def vmax_contour(self):
         if not self.ncontours:
             return
-        dsv = self.contours[0]
-        for ds in self.contours:
-            if ds.mean_velocity > dsv.mean_velocity:
-                dsv = ds
-        ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
-        ok = np.concatenate([ok, [len(dsv.lon) - 1]])
-
-        lon = dsv.lon.values[ok]
-        lat = dsv.lat.values[ok]
-        t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type="periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type="periodic")
-        t_new = np.linspace(0, 1, 50)
-        lon_int = spl_lon(t_new)
-        lat_int = spl_lat(t_new)
-        xy_int = [lon_int, lat_int]
-
-        dsv["lon_int"] = xy_int[0]
-        dsv["lat_int"] = xy_int[1]
+        dsv = self.contours[ceddies.argmax_first([ds.mean_velocity for ds in self.contours])]
+        dsv["lon_int"], dsv["lat_int"] = ccontours.smooth_contour(dsv.lon.values, dsv.lat.values)
         return dsv
 
     @property
@@ -986,19 +958,10 @@ class Eddies2D:
 
         ## Checking inclusion step
         ## This step can be modified to account for eddy-eddy interaction
-        contain = np.ones(len(eddies)) * True
-        for i in range(len(eddies)):
-            for j in range(len(eddies)):
-                if i == j:
-                    continue
-                # if eddies[i].contains_eddy(eddies[j]): #avoid full inclusion
-                if eddies[i].intersects_eddy(eddies[j]):  # avoid intersection
-                    if eddies[i].vmax_contour.mean_velocity > eddies[j].vmax_contour.mean_velocity:
-                        contain[j] = False
-                    else:
-                        contain[i] = False
-
-        eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
+        keep = ceddies.filter_intersecting(
+            [eddy._vmax_polygon for eddy in eddies], [eddy.vmax_contour.mean_velocity for eddy in eddies]
+        )
+        eddies = [eddy for eddy, kept in zip(eddies, keep) if kept]
         time = smeta.get_time(u, errors="ignore")
         return cls(
             time.values if time is not None else None,

@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-import shoot.geo as sgeo
+import shoot.core.geo as sgeo
 
 
 class TestGeoUtilities:

@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-import shoot.fit as sfit
-import shoot.geo as sgeo
+import shoot.core.fit as sfit
+import shoot.core.geo as sgeo
 
 
 class TestEllipseFitting:
@@ -183,7 +183,7 @@ class TestResidualFunction:
         angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
         points = np.array([[2 * np.cos(a), 2 * np.sin(a)] for a in angles])
 
-        residuals = sfit._residuals(params, points)
+        residuals = sfit.ellipse_residuals(params, points)
 
         # Residuals should be close to zero for perfect fit
         np.testing.assert_array_almost_equal(residuals, np.zeros(len(angles)), decimal=10)
@@ -195,7 +195,7 @@ class TestResidualFunction:
         # Points outside the ellipse
         points = np.array([[3, 0], [0, 2]])  # Both outside
 
-        residuals = sfit._residuals(params, points)
+        residuals = sfit.ellipse_residuals(params, points)
 
         # Residuals should be positive (distance > 1)
         assert all(r > 0 for r in residuals)
@@ -207,7 +207,7 @@ class TestResidualFunction:
         # Points inside the ellipse
         points = np.array([[0.5, 0], [0, 0.3]])
 
-        residuals = sfit._residuals(params, points)
+        residuals = sfit.ellipse_residuals(params, points)
 
         # Residuals should be negative (distance < 1)
         assert all(r < 0 for r in residuals)
@@ -221,7 +221,7 @@ class TestResidualFunction:
         # For 45° rotation, point (sqrt(2), sqrt(2)) should be on ellipse
         point_on_ellipse = np.array([[np.sqrt(2), np.sqrt(2)]])
 
-        residuals = sfit._residuals(params, point_on_ellipse)
+        residuals = sfit.ellipse_residuals(params, point_on_ellipse)
 
         # Should be close to zero
         np.testing.assert_array_almost_equal(residuals, [0], decimal=1)
@@ -295,3 +295,10 @@ def test_ellipse_parameter_ranges():
     # Geographic coordinates should be reasonable
     assert -180 <= result['lon'] <= 180
     assert -90 <= result['lat'] <= 90
+
+
+def test_fit_ellipse_degenerate():
+    """Degenerate points give NaN parameters and an infinite error"""
+    params, error = sfit.fit_ellipse(np.zeros(5), np.zeros(5))
+    assert np.isnan(params).all()
+    assert np.isinf(error)

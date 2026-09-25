@@ -5,83 +5,14 @@ Contouring utilities
 Functions for extracting and analyzing closed contours from 2D fields.
 """
 
-import warnings
-
 import contourpy as cpy
 import numpy as np
-import scipy.ndimage as scin
 import xarray as xr
 
 from . import geo as sgeo
 from . import meta as smeta
-from . import num as snum
-
-
-def core_get_nearest_index(lon2d, lat2d, lon, lat):
-    """Grid indices of the point nearest to a position
-
-    Parameters
-    ----------
-    lon2d, lat2d : ndarray
-        2D longitudes and latitudes.
-    lon, lat : float
-        Position.
-
-    Returns
-    -------
-    i, j : int
-        Indices along X and Y.
-    """
-    j, i = np.unravel_index(np.argmin((lon2d - lon) ** 2 + (lat2d - lat) ** 2), lon2d.shape)
-    return int(i), int(j)
-
-
-def core_find_closed_contours(z, ic, jc, nlevels=50, robust=0.03):
-    """Find closed contours of a 2D array enclosing a grid point
-
-    Everything is performed in grid-index space: a contour is retained
-    if it is closed, contains the center and contains no NaN point.
-
-    Parameters
-    ----------
-    z : ndarray
-        2D field to contour, with NaNs as land points.
-    ic, jc : int
-        Grid indices of the center along X and Y.
-    nlevels : int, default 50
-        Maximum number of contour levels.
-    robust : float, default 0.03
-        Quantile threshold to exclude extreme values.
-
-    Returns
-    -------
-    list of (float, ndarray)
-        Contour level and line of fractional (i, j) indices of shape (n, 2).
-    """
-    z = np.asarray(z, dtype="d")
-    ic, jc = float(ic), float(jc)
-
-    # Land points in index space
-    bad = np.isnan(z)
-    nan_points = np.ascontiguousarray(np.argwhere(bad)[:, ::-1], dtype="d") if bad.any() else None
-
-    cont_gen = cpy.contour_generator(z=z)
-    vmin, vmax = np.nanquantile(z, [robust, 1 - robust])
-    if len(np.arange(vmin, vmax + 0.005, 0.005)) < nlevels:
-        levels = np.arange(vmin, vmax + 0.005, 0.005)
-    else:
-        levels = np.linspace(vmin, vmax, nlevels)
-    contours = []
-    for level in levels:
-        for line in cont_gen.lines(level):
-            if not (line[0] == line[-1]).all():  # check if it is closed contour
-                continue
-            if not snum.point_in_polygon(ic, jc, line):  # Check if it contains the center
-                continue
-            if nan_points is not None and snum.any_points_in_polygon(nan_points, line):
-                continue  # it contains land points inside
-            contours.append((level, line))
-    return contours
+from .core import contours as ccontours
+from .core.contours import interp_to_line  # noqa: F401
 
 
 def contour_to_dataset(level, line, lon2d, lat2d, lon_center, lat_center):
@@ -105,8 +36,8 @@ def contour_to_dataset(level, line, lon2d, lat2d, lon_center, lat_center):
     return xr.Dataset(
         {"line": (("npts", "ncoords"), line)},
         coords={
-            "lon": ("npts", interp_to_line(lon2d, line), {"long_name": "Longitude"}),
-            "lat": ("npts", interp_to_line(lat2d, line), {"long_name": "Latitude"}),
+            "lon": ("npts", ccontours.interp_to_line(lon2d, line), {"long_name": "Longitude"}),
+            "lat": ("npts", ccontours.interp_to_line(lat2d, line), {"long_name": "Latitude"}),
         },
         attrs={
             "ssh": level,
@@ -120,7 +51,7 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     """Extract closed contours enclosing a center point
 
     The center is the grid point nearest to (`lon_center`, `lat_center`).
-    See :func:`core_find_closed_contours` for the numerical part.
+    See :func:`shoot.core.contours.find_closed_contours` for the numerical part.
 
     Parameters
     ----------
@@ -149,48 +80,11 @@ def get_closed_contours(lon_center, lat_center, ssh, nlevels=50, robust=0.03):
     """
     lat2d, lon2d = xr.broadcast(smeta.get_lat(ssh), smeta.get_lon(ssh))
     lon2d, lat2d = lon2d.values, lat2d.values
-    ic, jc = core_get_nearest_index(lon2d, lat2d, lon_center, lat_center)
+    ic, jc = ccontours.nearest_index(lon2d, lat2d, lon_center, lat_center)
     return [
         contour_to_dataset(level, line, lon2d, lat2d, lon_center, lat_center)
-        for level, line in core_find_closed_contours(ssh.values, ic, jc, nlevels=nlevels, robust=robust)
+        for level, line in ccontours.find_closed_contours(ssh.values, ic, jc, nlevels=nlevels, robust=robust)
     ]
-
-
-def interp_to_line(data, line):
-    """Interpolate 2D field values along a contour line
-
-    Parameters
-    ----------
-    data : ndarray
-        2D field to interpolate.
-    line : ndarray
-        Contour line coordinates of shape (n, 2).
-
-    Returns
-    -------
-    ndarray
-        Interpolated values along the contour.
-    """
-    coords = line.T[::-1]
-    mask = np.isnan(data).astype("d")
-    dataf = np.nan_to_num(data)
-    lm = scin.map_coordinates(mask, coords)
-    ldata = scin.map_coordinates(dataf, coords)
-    lbad = ~np.isclose(lm + 1, 1.0)
-    ldata[lbad] = np.nan
-    return ldata
-
-
-def _set_npts_var(ds, name, values, attrs):
-    """Add a variable along the existing "npts" dimension
-
-    Bypass the costly alignment and merge of :meth:`xarray.Dataset.__setitem__`
-    which dominates when processing thousands of small contours.
-    """
-    try:
-        ds._variables[name] = xr.Variable("npts", values, attrs)
-    except AttributeError:  # private API changed
-        ds[name] = ("npts", values, attrs)
 
 
 def add_contour_uv(ds, u, v):
@@ -210,21 +104,14 @@ def add_contour_uv(ds, u, v):
     xarray.Dataset
         Input dataset with added velocity and momentum variables.
     """
-    if "u" not in ds.variables:
-        line = ds.variables["line"].values
-        uc = interp_to_line(u, line)
-        vc = interp_to_line(v, line)
-        xdist = sgeo.deg2m(ds.variables["lon"].values - ds.attrs["lon_center"], ds.attrs["lat_center"])
-        ydist = sgeo.deg2m(ds.variables["lat"].values - ds.attrs["lat_center"])
-        am = xdist * vc - ydist * uc
-        _set_npts_var(ds, "u", uc, {"long_name": "Velocity along X"})
-        _set_npts_var(ds, "v", vc, {"long_name": "Velocity along Y"})
-        _set_npts_var(ds, "am", am, {"long_name": "Angular momentum", "units": "m2.s-2"})
-        with warnings.catch_warnings():  # NaN are skipped like with xarray
-            warnings.simplefilter("ignore", RuntimeWarning)
-            ds.attrs["mean_velocity"] = float(np.nanmean(np.sqrt(uc**2 + vc**2)))
-            ds.attrs["mean_angular_momentum"] = float(np.nanmean(am))
-        ds.attrs["radius"] = float(np.mean(np.sqrt(xdist**2 + ydist**2)))
+    if "u" not in ds:
+        uc, vc, am, mean_velocity, mean_am, radius = ccontours.contour_velocity(
+            ds.line.values, ds.lon.values, ds.lat.values, u, v, ds.lon_center, ds.lat_center
+        )
+        ds["u"] = ("npts", uc, {"long_name": "Velocity along X"})
+        ds["v"] = ("npts", vc, {"long_name": "Velocity along Y"})
+        ds["am"] = ("npts", am, {"long_name": "Angular momentum", "units": "m2.s-2"})
+        ds.attrs.update(mean_velocity=mean_velocity, mean_angular_momentum=mean_am, radius=radius)
     return ds
 
 
@@ -241,14 +128,11 @@ def add_contour_dx_dy(ds):
     xarray.Dataset
         Input dataset with added dx, dy, and length attributes.
     """
-    if "dx" not in ds.variables:
-        lon = ds.variables["lon"].values
-        lat = ds.variables["lat"].values
-        dx = sgeo.deg2m(np.gradient(lon), lat.mean())
-        dy = sgeo.deg2m(np.gradient(lat))
-        _set_npts_var(ds, "dx", dx, {"units": "m"})
-        _set_npts_var(ds, "dy", dy, {"units": "m"})
-        ds.attrs["length"] = float(np.sqrt(dx**2 + dy**2).sum())
+    if "dx" not in ds:
+        dx, dy, length = ccontours.contour_steps(ds.lon.values, ds.lat.values)
+        ds["dx"] = ("npts", dx, {"units": "m"})
+        ds["dy"] = ("npts", dy, {"units": "m"})
+        ds.attrs["length"] = length
     return ds
 
 

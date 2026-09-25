@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-import shoot.num as snum
+import shoot.core.num as snum
 
 
 class TestPointsInPolygon:

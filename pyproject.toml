@@ -71,8 +71,17 @@ select = [
   "F",   # pyflakes
   "I",   # isort
   "UP",  # pyupgrade
+  "TID251",  # banned-api: shoot.core must stay pure numeric
 ]
 ignore = []
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"xarray".msg = "shoot.core is pure numeric: use numpy arrays"
+"xoa".msg = "shoot.core is pure numeric: use numpy arrays"
+"matplotlib".msg = "shoot.core is pure numeric: no plotting"
+
+[tool.ruff.lint.per-file-ignores]
+"!shoot/core/**" = ["TID251"]
 
 [tool.ruff.format]
 # Equivalent to black's skip-string-normalization
@@ -89,6 +98,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
+    "--import-mode=importlib",
 ]
 markers = [
     "unit: Unit tests",
