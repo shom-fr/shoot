@@ -227,7 +227,7 @@ Getting Started
 For comprehensive guides on specific ocean objects:
 
 1. :ref:`indepth_eddies` - Mesoscale eddy detection and tracking
-2. :ref:`indepth_fronts` - Oceanic front identification (coming soon)
+2. :ref:`indepth_fronts` - Oceanic front detection
 
 For supporting systems:
 

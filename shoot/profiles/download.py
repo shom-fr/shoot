@@ -10,7 +10,6 @@ import os
 
 import numpy as np
 import xarray as xr
-from argopy import DataFetcher
 
 from .. import meta as smeta
 
@@ -43,6 +42,8 @@ class Download:
         Root directory for caching downloaded data.
     max_depth : float, default 1000
         Maximum depth (m) for profile data.
+    src : {"erddap", "gdac", "argovis"}, default "erddap"
+        Data source of argopy.
 
     Attributes
     ----------
@@ -59,6 +60,7 @@ class Download:
         lon_max,
         root_path,
         max_depth=1000,
+        src="erddap",
     ):
         """Initialize downloader and fetch data
 
@@ -78,8 +80,11 @@ class Download:
             Root directory for caching downloaded data.
         max_depth : float, default 1000
             Maximum depth (m) for profile data.
+        src : {"erddap", "gdac", "argovis"}, default "erddap"
+            Data source of argopy.
         """
         self.path = root_path
+        self.src = src
         self.lon_min = lon_min
         self.lon_max = lon_max
         self.lat_min = lat_min
@@ -95,18 +100,22 @@ class Download:
                 logger.info("Data already exists for year %s", year)
                 profiles_tmp = xr.open_dataset(path_tmp)
             else:
-                tmin = str(time.sel(time=str(year)).min().dt.strftime("%Y-%m-%d").values)
-                tmax = str(time.sel(time=str(year)).max().dt.strftime("%Y-%m-%d").values)
-                print(tmin, tmax)
+                time_year = time[time.dt.year == year]
+                tmin = str(time_year.min().dt.strftime("%Y-%m-%d").values)
+                tmax = str(time_year.max().dt.strftime("%Y-%m-%d").values)
+                logger.info("Downloading Argo profiles from %s to %s", tmin, tmax)
                 profiles_tmp = self._load(tmin, tmax)
                 profiles_tmp.to_netcdf(path_tmp)
-            if self.profiles:
+            if self.profiles is not None:
                 self.profiles = xr.concat([self.profiles, profiles_tmp], dim="N_PROF")
             else:
                 self.profiles = profiles_tmp
 
     def _load(self, tmin, tmax):
         """Download Argo profiles from ERDDAP for a time range
+
+        The standard mode of argopy is used: adjusted values when available,
+        filtered on quality flags.
 
         Parameters
         ----------
@@ -120,7 +129,9 @@ class Download:
         xarray.Dataset
             Downloaded Argo profiles.
         """
-        f = DataFetcher(src='erddap', mode='expert')
+        from argopy import DataFetcher  # optional dependency, slow to import
+
+        f = DataFetcher(src=self.src, mode="standard")
         box = [self.lon_min, self.lon_max, self.lat_min, self.lat_max, 0, self.max_depth, tmin, tmax]
 
         points = f.region(box).to_xarray()
@@ -128,7 +139,7 @@ class Download:
         return profiles
 
     @classmethod
-    def from_ds(cls, ds, root_path, max_depth=1000):
+    def from_ds(cls, ds, root_path, max_depth=1000, src="erddap"):
         """Create Download instance from a dataset's spatiotemporal extent
 
         Parameters
@@ -139,6 +150,8 @@ class Download:
             Root directory for caching downloaded data.
         max_depth : float, default 1000
             Maximum depth (m) for profile data.
+        src : {"erddap", "gdac", "argovis"}, default "erddap"
+            Data source of argopy.
 
         Returns
         -------
@@ -152,10 +165,10 @@ class Download:
         lat_min = float(lat.min().values)
         lat_max = float(lat.max().values)
         time = smeta.get_time(ds)
-        return cls(time, lat_min, lat_max, lon_min, lon_max, root_path, max_depth=max_depth)
+        return cls(time, lat_min, lat_max, lon_min, lon_max, root_path, max_depth=max_depth, src=src)
 
 
-def load_from_ds(ds, root_path="/local/tmp/data", max_depth=1000):
+def load_from_ds(ds, root_path="/local/tmp/data", max_depth=1000, src="erddap"):
     """Load Argo profiles for a dataset's spatiotemporal extent
 
     Parameters
@@ -164,11 +177,15 @@ def load_from_ds(ds, root_path="/local/tmp/data", max_depth=1000):
         Dataset with lat, lon, and time coordinates.
     root_path : str, default "/local/tmp/data"
         Root directory for caching downloaded data.
+    max_depth : float, default 1000
+        Maximum depth (m) for profile data.
+    src : {"erddap", "gdac", "argovis"}, default "erddap"
+        Data source of argopy.
 
     Returns
     -------
     xarray.Dataset
         Downloaded Argo profiles.
     """
-    do = Download.from_ds(ds, root_path, max_depth=max_depth)
+    do = Download.from_ds(ds, root_path, max_depth=max_depth, src=src)
     return do.profiles

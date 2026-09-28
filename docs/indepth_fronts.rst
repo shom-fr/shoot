@@ -1,16 +1,15 @@
 .. _indepth_fronts:
 
-Fronts (Coming Soon)
-====================
+Fronts
+======
 
 .. note::
-   This section is under development. Front detection and tracking capabilities
-   are planned for future releases of shoot.
+   Front detection is available. Front tracking is planned for future releases of shoot.
 
 Overview
 --------
 
-Ocean fronts are sharp transitions in water properties (temperature, salinity, density) that occur at various scales throughout the ocean. shoot will provide tools to:
+Ocean fronts are sharp transitions in water properties (temperature, salinity, density) that occur at various scales throughout the ocean. shoot provides or will provide tools to:
 
 - Detect fronts from temperature/salinity fields
 - Track front evolution through time
@@ -82,56 +81,39 @@ Fronts are important because they:
 - Generate submesoscale features
 - Impact navigation and marine operations
 
-Planned Detection Methods
---------------------------
+Detection Methods
+-----------------
 
-shoot will implement multiple front detection techniques:
-
-Gradient-Based Detection
-~~~~~~~~~~~~~~~~~~~~~~~~
+Fronts are detected in a 2D field, like sea surface temperature, with
+:func:`shoot.fronts.fronts2d.detect_fronts`, which returns a boolean front mask:
 
 .. code-block:: python
 
-    # Planned API (not yet implemented)
-    from shoot.fronts import detect_fronts
+    from shoot.fronts.fronts2d import detect_fronts
 
-    # Detect from temperature field
-    fronts = detect_fronts(
-        ds.temp,
-        method='gradient',
-        threshold=0.1,        # °C/km
-        min_length=20         # km
-    )
+    fronts = detect_fronts(ds.thetao, method="cca", min_pop_mean_diff=0.4)
 
-Edge Detection
-~~~~~~~~~~~~~~
+Four methods are available:
 
-Using Canny or similar algorithms:
+``"cca"``
+    Cayula and Cornillon (1992) single image edge detector: the histogram of
+    overlapping windows is split into two populations, and a front is the
+    contour between them when they are large, distinct and spatially cohesive
+    enough (:func:`shoot.core.fronts.cca_window`). Requires 1D coordinates.
 
-.. code-block:: python
+``"cca_sliding"``
+    The same criteria on windows centered every ``step`` grid points.
 
-    # Planned API
-    fronts = detect_fronts(
-        ds.temp,
-        method='canny',
-        sigma=2,              # Smoothing scale
-        min_length=20
-    )
+``"boa"``
+    Belkin and O'Reilly (2009): gradient magnitude after a contextual median
+    filter that preserves the extrema, greater than a ``threshold``.
 
-Contour-Based
-~~~~~~~~~~~~~
+``"canny"``
+    Canny edge detector with a Gaussian smoothing of standard deviation ``sigma``.
 
-Following specific isotherms/isohalines:
-
-.. code-block:: python
-
-    # Planned API
-    fronts = detect_fronts(
-        ds.temp,
-        method='contour',
-        values=[15, 20],      # Isotherms to track
-        gradient_threshold=0.1
-    )
+The numeric algorithms are in :mod:`shoot.core.fronts` and generic image
+processing routines in :mod:`shoot.core.image`.
+See the example :ref:`sphx_glr_examples_plot_cmcc_front.py`.
 
 Planned Tracking
 ----------------
@@ -168,53 +150,10 @@ For front detection, you will need:
    - Sub-daily to daily for tracking
    - Sufficient to capture evolution
 
-Interim Solutions
------------------
-
-While native front detection is under development, you can:
-
-Use Custom Gradient Computation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: python
-
-    import xarray as xr
-    import numpy as np
-    from shoot import meta as smeta
-
-    # Load data
-    ds = xr.open_dataset("sst_data.nc")
-
-    # Get coordinates
-    lon = smeta.get_lon(ds)
-    lat = smeta.get_lat(ds)
-
-    # Compute gradients
-    dT_dx = ds.temp.differentiate('lon')
-    dT_dy = ds.temp.differentiate('lat')
-
-    # Gradient magnitude
-    grad_mag = np.sqrt(dT_dx**2 + dT_dy**2)
-
-    # Threshold for fronts
-    front_mask = grad_mag > 0.1  # Adjust threshold
-
-Use External Tools
-~~~~~~~~~~~~~~~~~~
-
-Consider other packages for front detection:
-
-- **oceanspy** - Has front detection utilities
-- **xgcm** - Grid operations for gradient computation
-- **scikit-image** - Edge detection algorithms
-- **OpenCV** - Computer vision techniques
-
-Then use shoot's tracking framework to follow detected features.
-
 Contributing
 ------------
 
-If you're interested in front detection capabilities:
+If you're interested in front detection and tracking capabilities:
 
 - Check the shoot repository for development status
 - Open an issue to discuss requirements
@@ -230,7 +169,7 @@ We welcome contributions for:
 Stay Tuned
 ----------
 
-Front detection is a planned feature for shoot. Check:
+Front tracking is a planned feature for shoot. Check:
 
 - Project repository for updates
 - Release notes for new versions
@@ -245,7 +184,7 @@ For now, focus on:
 Questions?
 ----------
 
-If you have specific needs for front detection:
+If you have specific needs for front detection or tracking:
 
 - Open an issue on the repository
 - Describe your use case

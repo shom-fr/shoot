@@ -29,8 +29,7 @@ class Field2D:
         Radius factor for selecting outside profiles.
     """
 
-    def __init__(self, eddy, eddies, ds,  r_factor=1.2):
-
+    def __init__(self, eddy, eddies, ds, r_factor=1.2):
         self.lon = eddy.lon
         self.lat = eddy.lat
         self.eddy = eddy
@@ -47,7 +46,6 @@ class Field2D:
         self._imax = len(self.ds[self.ydim])
         self._r = r_factor
         self.eddies = eddies  # The whole eddies file
-
 
     @functools.cached_property
     def _dist(self):
@@ -226,7 +224,6 @@ class Field2D:
         )
 
 
-
 class Anomaly:
     """Compute 3D anomalies inside and outside an eddy
 
@@ -250,7 +247,6 @@ class Anomaly:
     """
 
     def __init__(self, eddy, eddies, dens, depth=None, r_factor=1.2, nz=100, eddy_type=True):
-
         self.lon = eddy.lon
         self.lat = eddy.lat
         self.eddy = eddy

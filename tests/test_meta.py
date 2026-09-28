@@ -190,3 +190,24 @@ def test_standard_name_retrieval(var_name, standard_name):
 
         if result is not None:
             assert result.name == 'data_var'
+
+
+@pytest.mark.parametrize(
+    "lon_name, lat_name, specs",
+    [
+        ("lon", "lat", "shoot"),
+        ("longitude", "latitude", "shoot"),
+        ("Longitude", "Latitude", "shoot"),
+        ("lon_rho", "lat_rho", "croco"),
+        (None, None, "shoot"),
+    ],
+)
+def test_get_lon_lat_names(lon_name, lat_name, specs):
+    """Test longitude and latitude coordinate names retrieval"""
+    names = (lon_name or "x", lat_name or "y")
+    ds = xr.Dataset(coords={names[0]: range(10), names[1]: range(5)})
+    smeta.set_meta_specs(specs)
+    try:
+        assert smeta.get_lon_lat_names(ds) == (lon_name, lat_name)
+    finally:
+        smeta.set_meta_specs("shoot")

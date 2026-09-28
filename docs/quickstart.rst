@@ -122,7 +122,6 @@ Run Detection
         ssh=ds.adt,       # Absolute dynamic topography (optional)
         min_radius=min_radius,
         ellipse_error=ellipse_error,
-        paral=False       # Set True for parallel processing
     )
 
     print(f"Detected {len(eddies.eddies)} eddies")
@@ -287,7 +286,7 @@ Example using shoot's metadata wrappers:
     u = smeta.get_u(ds)
     v = smeta.get_v(ds)
     ssh = smeta.get_ssh(ds)
-    
+
 You can easily use a configuration file for your own dataset (see :ref:`metaspec` for how to create custom specifications).
 
 From python:
@@ -303,7 +302,7 @@ From the commandline:
 .. code-block:: bash
 
     # Detect eddies with custom metadata file
-    shoot eddies detect --meta-file my_config_file.cfg input.nc -o output.nc 
+    shoot eddies detect --meta-file my_config_file.cfg input.nc -o output.nc
 
 
 Next Steps

@@ -10,13 +10,50 @@ import logging
 
 import numpy as np
 import xarray as xr
-import xoa.geo as xgeo
 from scipy.optimize import linear_sum_assignment
 
-from .. import geo as sgeo
+from ..core import track as ctrack
 from . import eddies2d as seddies
 
 logger = logging.getLogger(__name__)
+
+
+def _vmax_radius(eddy):
+    """Radius of the maximal speed contour of a detected or reconstructed eddy"""
+    try:
+        return eddy.vmax_contour.radius
+    except AttributeError:
+        return eddy.vmax_radius
+
+
+def _eddy_type_codes(*eddy_lists):
+    """Integer codes of eddy types for each list of eddies"""
+    codes = {}
+    return [[codes.setdefault(eddy.eddy_type, len(codes)) for eddy in eddies] for eddies in eddy_lists]
+
+
+def _association_cost(new_eddies, parent_eddies, dist_ref, radius_ref_avg, ro_ref_avg, time_cost_ref):
+    """Cost matrix between new and parent eddies with :func:`shoot.core.track.association_cost`"""
+    if not len(new_eddies) or not len(parent_eddies):
+        return np.zeros((len(new_eddies), len(parent_eddies)))
+    type_new, type_ref = _eddy_type_codes(new_eddies, parent_eddies)
+    return ctrack.association_cost(
+        [eddy.lon for eddy in new_eddies],
+        [eddy.lat for eddy in new_eddies],
+        [eddy.radius for eddy in new_eddies],
+        [eddy.ro for eddy in new_eddies],
+        type_new,
+        [eddy.lon for eddy in parent_eddies],
+        [eddy.lat for eddy in parent_eddies],
+        [eddy.radius for eddy in parent_eddies],
+        [eddy.ro for eddy in parent_eddies],
+        type_ref,
+        dist_ref,
+        dist_new=[_vmax_radius(eddy) for eddy in new_eddies],
+        radius_ref_avg=radius_ref_avg,
+        ro_ref_avg=ro_ref_avg,
+        time_cost_ref=time_cost_ref,
+    )
 
 
 class Associate:
@@ -79,17 +116,22 @@ class Associate:
         self._Tc = Tc
         self._C = C
 
-    def search_dist(self, eddyj, eddyi):
-        """Compute search distance for eddy association"""
+    def search_dist_ref(self, eddyj, dt):
+        """Parent eddy part of the search distance for eddy association
+
+        The full search distance is this plus the vmax radius of the new eddy.
+        """
         istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
         Ravg = 0
         for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
-            Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_contour.radius
+            Ravg += _vmax_radius(self.track_eddies[eddyj.track_id].eddies[i])
             n += 1
-        # print('Dij components', self._C*(1+self._Dt)/2, Ravg/n/1e3, eddyi.vmax_contour.radius/1e3)
-        Dij = self._C * (1 + self._Dt) / 2 + Ravg / n + eddyi.vmax_contour.radius
-        return Dij
+        return self._C * (1 + dt) / 2 + Ravg / n
+
+    def search_dist(self, eddyj, eddyi):
+        """Compute search distance for eddy association"""
+        return self.search_dist_ref(eddyj, self._Dt) + _vmax_radius(eddyi)
 
     def ro_avg(self, eddyj):
         """Average Rossby number over last 5 time steps"""
@@ -114,37 +156,14 @@ class Associate:
     @functools.cached_property
     def cost(self):
         """Cost function between each eddy pair"""
-        M = np.zeros((len(self.new_eddies), len(self.parent_eddies)))
-        for i in range(len(self.new_eddies)):
-            for j in range(len(self.parent_eddies)):
-                dlat = self.parent_eddies[j].lat - self.new_eddies[i].lat
-                dlon = self.parent_eddies[j].lon - self.new_eddies[i].lon
-                x = sgeo.deg2m(dlon, self.parent_eddies[j].lat)
-                y = sgeo.deg2m(dlat)
-
-                D_ij = self.search_dist(self.parent_eddies[j], self.new_eddies[i])
-
-                # Distance term
-                dxy = np.sqrt(x**2 + y**2)
-
-                M[i, j] = (dxy**2) / (D_ij**2) if dxy < D_ij else 1e6
-                # dynamical similarity
-                roj = self.ro_avg(self.parent_eddies[j])
-                rj = self.rad_avg(self.parent_eddies[j])
-
-                DR = (self.parent_eddies[j].radius - self.new_eddies[i].radius) / (
-                    rj + self.new_eddies[i].radius
-                )
-                DR0 = (self.parent_eddies[j].ro - self.new_eddies[i].ro) / (roj + self.new_eddies[i].ro)
-
-                # Warning: avoid coupling cyclone with anticyclone
-                M[i, j] += (
-                    DR**2 + DR0**2 if self.parent_eddies[j].eddy_type == self.new_eddies[i].eddy_type else 1e6
-                )
-
-                # temporal proximity
-                M[i, j] += (0.5 * self._Dt / self._Tc) ** 2
-        return np.sqrt(M)
+        return _association_cost(
+            self.new_eddies,
+            self.parent_eddies,
+            [self.search_dist_ref(eddy, self._Dt) for eddy in self.parent_eddies],
+            [self.rad_avg(eddy) for eddy in self.parent_eddies],
+            [self.ro_avg(eddy) for eddy in self.parent_eddies],
+            [(0.5 * self._Dt / self._Tc) ** 2] * len(self.parent_eddies),
+        )
 
     def order(self):
         M = self.cost
@@ -177,21 +196,11 @@ class AssociateMulti:
         self._Tc = Tc
         self._C = C
 
+    search_dist_ref = Associate.search_dist_ref
+
     def search_dist(self, eddyj, eddyi, dt):
-        istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
-        n = 0
-        Ravg = 0
-        for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
-            try:
-                Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_contour.radius
-            except AttributeError:
-                Ravg += self.track_eddies[eddyj.track_id].eddies[i].vmax_radius
-            n += 1
-        try:
-            Dij = self._C * (1 + dt) / 2 + Ravg / n + eddyi.vmax_contour.radius
-        except AttributeError:
-            Dij = self._C * (1 + dt) / 2 + Ravg / n + eddyi.vmax_radius
-        return Dij
+        """Compute search distance for eddy association"""
+        return self.search_dist_ref(eddyj, dt) + _vmax_radius(eddyi)
 
     def ro_avg(self, eddyj):
         istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
@@ -214,51 +223,16 @@ class AssociateMulti:
     @functools.cached_property
     def cost(self):
         """Cost function between each eddy pair"""
-        nj = np.sum([len(self.parent_eddies[k]) for k in range(len(self.parent_eddies))])
-        M = np.zeros((len(self.new_eddies), nj))
-        for i in range(len(self.new_eddies)):
-            cmp = 0
-            for k in range(len(self.parent_eddies)):
-                for j in range(len(self.parent_eddies[k])):
-                    dlat = self.parent_eddies[k][j].lat - self.new_eddies[i].lat
-                    dlon = self.parent_eddies[k][j].lon - self.new_eddies[i].lon
-                    x = xgeo.deg2m(dlon, self.parent_eddies[k][j].lat)
-                    y = xgeo.deg2m(dlat)
-
-                    D_ij = self.search_dist(
-                        self.parent_eddies[k][j],
-                        self.new_eddies[i],
-                        self._Dt[k],
-                    )
-
-                    # Distance term
-                    dxy = np.sqrt(x**2 + y**2)
-
-                    M[i, cmp] = (dxy**2) / (D_ij**2) if dxy < D_ij else 1e6
-
-                    # dynamical similarity
-                    roj = self.ro_avg(self.parent_eddies[k][j])
-                    rj = self.rad_avg(self.parent_eddies[k][j])
-
-                    DR = (self.parent_eddies[k][j].radius - self.new_eddies[i].radius) / (
-                        rj + self.new_eddies[i].radius
-                    )
-                    DR0 = (self.parent_eddies[k][j].ro - self.new_eddies[i].ro) / (
-                        roj + self.new_eddies[i].ro
-                    )
-
-                    # Warning: avoid coupling cyclone with anticyclone
-                    M[i, cmp] += (
-                        DR**2 + DR0**2
-                        if self.parent_eddies[k][j].eddy_type == self.new_eddies[i].eddy_type
-                        else 1e6
-                    )
-
-                    # temporal proximity
-                    M[i, cmp] += (0.5 * self._Dt[k] / self._Tc) ** 2
-                    cmp += 1
-
-        return np.sqrt(M)
+        parents = [eddy for eddies in self.parent_eddies for eddy in eddies]
+        dts = [dt for eddies, dt in zip(self.parent_eddies, self._Dt) for eddy in eddies]
+        return _association_cost(
+            self.new_eddies,
+            parents,
+            [self.search_dist_ref(eddy, dt) for eddy, dt in zip(parents, dts)],
+            [self.rad_avg(eddy) for eddy in parents],
+            [self.ro_avg(eddy) for eddy in parents],
+            [(0.5 * dt / self._Tc) ** 2 for dt in dts],
+        )
 
     def indexmatching(self):
         index = {}

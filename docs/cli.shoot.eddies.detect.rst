@@ -1,7 +1,7 @@
 .. _cli_shoot_eddies_detect:
 
 :command:`shoot eddies detect`
-=============================
+==============================
 
 Detect eddies.
 

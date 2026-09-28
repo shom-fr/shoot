@@ -19,5 +19,3 @@ and add the following lines::
 
     import multiprocessing as mp
     mp.set_start_method("spawn")
-
-
