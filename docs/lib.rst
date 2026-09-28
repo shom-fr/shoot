@@ -1,5 +1,5 @@
 .. _lib:
-    
+
 Library
 =======
 
@@ -21,6 +21,8 @@ coordinates and dimensions from metadata with :mod:`xoa`.
     shoot.eddies.eddies2d
     shoot.eddies.eddies3d
     shoot.eddies.track
+    shoot.fronts
+    shoot.fronts.fronts2d
     shoot.hydrology
     shoot.fit
     shoot.grid
@@ -49,6 +51,8 @@ units are SI and contour lines are ``(n, 2)`` arrays of fractional ``(i, j)`` in
     shoot.core.dyn
     shoot.core.eddies
     shoot.core.fit
+    shoot.core.fronts
     shoot.core.geo
+    shoot.core.image
     shoot.core.num
     shoot.core.track
