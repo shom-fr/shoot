@@ -161,14 +161,14 @@ class EddiesByDepth:
         eddies3d = {}
         eddies_tmp = None
         nb_eddies = 0
-        if np.abs(depth[0])>np.abs(depth[-1]): 
-            start = len(depth)-1 
+        if np.abs(depth[0]) > np.abs(depth[-1]):
+            start = len(depth) - 1
             end = -1
-            inc = -1 
-        else : 
-            start = 0 
+            inc = -1
+        else:
+            start = 0
             end = len(depth)
-            inc = 1 
+            inc = 1
         for z in range(start, end, inc):
             uz = u.isel(depth=z)
             vz = v.isel(depth=z)
@@ -269,7 +269,6 @@ class Eddies3D:
         max_distance=10,
         **kwargs,
     ):
-
         eddies = EddiesByDepth.detect_eddies_3d(
             u,
             v,
@@ -297,7 +296,7 @@ class Eddies3D:
             eddies_3d.append(RawEddy3D(np.array(e_depth), e))
         return cls(u, v, eddies.depth.values, eddies_3d, eddies)
 
-    def plot2d(self, depth=0, boundary=False, vmax=False, quiver=False, ns=5, min_max_info = False):
+    def plot2d(self, depth=0, boundary=False, vmax=False, quiver=False, ns=5, min_max_info=False):
         """
         plot the 2D vorticity field superimposed with eddies detection at the nearest
         layer depth
@@ -332,15 +331,21 @@ class Eddies3D:
 
         iref = np.argmin(np.abs(depth - np.abs(self.depths)))
         for eddy3d in self.eddies:
-            if self.depths[iref] in eddy3d.depths : 
+            if self.depths[iref] in eddy3d.depths:
                 inearest = np.argmin(np.abs(depth - np.abs(eddy3d.depths)))
                 eddy2d = eddy3d.eddies[inearest]
                 eddy2d.plot(boundary=boundary, vmax=vmax, transform=splot.pcarr)
 
-                if min_max_info : 
-                    plt.text(eddy2d.lon, eddy2d.lat,"%i - %i"%(eddy3d.min_depth, eddy3d.max_depth), transform=splot.pcarr, ha='center',
-    va='center')
-                else : 
+                if min_max_info:
+                    plt.text(
+                        eddy2d.lon,
+                        eddy2d.lat,
+                        f"{int(eddy3d.min_depth)} - {int(eddy3d.max_depth)}",
+                        transform=splot.pcarr,
+                        ha='center',
+                        va='center',
+                    )
+                else:
                     cb = plt.scatter(
                         eddy2d.lon,
                         eddy2d.lat,
@@ -352,5 +357,5 @@ class Eddies3D:
                         vmax=np.max(np.abs(self.depths)),
                         transform=splot.pcarr,
                     )
-        if  ~min_max_info : 
+        if ~min_max_info:
             plt.colorbar(cb, label="maximum depth")

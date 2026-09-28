@@ -28,7 +28,7 @@ class Profile:
 
         lon_vals = prf.LONGITUDE.values
         self.lon = lon_vals
-        
+
         self.float_id = prf.PLATFORM_NUMBER.values
 
         self.depth = np.arange(1, 2001)
@@ -46,7 +46,7 @@ class Profile:
             left=np.nan,
             right=np.nan,
         )
-        self.valid =  np.sum(np.isnan(self.temp)) < 0.8*len(self.temp) #20% nan accepted
+        self.valid = np.sum(np.isnan(self.temp)) < 0.8 * len(self.temp)  # 20% nan accepted
 
 
 class Profiles:
@@ -96,7 +96,7 @@ class Profiles:
             prf = Profile(brut_prf.isel(N_PROF=i))
             if prf.valid:
                 self.profiles.append(prf)
-                if not prf.float_id in self.float_ids : 
+                if prf.float_id not in self.float_ids:
                     self.float_ids.append(prf.float_id)
 
     @classmethod
@@ -127,7 +127,7 @@ class Profiles:
         temp = np.array([prf.temp for prf in self.profiles])
         sal = np.array([prf.sal for prf in self.profiles])
         float_id = np.array([prf.float_id for prf in self.profiles])
-        p_id = np.arange(0, len(lats),dtype="int32")
+        p_id = np.arange(0, len(lats), dtype="int32")
 
         ds = xr.Dataset(
             {

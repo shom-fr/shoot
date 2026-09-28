@@ -389,7 +389,6 @@ def _eddies_track(parser, args, logger, ds):
 
 
 def _eddies_update(parser, args, logger, ds):
-
     time = smeta.get_time(ds)
     if time is not None:
         logger.warning("Selecting the last time step")

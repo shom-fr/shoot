@@ -1,19 +1,18 @@
-# -*- coding: utf-8 -*-
 
+import math
 import sys
-import numpy as np
+from math import ceil, floor
+
 import cv2
+import matplotlib.pyplot as plt
+import numpy as np
 import scipy
 import scipy.signal
-from scipy.ndimage import gaussian_filter
-import math
-from math import floor, ceil
-from numpy.fft import fft2
 import xoa.coords as xcoords
-import matplotlib.pyplot as plt
+from numpy.fft import fft2
+from scipy.ndimage import gaussian_filter
 
-
-#%% 
+# %%
 #### CCA ALGO #####
 
 
@@ -45,7 +44,7 @@ def getFrontInWindow(
 
     if haveNaNs:
         n_NaNs = sum(mask.flatten()[:])  # count nr of 1s (NaNs in matrix w) that there are
-        #print("percent nans : %.2f"%(n_NaNs / len(w.flatten())))
+        # print("percent nans : %.2f"%(n_NaNs / len(w.flatten())))
         if n_NaNs / len(w.flatten()) > 0.5:  # window can't have more than 50% of its pixels as NaNs
             exitType = -1
             return None, None, None, exitType
@@ -90,21 +89,19 @@ def getFrontInWindow(
             threshPopACount = popACount
             threshPopAMean = popAMean
             threshPopBMean = popBMean
-            
-    if thresValue < 1e-1 : #we have detected the frontiers
+
+    if thresValue < 1e-1:  # we have detected the frontiers
         exitType = -1
         return None, None, None, exitType
-        
+
     # abort in case the proportion of population A is less that a certain minimum OR in case the proportion of population B is less that a certain minimum
-    #print("PopProp : %.2f"%(threshPopACount / totalCount))
-    if (threshPopACount / totalCount < minPopProp) or (
-        1.0 - threshPopACount / totalCount < minPopProp
-    ):
+    # print("PopProp : %.2f"%(threshPopACount / totalCount))
+    if (threshPopACount / totalCount < minPopProp) or (1.0 - threshPopACount / totalCount < minPopProp):
         exitType = 1
         return None, None, None, exitType
 
     # abort this window if the difference in the populations means is less than a minimum value
-    #print("MeanDiff : %.2f"%(threshPopBMean - threshPopAMean))
+    # print("MeanDiff : %.2f"%(threshPopBMean - threshPopAMean))
     if threshPopBMean - threshPopAMean < minPopMeanDiff:
         exitType = 2
         return None, None, None, exitType
@@ -113,7 +110,7 @@ def getFrontInWindow(
     totalMean = totalSum / totalCount
     variance = totalSumSquares - (totalMean * totalMean * totalCount)
     theta = threshSeparation / (variance * totalCount)
-    #print("theta : %.2f"%theta)
+    # print("theta : %.2f"%theta)
     if theta < minTheta:  # abort if theta is lower than a certain minimum
         exitType = 3
         return None, None, None, exitType
@@ -154,11 +151,10 @@ def getFrontInWindow(
     popACohesion = countANextToA / countANextToAOrB
     popBCohesion = countBNextToB / countBNextToAOrB
     globalCohesion = (countANextToA + countBNextToB) / (countANextToAOrB + countBNextToAOrB)
-    
+
     # print("popAcohes : %.2f"%popACohesion)
     # print("popBcohes : %.2f"%popBCohesion)
     # print("globalCohes : %.2f"%globalCohesion)
-
 
     # These ifs are in case of errors (parameters below certain limits)
     if (
@@ -176,9 +172,7 @@ def getFrontInWindow(
         w = w.astype('double')
         if haveNaNs:
             w[w == 0] = np.nan  # Need to restore the NaNs to not invent new contours around zeros
-        c = plt.contour(
-            X, Y, w, [thresValue]
-        )  # Create and store a set of contour lines or filled regions.
+        c = plt.contour(X, Y, w, [thresValue])  # Create and store a set of contour lines or filled regions.
     else:
         # the 4 corners have these indices [17,32,17,32; 17,32,1,16; 1,16,1,16;1,16,17,32]
         # and the variable corners has one of its rows (the current to be retained sub-window)
@@ -186,12 +180,8 @@ def getFrontInWindow(
         X = X[np.arange(corners[2] - 1, corners[3])]
         Y = Y[np.arange(corners[0] - 1, corners[1])]
         w = w[
-            np.arange(corners[0], corners[1]).min()
-            - 1 : np.arange(corners[0], corners[1]).max()
-            + 1,
-            np.arange(corners[2], corners[3]).min()
-            - 1 : np.arange(corners[2], corners[3]).max()
-            + 1,
+            np.arange(corners[0], corners[1]).min() - 1 : np.arange(corners[0], corners[1]).max() + 1,
+            np.arange(corners[2], corners[3]).min() - 1 : np.arange(corners[2], corners[3]).max() + 1,
         ]
 
         if haveNaNs:
@@ -220,9 +210,7 @@ def getFrontInWindow(
     # Each array (line of contour) must have more that 7 data points and they can't be closed lines
     lista = []
     for i in range(len(M[:])):
-        lista.append(
-            [(len(x) < 7 or (x[0][0] == x[-1][0] and x[0][1] == x[-1][1])) for x in M[:][i]]
-        )
+        lista.append([(len(x) < 7 or (x[0][0] == x[-1][0] and x[0][1] == x[-1][1])) for x in M[:][i]])
 
         # if False the line will be drawn
         # if True the line will be ignored
@@ -250,8 +238,9 @@ def getFrontInWindow(
     return xdata, ydata, z, exitType
 
 
-def cca_sied(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSinglePopCohesion=0.9, minGlobalPopCohesion =0.7):
-    
+def cca_sied(
+    temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSinglePopCohesion=0.9, minGlobalPopCohesion=0.7
+):
     """
     This function applies the Cayula-Cornillon Algorithm Single Image Edge Detector (CCA_SIED) to a single image
     with data from an xarray.
@@ -289,8 +278,8 @@ def cca_sied(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSinglePo
     head = np.append(head, np.array((head[3] - head[2]) / (ny - int(not node_offset))))
 
     # cayula parameters;
-    #minPopProp-> minimum proportion of each population
-    #minPopMeanDiff ->minimum difference between the means of the 2 populations
+    # minPopProp-> minimum proportion of each population
+    # minPopMeanDiff ->minimum difference between the means of the 2 populations
     # minPopProp, minPopMeanDiff, minTheta, minSinglePopCohesion, minGlobalPopCohesion = (
     #     0.2,
     #     0.4,
@@ -335,13 +324,9 @@ def cca_sied(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSinglePo
                     [[17, 32, 17, 32], [17, 32, 1, 16], [1, 16, 1, 16], [1, 16, 17, 32]]
                 )  # less good
             else:
-                corners = np.array(
-                    [[17, 33, 17, 33], [17, 33, 1, 17], [1, 17, 1, 17], [1, 17, 17, 33]]
-                )
+                corners = np.array([[17, 33, 17, 33], [17, 33, 1, 17], [1, 17, 1, 17], [1, 17, 17, 33]])
 
-            for k in range(
-                0, 4
-            ):  # loop over the 4 slidding 32X32 sub-windows of the larger 48x48 one
+            for k in range(0, 4):  # loop over the 4 slidding 32X32 sub-windows of the larger 48x48 one
                 m1 = (rr[k] - 1) * winW16 + 1
                 m2 = m1 + 2 * winW16 - s  # indices of the slidding 33X33 window
                 n1 = (cc[k] - 1) * winW16 + 1
@@ -367,13 +352,21 @@ def cca_sied(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSinglePo
                     corners[k, :],
                 )
                 if exitType == 0:
-
                     xdata_final = np.append(xdata_final, xdata)
                     ydata_final = np.append(ydata_final, ydata)
 
     return xdata_final, ydata_final
 
-def cca_bf(temp,minPopProp = 0.2, minPopMeanDiff = 0.4, minTheta = 0.7, minSinglePopCohesion=0.9,  minGlobalPopCohesion=0.7, njump = 10):
+
+def cca_bf(
+    temp,
+    minPopProp=0.2,
+    minPopMeanDiff=0.4,
+    minTheta=0.7,
+    minSinglePopCohesion=0.9,
+    minGlobalPopCohesion=0.7,
+    njump=10,
+):
     """
     This function applies the Cayula-Cornillon Algorithm Single Image Edge Detector based on brut force
     windows analysis.
@@ -384,7 +377,7 @@ def cca_bf(temp,minPopProp = 0.2, minPopMeanDiff = 0.4, minTheta = 0.7, minSingl
     temp = temp.values
     xdata_final = np.array([])
     ydata_final = np.array([])
-    
+
     ny, nx = temp.shape
     mask = np.isnan(temp)
     maxima = np.empty((0, 2), dtype=np.int64)
@@ -393,22 +386,22 @@ def cca_bf(temp,minPopProp = 0.2, minPopMeanDiff = 0.4, minTheta = 0.7, minSingl
     wy = 32
     wx2 = wx // 2
     wy2 = wy // 2
-    for j in range(1, ny - 1,njump):
-        for i in range(1, nx - 1,njump):
+    for j in range(1, ny - 1, njump):
+        for i in range(1, nx - 1, njump):
             if mask[j, i]:
                 continue
             i0 = max(0, i - wx2)
             i1 = min(nx, i + wx2 + 1)
             j0 = max(0, j - wy2)
             j1 = min(ny, j + wy2 + 1)
-            
+
             if mask[j - 1 : j + 2, i - 1 : i + 2].all():
                 continue
-            
-            wtemp = temp[j0 : j1, i0 : i1]
-            if np.sum(np.isnan(wtemp))/len(wtemp.flatten()) > minPopProp: 
+
+            wtemp = temp[j0:j1, i0:i1]
+            if np.sum(np.isnan(wtemp)) / len(wtemp.flatten()) > minPopProp:
                 continue
-            R = np.array([lon[i0 : i1].min(), lon[i0 : i1].max(), lat[j0 : j1].min(), lat[j0 : j1].max()]) 
+            R = np.array([lon[i0:i1].min(), lon[i0:i1].max(), lat[j0:j1].min(), lat[j0:j1].max()])
             xdata, ydata, z, exitType = getFrontInWindow(
                 wtemp,
                 R,
@@ -422,11 +415,20 @@ def cca_bf(temp,minPopProp = 0.2, minPopMeanDiff = 0.4, minTheta = 0.7, minSingl
             if exitType == 0:
                 xdata_final = np.append(xdata_final, xdata)
                 ydata_final = np.append(ydata_final, ydata)
-                    
-    return xdata_final, ydata_final 
+
+    return xdata_final, ydata_final
 
 
-def wrapper_cca(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSinglePopCohesion=0.9, minGlobalPopCohesion =0.7, algo = 'sied', njump = 10):
+def wrapper_cca(
+    temp,
+    minPopProp=0.2,
+    minPopMeanDiff=0.4,
+    minTheta=0.7,
+    minSinglePopCohesion=0.9,
+    minGlobalPopCohesion=0.7,
+    algo='sied',
+    njump=10,
+):
     """
     Function that calculates the fronts matrix. Given an image (SST data respective to one day) it applies the
     Cayula-Cornillon Algorithm for Single Image Edge Detection (CCA-SIED) to discover the fronts.
@@ -445,8 +447,8 @@ def wrapper_cca(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSingl
     lon_max = lon.values.max()
     lon_min = lon.values.min()
 
-    div_rows = (lat_max - lat_min) / (lat_dims-1)
-    div_cols = (lon_max - lon_min) / (lon_dims-1)
+    div_rows = (lat_max - lat_min) / (lat_dims - 1)
+    div_cols = (lon_max - lon_min) / (lon_dims - 1)
 
     fp = np.zeros((lat_dims, lon_dims))  # initialize a matrix of zeros
 
@@ -454,13 +456,28 @@ def wrapper_cca(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSingl
     x = np.array([])
     y = np.array([])
 
-    if algo == 'sied' : 
-        xdata_final, ydata_final = cca_sied(temp, minPopProp=minPopProp, minPopMeanDiff=minPopMeanDiff, minTheta=minTheta, minSinglePopCohesion=minSinglePopCohesion, minGlobalPopCohesion =minGlobalPopCohesion)
-    else : 
-        xdata_final, ydata_final = cca_bf(temp, minPopProp=minPopProp, minPopMeanDiff=minPopMeanDiff, minTheta=minTheta, minSinglePopCohesion=minSinglePopCohesion, minGlobalPopCohesion =minGlobalPopCohesion,njump=njump)
+    if algo == 'sied':
+        xdata_final, ydata_final = cca_sied(
+            temp,
+            minPopProp=minPopProp,
+            minPopMeanDiff=minPopMeanDiff,
+            minTheta=minTheta,
+            minSinglePopCohesion=minSinglePopCohesion,
+            minGlobalPopCohesion=minGlobalPopCohesion,
+        )
+    else:
+        xdata_final, ydata_final = cca_bf(
+            temp,
+            minPopProp=minPopProp,
+            minPopMeanDiff=minPopMeanDiff,
+            minTheta=minTheta,
+            minSinglePopCohesion=minSinglePopCohesion,
+            minGlobalPopCohesion=minGlobalPopCohesion,
+            njump=njump,
+        )
     x = np.append(x, xdata_final)
     y = np.append(y, ydata_final)
-    
+
     cols_x = np.array([])
     for value in x:  # convert values in array x to the respective index in a (1001, 1401) matrix
         aux_x = (-lon_min + value) / div_cols  # these numbers are relative to the MUR data
@@ -473,14 +490,15 @@ def wrapper_cca(temp, minPopProp=0.2, minPopMeanDiff=0.4, minTheta=0.7, minSingl
 
     cols_x = np.round(cols_x)
     rows_y = np.round(rows_y)
-        
+
     for i in range(len(cols_x)):  # it could also be len(rows_y)
         fp[int(rows_y[i]), int(cols_x[i])] = fp[int(rows_y[i]), int(cols_x[i])] + 1
 
     fp[fp != 0] = 1
     return np.flipud(fp), xdata_final, ydata_final
 
-#%%
+
+# %%
 #### BOA ALGO #####
 
 
@@ -535,14 +553,10 @@ def filt3(lon, lat, ingrid, grid5):
         for j in range(3, l2 - 1):
             if grid5[i, j] == 0:
                 subg = ingrid[(i - 2) : (i + 1), (j - 2) : (j + 1)]  # submatrix subg (3x3)
-                if (
-                    np.isnan(subg).sum() == 9
-                ):  # if all values in submatrix subg (3x3) are null values:
+                if np.isnan(subg).sum() == 9:  # if all values in submatrix subg (3x3) are null values:
                     outgrid[i - 1, j - 1] = ingrid[i - 1, j - 1]
                 else:
-                    vec = np.array(
-                        subg
-                    ).T.flatten()  # array with values of the transpose subg matrix
+                    vec = np.array(subg).T.flatten()  # array with values of the transpose subg matrix
                     ma = np.argmax(subg.flatten())  # index with the maximum value of subg array
                     mi = np.argmin(subg.flatten())  # index with the minimum value of subg array
 
@@ -558,7 +572,6 @@ def filt3(lon, lat, ingrid, grid5):
 
 
 def boa(lon, lat, ingrid, nodata=np.nan, direction=False):
-
     def filter2(x, filt):
         """
         Workhorse filter from EBImage. Modified so we don't need colorspace and other annoying requirements
@@ -609,9 +622,7 @@ def boa(lon, lat, ingrid, nodata=np.nan, direction=False):
     gx = np.matrix([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])  # filter in x
     gy = np.matrix([[1, 2, 1], [0, 0, 0], [-1, -2, -1]])  # filter in y
 
-    np.nan_to_num(
-        ingrid, nan=-9999, posinf=-9999, neginf=-9999
-    )  # replace NaN and inf values with -9999
+    np.nan_to_num(ingrid, nan=-9999, posinf=-9999, neginf=-9999)  # replace NaN and inf values with -9999
 
     grid5 = filt5(lon, lat, ingrid, nodata=nodata)
     grid35 = filt3(lon, lat, ingrid, grid5)
@@ -664,9 +675,7 @@ def boa(lon, lat, ingrid, nodata=np.nan, direction=False):
         mode='same',
     )
 
-    matrix_front = mask * np.flip(
-        front.T, 0
-    )  # matrix of mask raster file * matrix of ssr raster file
+    matrix_front = mask * np.flip(front.T, 0)  # matrix of mask raster file * matrix of ssr raster file
 
     if direction == True:
         #   ************************************
@@ -688,9 +697,7 @@ def boa(lon, lat, ingrid, nodata=np.nan, direction=False):
         OK = np.array(OK)
 
         if OK.size > 1:
-            GRAD_DIR[OK] = 360 - abs(
-                GRAD_DIR[OK]
-            )  # Adjust to 0-360 scheme (make negative degrees positive)
+            GRAD_DIR[OK] = 360 - abs(GRAD_DIR[OK])  # Adjust to 0-360 scheme (make negative degrees positive)
 
         GRAD_DIR = (
             360 - GRAD_DIR + 90
@@ -724,9 +731,7 @@ def boa_wrapper(temp, threshold=0.3):
 
     front = boa(lon=lon, lat=lat, ingrid=ingrid, nodata=np.nan, direction=False)
     front = np.flip(front, axis=0)
-    front = np.array(
-        [[front[j][i] for j in range(len(front))] for i in range(len(front[0]) - 1, -1, -1)]
-    )
+    front = np.array([[front[j][i] for j in range(len(front))] for i in range(len(front[0]) - 1, -1, -1)])
 
     front = np.where(front >= threshold, 1, front)
     front = np.where(front < threshold, 0, front)
@@ -734,8 +739,9 @@ def boa_wrapper(temp, threshold=0.3):
     return np.flipud(front)
 
 
-#%% 
+# %%
 #### CANNY ALGO ####
+
 
 def compute_gradients(image):
     # image doit être en niveaux de gris
@@ -752,6 +758,7 @@ def compute_gradients(image):
 
     return Gx, Gy, magnitude, orientation
 
+
 def non_max_suppression(mag, angle):
     H, W = mag.shape
     Z = np.zeros((H, W), dtype=np.float64)
@@ -759,28 +766,27 @@ def non_max_suppression(mag, angle):
     angle = angle * 180.0 / np.pi
     angle[angle < 0] += 180
 
-    for i in range(1, H-1):
-        for j in range(1, W-1):
-
+    for i in range(1, H - 1):
+        for j in range(1, W - 1):
             q = 255
             r = 255
 
             # angle 0°
             if (0 <= angle[i, j] < 22.5) or (157.5 <= angle[i, j] <= 180):
-                q = mag[i, j+1]
-                r = mag[i, j-1]
+                q = mag[i, j + 1]
+                r = mag[i, j - 1]
             # angle 45°
-            elif (22.5 <= angle[i, j] < 67.5):
-                q = mag[i+1, j-1]
-                r = mag[i-1, j+1]
+            elif 22.5 <= angle[i, j] < 67.5:
+                q = mag[i + 1, j - 1]
+                r = mag[i - 1, j + 1]
             # angle 90°
-            elif (67.5 <= angle[i, j] < 112.5):
-                q = mag[i+1, j]
-                r = mag[i-1, j]
+            elif 67.5 <= angle[i, j] < 112.5:
+                q = mag[i + 1, j]
+                r = mag[i - 1, j]
             # angle 135°
-            elif (112.5 <= angle[i, j] < 157.5):
-                q = mag[i-1, j-1]
-                r = mag[i+1, j+1]
+            elif 112.5 <= angle[i, j] < 157.5:
+                q = mag[i - 1, j - 1]
+                r = mag[i + 1, j + 1]
 
             if mag[i, j] >= q and mag[i, j] >= r:
                 Z[i, j] = mag[i, j]
@@ -789,9 +795,10 @@ def non_max_suppression(mag, angle):
 
     return Z
 
+
 def double_threshold(img, low_ratio=0.05, high_ratio=0.15):
     high = img.max() * high_ratio
-    low  = high * low_ratio
+    low = high * low_ratio
 
     H, W = img.shape
     res = np.zeros((H, W), dtype=np.uint8)
@@ -800,28 +807,36 @@ def double_threshold(img, low_ratio=0.05, high_ratio=0.15):
     weak = 50
 
     strong_i, strong_j = np.where(img >= high)
-    weak_i, weak_j     = np.where((img <= high) & (img >= low))
+    weak_i, weak_j = np.where((img <= high) & (img >= low))
 
     res[strong_i, strong_j] = strong
-    res[weak_i, weak_j]     = weak
+    res[weak_i, weak_j] = weak
 
     return res, weak, strong
+
 
 def hysteresis(img, weak=50, strong=255):
     H, W = img.shape
 
-    for i in range(1, H-1):
-        for j in range(1, W-1):
+    for i in range(1, H - 1):
+        for j in range(1, W - 1):
             if img[i, j] == weak:
-                if ((img[i+1, j-1] == strong) or (img[i+1, j] == strong) or
-                    (img[i+1, j+1] == strong) or (img[i, j-1] == strong) or
-                    (img[i, j+1] == strong) or (img[i-1, j-1] == strong) or
-                    (img[i-1, j] == strong) or (img[i-1, j+1] == strong)):
+                if (
+                    (img[i + 1, j - 1] == strong)
+                    or (img[i + 1, j] == strong)
+                    or (img[i + 1, j + 1] == strong)
+                    or (img[i, j - 1] == strong)
+                    or (img[i, j + 1] == strong)
+                    or (img[i - 1, j - 1] == strong)
+                    or (img[i - 1, j] == strong)
+                    or (img[i - 1, j + 1] == strong)
+                ):
                     img[i, j] = strong
                 else:
                     img[i, j] = 0
 
     return img
+
 
 def my_canny_from_gradients(Gx, Gy):
     mag = np.sqrt(Gx**2 + Gy**2)
@@ -833,7 +848,8 @@ def my_canny_from_gradients(Gx, Gy):
 
     return edges
 
-def canny_front(temp, tmin = None, tmax = None, sigma=5, apertureSize=5):
+
+def canny_front(temp, tmin=None, tmax=None, sigma=5, apertureSize=5):
     """
     This code is extracted from https://github.com/CoLAB-ATLANTIC/JUNO/
     Function that receives a dataframe with SST data relative to a certain day and returns the front matrix
@@ -842,26 +858,21 @@ def canny_front(temp, tmin = None, tmax = None, sigma=5, apertureSize=5):
     Tmin and Tmax are the limits of the threshold and apertureSize is the size of the Sobel operator (default=3X3)
     """
 
-    # get temp values 
+    # get temp values
     temp = temp.values
 
     # Convert the temperature values to the uint8 format with values between 0-255
-    temp_day = ((temp - np.nanmin(temp)) * (1 / (np.nanmax(temp) - np.nanmin(temp)) * 255)).astype(
-        'uint8'
-    )
-    
-    if not tmin : 
+    temp_day = ((temp - np.nanmin(temp)) * (1 / (np.nanmax(temp) - np.nanmin(temp)) * 255)).astype('uint8')
+
+    if not tmin:
         gx = cv2.Sobel(temp_day, cv2.CV_64F, 1, 0)
         gy = cv2.Sobel(temp_day, cv2.CV_64F, 0, 1)
         grad = np.sqrt(gx**2 + gy**2)
-        
+
         tmax = np.nanpercentile(grad, 95)
         tmin = 0.4 * tmax
 
-
-    temp_day = np.flipud(
-        temp_day
-    )  # flipud -> Reverse the order of elements along axis 0 (up/down).
+    temp_day = np.flipud(temp_day)  # flipud -> Reverse the order of elements along axis 0 (up/down).
 
     # if its MUR data we have to apply gaussian filter with certain sigma value (~5)
     temp_day = gaussian_filter(temp_day, sigma=sigma)

@@ -1,19 +1,9 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Tue Nov 18 15:45:52 2025
 
 @author: jbroust
 """
-import os, time
-import xarray as xr
-import numpy as np
-import matplotlib.pyplot as plt
-import cmocean
-import gsw 
-import contourpy
-from shoot.front.algos import canny_front, compute_gradients, my_canny_from_gradients, boa_wrapper, wrapper_cca
-from shoot.acoustic import get_ecs, get_iminc, get_mcp
 
 """
 # %%
@@ -44,7 +34,7 @@ dss = dss.isel(depth=0)
 # mcp = dpc.z_iminc.isel(time=0)
 
 
-#%% Plot 
+#%% Plot
 # plt.figure(figsize=(12,5))
 # plt.subplot(121)
 # plt.title("ECS")
@@ -69,7 +59,7 @@ plt.colorbar()
 
 
 
-#%% Plot situation 
+#%% Plot situation
 
 gx_t, gy_t, gxy_t, gdir_t = compute_gradients(dss.thetao.values)
 gx_s, gy_s, gxy_s, gdir_s = compute_gradients(dss.so.values)
@@ -79,13 +69,13 @@ gx_mcp, gy_mcp, gxy_mcp, gdir_mcp = compute_gradients(mcp.values)
 
 mgxy_s = np.nanmean(gxy_s)
 mgxy_t = np.nanmean(gxy_t)
-mgxy_z = np.nanmean(gxy_z) 
-mgxy_ecs = np.nanmean(gxy_ecs) 
-mgxy_mcp = np.nanmean(gxy_mcp) 
+mgxy_z = np.nanmean(gxy_z)
+mgxy_ecs = np.nanmean(gxy_ecs)
+mgxy_mcp = np.nanmean(gxy_mcp)
 
-gxy = gxy_t/mgxy_t + gxy_s/mgxy_s  + gxy_z/mgxy_z 
+gxy = gxy_t/mgxy_t + gxy_s/mgxy_s  + gxy_z/mgxy_z
 
-nb = 3 
+nb = 3
 
 plt.figure(figsize=(12,10))
 
@@ -139,8 +129,8 @@ plt.scatter(gxy_z.flatten(), gxy_mcp.flatten())
 
 #%% Canny multifield
 
-gx = gx_t/mgxy_t + gx_s/mgxy_s  + gx_z/mgxy_z 
-gy = gy_t/mgxy_t + gy_s/mgxy_s  + gy_z/mgxy_z 
+gx = gx_t/mgxy_t + gx_s/mgxy_s  + gx_z/mgxy_z
+gy = gy_t/mgxy_t + gy_s/mgxy_s  + gy_z/mgxy_z
 
 canny = my_canny_from_gradients(gx_t, gy_t)
 
@@ -188,20 +178,20 @@ if continuity:
     from scipy.ndimage import label
     from skimage.morphology import skeletonize, closing, disk
 
-    # fill 
+    # fill
     boa_filled = closing(boa, disk(1))
     boa_filled[np.isnan(boa_filled)] = 0
-    
+
     # avoid small lines
     struct = np.ones((3, 3))  # connectivité 8
     labeled, num = label(boa_filled, structure=struct)
-    
+
     # 2. Calcul de la taille de chaque composante
     sizes = np.bincount(labeled.ravel())
-    
+
     # 3. Définir un seuil minimal
     min_size = 50  # <-- à ajuster selon ton cas
-    
+
     # 4. Créer un masque filtré
     # garder seulement les composantes dont la taille >= min_size
     mask = np.isin(labeled, np.where(sizes >= min_size)[0])
@@ -232,7 +222,7 @@ nj = 7
 plt.figure()
 plt.title("BOA Algo (%s)"%dss.time.dt.strftime("%Y-%m-%d").values)
 plt.pcolormesh(dss.longitude, dss.latitude, dss.thetao, cmap="cmo.thermal")
-#plt.quiver(dss.longitude[::nj], dss.latitude[::nj], dss.uo_detided[::nj, ::nj], dss.vo_detided[::nj, ::nj], color="k") 
+#plt.quiver(dss.longitude[::nj], dss.latitude[::nj], dss.uo_detided[::nj, ::nj], dss.vo_detided[::nj, ::nj], color="k")
 lon = dss.longitude.values
 lat = dss.latitude.values
 for poly in contours:
@@ -244,18 +234,18 @@ for poly in contours:
 
 
 # %% CCA detections
-# this algo is already based on line detection (converted to matrix front) 
-# thus it does not require any filling 
+# this algo is already based on line detection (converted to matrix front)
+# thus it does not require any filling
 
-## Juno param 
-## On peut jouer sur la diff de température --> regarder par rapport au gradient moyen/std 
+## Juno param
+## On peut jouer sur la diff de température --> regarder par rapport au gradient moyen/std
 start = time.time()
-cca, x_cca, y_cca = wrapper_cca(dss.thetao.copy(), 
-                                minPopProp=0.2, 
-                                minPopMeanDiff=2, 
-                                minTheta=0.7, 
-                                minSinglePopCohesion=0.9, 
-                                minGlobalPopCohesion =0.7, 
+cca, x_cca, y_cca = wrapper_cca(dss.thetao.copy(),
+                                minPopProp=0.2,
+                                minPopMeanDiff=2,
+                                minTheta=0.7,
+                                minSinglePopCohesion=0.9,
+                                minGlobalPopCohesion =0.7,
                                 algo ='sied',
                                 njump=10) #used only for bf algo
 
@@ -263,12 +253,12 @@ end = time.time()
 print("duaration for sied algo : %.2f min"%((end-start)/60))
 
 # Victor Param
-# cca, x_cca, y_cca = wrapper_cca(dss.thetao, 
-#                                  minPopProp=0.2, 
-#                                  minPopMeanDiff=0.4, 
-#                                  minTheta=0.45, 
-#                                  minSinglePopCohesion=0.8, 
-#                                  minGlobalPopCohesion =0.9, 
+# cca, x_cca, y_cca = wrapper_cca(dss.thetao,
+#                                  minPopProp=0.2,
+#                                  minPopMeanDiff=0.4,
+#                                  minTheta=0.45,
+#                                  minSinglePopCohesion=0.8,
+#                                  minGlobalPopCohesion =0.9,
 #                                  algo ='bf')
 
 nb = 2
@@ -321,24 +311,24 @@ plt.colorbar(cb)
 #     # plt.plot(poly[:, 0], poly[:, 1],linewidth=2)
 #     plt.plot(lon_poly, lat_poly, linewidth=1, c = "k")
 
-# %% CCA perfs 
+# %% CCA perfs
 
 nbjumps = [5,10,15,20]
 CCA = []
-for i, nbjump in enumerate(nbjumps): 
+for i, nbjump in enumerate(nbjumps):
     start = time.time()
-    cca, x_cca, y_cca = wrapper_cca(dss.thetao.copy(), 
-                                    minPopProp=0.2, 
-                                    minPopMeanDiff=2, 
-                                    minTheta=0.7, 
-                                    minSinglePopCohesion=0.9, 
-                                    minGlobalPopCohesion =0.7, 
+    cca, x_cca, y_cca = wrapper_cca(dss.thetao.copy(),
+                                    minPopProp=0.2,
+                                    minPopMeanDiff=2,
+                                    minTheta=0.7,
+                                    minSinglePopCohesion=0.9,
+                                    minGlobalPopCohesion =0.7,
                                     algo ='bf',
                                     njump=nbjump) #used only for bf algo
     end = time.time()
     print("duaration for %i nbjump : %.2f min"%(nbjump, (end-start)/60))
     CCA.append(cca)
-    
+
 plt.figure(figsize=(12,10))
 for i, nbjump in enumerate(nbjumps):
     cca = CCA[i]
