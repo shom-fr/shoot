@@ -115,9 +115,3 @@ markers = [
 ]
 log_cli = false
 log_cli_level = "INFO"
-
-# Bandit configuration
-[tool.bandit]
-exclude_dirs = ["/tests", "/build", "/dist"]
-tests = ["B201", "B301"]
-skips = ["B101", "B601"]

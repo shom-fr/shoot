@@ -129,6 +129,7 @@ docs/api/
 docs/examples/
 my/
 try/
+data/
 
 # misc
 # conda smithy ci-skeleton start
