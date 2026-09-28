@@ -4,7 +4,7 @@ name = "shoot"
 description = "SHom Ocean Objects Tracker"
 requires-python = ">=3.10"
 dependencies = [
-    "argopy>=1.4",
+    "argopy>=1.2",
     "cartopy",
     "cmocean",
     "colorlog",

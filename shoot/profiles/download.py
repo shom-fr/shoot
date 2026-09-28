@@ -95,18 +95,22 @@ class Download:
                 logger.info("Data already exists for year %s", year)
                 profiles_tmp = xr.open_dataset(path_tmp)
             else:
-                tmin = str(time.sel(time=str(year)).min().dt.strftime("%Y-%m-%d").values)
-                tmax = str(time.sel(time=str(year)).max().dt.strftime("%Y-%m-%d").values)
-                print(tmin, tmax)
+                time_year = time[time.dt.year == year]
+                tmin = str(time_year.min().dt.strftime("%Y-%m-%d").values)
+                tmax = str(time_year.max().dt.strftime("%Y-%m-%d").values)
+                logger.info("Downloading Argo profiles from %s to %s", tmin, tmax)
                 profiles_tmp = self._load(tmin, tmax)
                 profiles_tmp.to_netcdf(path_tmp)
-            if self.profiles:
+            if self.profiles is not None:
                 self.profiles = xr.concat([self.profiles, profiles_tmp], dim="N_PROF")
             else:
                 self.profiles = profiles_tmp
 
     def _load(self, tmin, tmax):
         """Download Argo profiles from ERDDAP for a time range
+
+        The standard mode of argopy is used: adjusted values when available,
+        filtered on quality flags.
 
         Parameters
         ----------
@@ -120,7 +124,7 @@ class Download:
         xarray.Dataset
             Downloaded Argo profiles.
         """
-        f = DataFetcher(src='erddap', mode='expert')
+        f = DataFetcher(src="erddap", mode="standard")
         box = [self.lon_min, self.lon_max, self.lat_min, self.lat_max, 0, self.max_depth, tmin, tmax]
 
         points = f.region(box).to_xarray()

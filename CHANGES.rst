@@ -37,6 +37,8 @@ Bug fixes
 - Front detection: the Cayula-Cornillon histogram includes the maximum values,
   all the front lines of a window are kept, input fields are no longer modified,
   Canny ignores land, and hysteresis follows chains of weak edges.
+- Argo profiles: downloaded with argopy's standard mode (adjusted, quality-controlled
+  values), and interpolated to depths from valid and sorted levels only.
 
 Documentation
 -------------

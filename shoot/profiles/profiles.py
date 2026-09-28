@@ -15,38 +15,55 @@ from .. import geo as sgeo
 from .download import load_from_ds
 
 
+def _scalar(values):
+    """Scalar from a single-element array"""
+    values = np.asarray(values)
+    return values.item() if values.dtype.kind not in "mM" else values.reshape(-1)[0]
+
+
+def _interp_to_depths(prf, name, depth):
+    """Interpolate a profile variable to depths, using valid levels only
+
+    Levels with a missing pressure or value are dropped and pressures are
+    sorted before a linear interpolation. Values outside the measured range
+    are NaN.
+    """
+    pres = prf.PRES.values.reshape(-1)
+    values = prf[name].values.reshape(-1)
+    valid = ~(np.isnan(pres) | np.isnan(values))
+    if valid.sum() < 2:
+        return np.full(len(depth), np.nan)
+    da = xr.DataArray(values[valid], dims="PRES", coords={"PRES": pres[valid]})
+    da = da.sortby("PRES").drop_duplicates("PRES")
+    if da.size < 2:
+        return np.full(len(depth), np.nan)
+    return da.interp(PRES=depth).values
+
+
 class Profile:
-    """Individual in-situ profile with temperature and salinity data"""
+    """Individual in-situ profile with temperature and salinity data
 
-    def __init__(self, prf):
-        # Extract scalar values for single-element arrays
-        time_vals = prf.TIME.values
-        self.time = time_vals[0] if time_vals.ndim > 0 and time_vals.size == 1 else time_vals
+    Parameters
+    ----------
+    prf : xarray.Dataset
+        Single Argo profile as given by argopy, with ``TIME``, ``LATITUDE``,
+        ``LONGITUDE``, ``PRES``, ``TEMP``, ``PSAL`` and optionally ``PLATFORM_NUMBER``.
+    depth : array-like, optional
+        Depths in meters of the interpolated profile. Defaults to 1 to 2000 m.
+        Pressure in dbar is used as depth in meters.
+    max_nan_fraction : float, default 0.8
+        Maximum fraction of NaNs of the interpolated temperature for a valid profile.
+    """
 
-        lat_vals = prf.LATITUDE.values
-        self.lat = float(lat_vals.flat[0]) if lat_vals.size >= 1 else lat_vals
-
-        lon_vals = prf.LONGITUDE.values
-        self.lon = lon_vals
-
-        self.float_id = prf.PLATFORM_NUMBER.values
-
-        self.depth = np.arange(1, 2001)
-        self.temp = np.interp(
-            self.depth,
-            prf.PRES,
-            prf.TEMP,
-            left=np.nan,
-            right=np.nan,
-        )
-        self.sal = np.interp(
-            self.depth,
-            prf.PRES,
-            prf.PSAL,
-            left=np.nan,
-            right=np.nan,
-        )
-        self.valid = np.sum(np.isnan(self.temp)) < 0.8 * len(self.temp)  # 20% nan accepted
+    def __init__(self, prf, depth=None, max_nan_fraction=0.8):
+        self.time = _scalar(prf.TIME.values)
+        self.lat = float(_scalar(prf.LATITUDE.values))
+        self.lon = float(_scalar(prf.LONGITUDE.values))
+        self.float_id = _scalar(prf.PLATFORM_NUMBER.values) if "PLATFORM_NUMBER" in prf.variables else None
+        self.depth = np.arange(1, 2001) if depth is None else np.asarray(depth)
+        self.temp = _interp_to_depths(prf, "TEMP", self.depth)
+        self.sal = _interp_to_depths(prf, "PSAL", self.depth)
+        self.valid = bool(np.sum(np.isnan(self.temp)) < max_nan_fraction * len(self.temp))
 
 
 class Profiles:
@@ -63,6 +80,8 @@ class Profiles:
         Root directory path for data storage.
     brut_prf : xarray.Dataset
         Raw profile dataset.
+    kwargs
+        Passed to :class:`Profile`.
 
     Attributes
     ----------
@@ -74,7 +93,7 @@ class Profiles:
         Profiles converted to xarray Dataset format (cached property).
     """
 
-    def __init__(self, time, root_path, brut_prf):
+    def __init__(self, time, root_path, brut_prf, **kwargs):
         """Initialize Profiles collection
 
         Parameters
@@ -85,6 +104,8 @@ class Profiles:
             Root directory path for data storage.
         brut_prf : xarray.Dataset
             Raw profile dataset.
+        kwargs
+            Passed to :class:`Profile`.
         """
         self.root_path = root_path
         self.time = time
@@ -92,8 +113,8 @@ class Profiles:
 
         self.profiles = []
         self.float_ids = []
-        for i in brut_prf.N_PROF:
-            prf = Profile(brut_prf.isel(N_PROF=i))
+        for i in range(brut_prf.sizes["N_PROF"]):
+            prf = Profile(brut_prf.isel(N_PROF=i), **kwargs)
             if prf.valid:
                 self.profiles.append(prf)
                 if prf.float_id not in self.float_ids:
