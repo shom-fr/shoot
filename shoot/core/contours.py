@@ -84,6 +84,56 @@ def find_closed_contours(z, ic, jc, nlevels=50, robust=0.03):
     return contours
 
 
+def contour_lines(z, level, x=None, y=None):
+    """Contour lines of a 2D array at a single level
+
+    Lines are computed with the "mpl2014" algorithm of contourpy,
+    as :func:`matplotlib.pyplot.contour`. NaNs are masked.
+
+    Parameters
+    ----------
+    z : ndarray
+        2D field.
+    level : float
+        Contour level.
+    x, y : ndarray, optional
+        1D or 2D coordinates. Defaults to the grid indices.
+
+    Returns
+    -------
+    list of ndarray
+        Lines as (n, 2) arrays of (x, y) coordinates.
+    """
+    cont_gen = cpy.contour_generator(x, y, np.asarray(z, dtype="d"), name="mpl2014", line_type="SeparateCode")
+    return list(cont_gen.lines(level)[0])
+
+
+def find_open_contours(z, level, x=None, y=None, min_points=7):
+    """Open contour lines of a 2D array at a single level
+
+    Parameters
+    ----------
+    z : ndarray
+        2D field.
+    level : float
+        Contour level.
+    x, y : ndarray, optional
+        1D or 2D coordinates. Defaults to the grid indices.
+    min_points : int, default 7
+        Minimum number of points of a line.
+
+    Returns
+    -------
+    list of ndarray
+        Open lines as (n, 2) arrays of (x, y) coordinates.
+    """
+    return [
+        line
+        for line in contour_lines(z, level, x=x, y=y)
+        if len(line) >= min_points and not (line[0] == line[-1]).all()
+    ]
+
+
 def interp_to_line(data, line):
     """Interpolate 2D field values along a contour line
 
