@@ -10,6 +10,7 @@ import xarray as xr
 
 from .. import meta as smeta
 from ..core import fronts as cfronts
+from ..core import image as cimage
 
 #: Available detection methods
 METHODS = ("cca", "cca_sliding", "boa", "canny")
@@ -39,7 +40,7 @@ def detect_fronts(da, method="cca", **kwargs):
           (:func:`shoot.core.fronts.cca_sliding`), on grids with 1D coordinates;
         - "boa": Belkin and O'Reilly (2009) gradient magnitude
           (:func:`shoot.core.fronts.boa`) greater than `threshold`;
-        - "canny": Canny edge detector (:func:`shoot.core.fronts.canny`).
+        - "canny": Canny edge detector (:func:`shoot.core.image.canny`).
     kwargs
         Parameters of the method:
 
@@ -48,8 +49,8 @@ def detect_fronts(da, method="cca", **kwargs):
           `min_global_cohesion`, `bin_width`, `min_threshold`), plus `step`
           for "cca_sliding";
         - "boa": `threshold` (default 0.3) on the normalized gradient magnitude;
-        - "canny": `low`, `high`, `sigma` and `aperture_size` of
-          :func:`shoot.core.fronts.canny`.
+        - "canny": `low`, `high`, `sigma` (default 5) and `aperture_size`
+          (default 5) of :func:`shoot.core.image.canny`.
 
     Returns
     -------
@@ -76,7 +77,8 @@ def detect_fronts(da, method="cca", **kwargs):
         threshold = kwargs.pop("threshold", 0.3)
         mask = cfronts.boa(z, **kwargs) >= threshold
     else:
-        mask = cfronts.canny(z, **kwargs) != 0
+        kwargs = {"sigma": 5, "aperture_size": 5, **kwargs}
+        mask = cimage.canny(z, **kwargs) != 0
 
     return xr.DataArray(
         mask,

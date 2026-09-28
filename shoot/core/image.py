@@ -11,6 +11,7 @@ import math
 import numba
 import numpy as np
 import scipy.fft
+import scipy.ndimage as ndi
 
 #: Derivative and smoothing kernels of the Sobel operator per aperture size
 SOBEL_KERNELS = {
@@ -68,10 +69,34 @@ def _correlate1d(z, kernel, axis, mode, skip_zeros=False):
 
 
 def gradient_direction(gx, gy):
-    """Direction of a gradient in degrees clockwise from north (Y)"""
+    """Direction of a gradient in degrees clockwise from the Y axis
+
+    The Y axis is the north when Y increases northward, and X the east.
+    """
     direction = np.degrees(np.arctan2(gy, gx))
     direction = np.where(direction < 0, 360 + direction, direction)
     return (360 - direction + 90) % 360
+
+
+def fill_nans_nearest(z):
+    """Fill NaNs with the nearest valid values
+
+    Parameters
+    ----------
+    z : ndarray
+        Field with NaNs.
+
+    Returns
+    -------
+    ndarray
+        Filled copy of `z`.
+    """
+    z = np.asarray(z)
+    nans = np.isnan(z)
+    if not nans.any() or nans.all():
+        return z.copy()
+    indices = ndi.distance_transform_edt(nans, return_distances=False, return_indices=True)
+    return z[tuple(indices)]
 
 
 def fft_filter(z, kernel):
@@ -266,29 +291,37 @@ def double_threshold(z, low_ratio=0.05, high_ratio=0.15, weak=50, strong=255):
 
 
 @numba.njit(cache=True)
-def _hysteresis_single_pass_(edges, weak, strong):
+def _hysteresis_(edges, weak, strong):
     ny, nx = edges.shape
-    for j in range(1, ny - 1):
-        for i in range(1, nx - 1):
-            if edges[j, i] == weak:
-                if (
-                    edges[j + 1, i - 1] == strong
-                    or edges[j + 1, i] == strong
-                    or edges[j + 1, i + 1] == strong
-                    or edges[j, i - 1] == strong
-                    or edges[j, i + 1] == strong
-                    or edges[j - 1, i - 1] == strong
-                    or edges[j - 1, i] == strong
-                    or edges[j - 1, i + 1] == strong
-                ):
-                    edges[j, i] = strong
-                else:
-                    edges[j, i] = 0
-    return edges
+    out = np.zeros_like(edges)
+    stack = np.empty((ny * nx, 2), dtype=np.int64)
+    nstack = 0
+    for j in range(ny):
+        for i in range(nx):
+            if edges[j, i] == strong:
+                out[j, i] = strong
+                stack[nstack, 0] = j
+                stack[nstack, 1] = i
+                nstack += 1
+    while nstack > 0:
+        nstack -= 1
+        j = stack[nstack, 0]
+        i = stack[nstack, 1]
+        for jj in range(max(j - 1, 0), min(j + 2, ny)):
+            for ii in range(max(i - 1, 0), min(i + 2, nx)):
+                if edges[jj, ii] == weak and out[jj, ii] == 0:
+                    out[jj, ii] = strong
+                    stack[nstack, 0] = jj
+                    stack[nstack, 1] = ii
+                    nstack += 1
+    return out
 
 
 def hysteresis(edges, weak=50, strong=255):
-    """Keep the weak edges that touch a strong edge
+    """Keep the weak edges connected to a strong edge
+
+    Weak edges are retained when they are connected to a strong edge,
+    directly or through other weak edges (8-connectivity).
 
     Parameters
     ----------
@@ -302,7 +335,7 @@ def hysteresis(edges, weak=50, strong=255):
     ndarray
         `strong` for retained edges, 0 elsewhere.
     """
-    return _hysteresis_single_pass_(edges.copy(), weak, strong)
+    return _hysteresis_(np.asarray(edges), weak, strong)
 
 
 def canny_from_gradients(gx, gy, low_ratio=0.05, high_ratio=0.15):
@@ -388,24 +421,53 @@ def _canny_(dx, dy, low, high):
     return out
 
 
-def canny(z, low, high, aperture_size=3):
-    """Canny edge detector, as :func:`cv2.Canny` with the L1 gradient norm
+def canny(z, low=None, high=None, sigma=0.0, aperture_size=3):
+    """Canny edge detector
+
+    Same algorithm as :func:`cv2.Canny` with the L1 gradient norm.
+    A field that is not of type uint8 is first scaled to [0, 255] bytes,
+    after filling its NaNs with the nearest valid values.
 
     Parameters
     ----------
     z : ndarray
-        2D field, typically of integers.
-    low, high : float
-        Hysteresis thresholds on the gradient norm (floored to integers).
+        2D field, possibly with NaNs.
+    low, high : float, optional
+        Hysteresis thresholds on the gradient norm of the byte field
+        (floored to integers). By default, `high` is the 95th percentile
+        of the Sobel gradient norm, and `low` is 40 % of `high`.
+    sigma : float, default 0
+        Standard deviation in grid points of a Gaussian smoothing of the byte
+        field, if strictly positive.
     aperture_size : {3, 5, 7}, default 3
         Aperture size of the Sobel operator.
 
     Returns
     -------
     ndarray of uint8
-        255 on edges, 0 elsewhere.
+        255 on edges, 0 elsewhere and on NaNs.
     """
+    z = np.asarray(z)
+    nans = None
+    if z.dtype != np.uint8:
+        z = np.asarray(z, dtype="d")
+        nans = np.isnan(z)
+        if nans.any():
+            z = fill_nans_nearest(z)
+        z = ((z - z.min()) * (1 / (z.max() - z.min()) * 255)).astype("uint8")
+    if low is None or high is None:
+        gx, gy = sobel_gradients(z)
+        high = np.percentile(np.sqrt(gx**2 + gy**2), 95)
+        low = 0.4 * high
+    if sigma > 0:
+        z = ndi.gaussian_filter(z, sigma=sigma)
     if low > high:
         low, high = high, low
     dx, dy = sobel_gradients(z, aperture_size, mode="nearest")
-    return _canny_(dx.astype(np.int64), dy.astype(np.int64), math.floor(low), math.floor(high))
+    if aperture_size == 7:  # derivatives and thresholds scaled by 1/16 as in OpenCV
+        dx, dy = (np.clip(np.rint(d / 16), -32768, 32767) for d in (dx, dy))
+        low, high = low / 16, high / 16
+    edges = _canny_(dx.astype(np.int64), dy.astype(np.int64), math.floor(low), math.floor(high))
+    if nans is not None:
+        edges[nans] = 0
+    return edges

@@ -7,15 +7,15 @@ axis, with regular 1D coordinates `x` and `y` when needed:
 
 - Cayula and Cornillon (1992) single image edge detector (CCA):
   :func:`cca_window`, :func:`cca_sied`, :func:`cca_sliding`, :func:`cca`;
-- Belkin and O'Reilly (2009) gradient algorithm (BOA): :func:`boa`;
-- Canny edge detector: :func:`canny`.
+- Belkin and O'Reilly (2009) gradient algorithm (BOA): :func:`boa`.
+
+The Canny edge detector is the generic :func:`shoot.core.image.canny`.
 """
 
 import math
 
 import numba
 import numpy as np
-import scipy.ndimage as ndi
 import scipy.signal
 
 from . import contours as scontours
@@ -115,6 +115,7 @@ def cca_window(
     corners=None,
     bin_width=0.02,
     min_threshold=0.1,
+    min_line_points=7,
 ):
     """Detect a front in a window with the Cayula-Cornillon algorithm
 
@@ -126,7 +127,7 @@ def cca_window(
     Parameters
     ----------
     w : ndarray
-        2D window. Warning: its NaNs are set to 0 in place.
+        2D window.
     bounds : array-like
         Coordinates of the window as ``[xmin, xmax, ymin, ymax]``.
     min_theta : float, default 0.7
@@ -146,6 +147,8 @@ def cca_window(
         Width of the histogram bins, in data units.
     min_threshold : float, default 0.1
         Windows whose threshold is lower are rejected.
+    min_line_points : int, default 7
+        Minimum number of points of a front line.
 
     Returns
     -------
@@ -159,6 +162,7 @@ def cca_window(
     """
     xdata, ydata = np.array([]), np.array([])
 
+    w = np.array(w)  # copy
     mask = np.isnan(w)
     have_nans = bool(mask.any())
     n_nans = int(mask.sum())
@@ -168,10 +172,12 @@ def cca_window(
     # Histogram and best split into two populations
     wmin, wmax = np.nanmin(w), np.nanmax(w)
     nbins = math.ceil((wmax - wmin) / bin_width)
-    bins = np.arange(wmin, wmax, bin_width)
-    counts, xout = np.histogram(w[:], bins, [wmin, wmax])
-    xout = np.mean(np.vstack([xout[0:-1], xout[1:]]), axis=0)
-    threshold = xout[0] if len(xout) else 0
+    if nbins < 3:
+        return None, None, None, CCA_INVALID
+    edges = wmin + bin_width * np.arange(nbins + 1)  # covering [wmin, wmax]
+    counts, edges = np.histogram(w[~mask], edges)
+    xout = 0.5 * (edges[:-1] + edges[1:])
+    threshold = xout[0]
 
     total_count = w.size - n_nans
     w[mask] = 0
@@ -215,19 +221,17 @@ def cca_window(
     n_rows, n_cols = w.shape
     x = np.linspace(bounds[0], bounds[1], n_cols)
     y = np.linspace(bounds[2], bounds[3], n_rows)
+    w = np.where(mask, np.nan, w).astype("d")
     if corners is not None:
         x = x[corners[2] - 1 : corners[3]]
         y = y[corners[0] - 1 : corners[1]]
         w = w[corners[0] - 1 : corners[1], corners[2] - 1 : corners[3]]
-    w = w.astype("d")
-    if have_nans:
-        w[w == 0] = np.nan  # restore the NaNs
-    lines = [] if np.isnan(w).all() else scontours.contour_lines(w, threshold, x, y)
-
-    # The first line is retained if there are several lines or if it is long and open
-    if len(lines) > 1 or (len(lines) == 1 and len(lines[0]) >= 7 and not (lines[0][0] == lines[0][-1]).all()):
-        xdata = lines[0][:, 0].round(4)
-        ydata = lines[0][:, 1].round(4)
+    if not np.isnan(w).all():
+        # Open lines that are long enough
+        lines = scontours.find_open_contours(w, threshold, x, y, min_points=min_line_points)
+        if lines:
+            xdata = np.concatenate([line[:, 0] for line in lines])
+            ydata = np.concatenate([line[:, 1] for line in lines])
 
     if xdata.size == 0:
         return xdata, ydata, threshold, CCA_NO_LINE
@@ -293,7 +297,7 @@ def cca_sied(z, x, y, **kwargs):
     return xdata_final, ydata_final
 
 
-def cca_sliding(z, x, y, step=10, size=32, max_nan_fraction=None, **kwargs):
+def cca_sliding(z, x, y, step=10, size=32, max_nan_fraction=0.2, **kwargs):
     """Cayula-Cornillon edge detector on sliding windows
 
     Windows of `size` points centered every `step` points are analysed
@@ -302,15 +306,15 @@ def cca_sliding(z, x, y, step=10, size=32, max_nan_fraction=None, **kwargs):
     Parameters
     ----------
     z : ndarray
-        2D field. Warning: NaNs are set to 0 in place.
+        2D field.
     x, y : ndarray
         1D coordinates.
     step : int, default 10
         Distance between window centers in grid points.
     size : int, default 32
         Window size in grid points.
-    max_nan_fraction : float, optional
-        Maximum fraction of NaNs of a window. Defaults to `min_pop_prop`.
+    max_nan_fraction : float, default 0.2
+        Maximum fraction of NaNs of a window.
     kwargs
         Criteria passed to :func:`cca_window`.
 
@@ -319,8 +323,6 @@ def cca_sliding(z, x, y, step=10, size=32, max_nan_fraction=None, **kwargs):
     x, y : ndarray
         Coordinates of the front points.
     """
-    if max_nan_fraction is None:
-        max_nan_fraction = kwargs.get("min_pop_prop", 0.2)
     xdata_final, ydata_final = np.array([]), np.array([])
     ny, nx = z.shape
     mask = np.isnan(z)
@@ -451,35 +453,5 @@ def boa(z, direction=False):
     magnitude = valid * magnitude
     if not direction:
         return magnitude
-    return magnitude, valid * simage.gradient_direction(tgx, tgy)
-
-
-def canny(z, low=None, high=None, sigma=5, aperture_size=5):
-    """Canny edges of a field scaled to bytes
-
-    Parameters
-    ----------
-    z : ndarray
-        2D field.
-    low, high : float, optional
-        Hysteresis thresholds on the gradient norm of the field scaled to
-        [0, 255]. By default, `high` is the 95th percentile of the Sobel
-        gradient norm and `low` is 40 % of it.
-    sigma : float, default 5
-        Standard deviation of the Gaussian smoothing.
-    aperture_size : {3, 5, 7}, default 5
-        Aperture size of the Sobel operator.
-
-    Returns
-    -------
-    ndarray of uint8
-        255 on edges, 0 elsewhere.
-    """
-    z = np.asarray(z, dtype="d")
-    zbyte = ((z - np.nanmin(z)) * (1 / (np.nanmax(z) - np.nanmin(z)) * 255)).astype("uint8")
-    if not low:
-        gx, gy = simage.sobel_gradients(zbyte)
-        high = np.nanpercentile(np.sqrt(gx**2 + gy**2), 95)
-        low = 0.4 * high
-    zbyte = ndi.gaussian_filter(np.flipud(zbyte), sigma=sigma)
-    return np.flipud(simage.canny(zbyte, low, high, aperture_size=aperture_size))
+    # fft_filter convolves: tgx has the opposite sign of the X gradient
+    return magnitude, valid * simage.gradient_direction(-tgx, tgy)
