@@ -131,6 +131,23 @@ my/
 try/
 data/
 
+# Data files
+*.nc
+*.nc4
+*.cdf
+*.grib
+*.grib2
+*.grb
+*.grb2
+*.h5
+*.hdf5
+*.zarr/
+*.npy
+*.npz
+*.pkl
+*.pickle
+*.mat
+
 # misc
 # conda smithy ci-skeleton start
 *.pyc

@@ -194,20 +194,30 @@ Detect eddies across multiple depth levels:
 Parallel Processing
 ~~~~~~~~~~~~~~~~~~~
 
-Enable parallel detection for large grids:
+By default (``paral=None``), parallel processing is switched on when it is worth it:
+
+- :meth:`~shoot.eddies.eddies2d.EvolEddies2D.detect_eddies` processes the time steps in parallel;
+- :meth:`~shoot.eddies.eddies2d.Eddies2D.detect_eddies` processes the eddy centers in parallel
+  when their sequential processing is estimated to last more than 2 s.
+
+Results do not depend on the mode. Use ``paral=True`` or ``paral=False`` to force it,
+and ``nb_procs`` to limit the number of processes.
+
+.. warning::
+    Automatic parallelism requires the "fork" multiprocessing start method (the default
+    on Linux). With other methods, protect your script with ``if __name__ == "__main__":``
+    and use ``paral=True``.
+
+A pool of workers can be shared between several detections:
 
 .. code-block:: python
 
-    eddies = Eddies2D.detect_eddies(
-        ds.u, ds.v,
-        window_center=50,
-        window_fit=120,
-        paral=True              # Enable parallelization
-    )
+    from shoot.core.eddies import warmup
+    from shoot.paral import create_pool
 
-.. warning::
-    Parallel mode uses numba parallel features. Test on small domains first
-    as it may miss eddies near domain boundaries.
+    with create_pool(8, warmup=warmup) as pool:
+        for ds_day in datasets:
+            eddies = Eddies2D.detect_eddies(ds_day.u, ds_day.v, 50, pool=pool)
 
 Custom Grid Spacing
 ~~~~~~~~~~~~~~~~~~~
@@ -361,7 +371,7 @@ For large domains:
 
 - Process subregions separately
 - Use coarser resolution for initial detection
-- Enable ``paral=True`` (with caution)
+- Keep the automatic parallelism (``paral=None``) or share a pool
 - Consider data chunking with dask
 
 Further Reading

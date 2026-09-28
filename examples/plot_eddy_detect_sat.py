@@ -59,9 +59,9 @@ ellipse_error = 0.05  # percentage error from an ellipse
 # %%
 # Detection
 # ~~~~~~~~~
-# performed through Eddies class
-# parallelisation is possible but should be perfomed with caution (refer to the docs)
-####
+#
+# Performed with :meth:`~shoot.eddies.eddies2d.Eddies2D.detect_eddies`,
+# which automatically switches parallelism on when it is worth it.
 
 start = time.time()
 eddies = Eddies2D.detect_eddies(

@@ -28,6 +28,8 @@ release = version
 # %% General configuration
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
+napoleon_use_ivar = True  # attributes as fields, not duplicated descriptions
+
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
