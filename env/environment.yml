@@ -4,16 +4,26 @@ channels:
   - conda-forge
 
 dependencies:
-  - argopy>=1.4
+  # Required
+  - argopy>=1.2
   - cartopy
-  - cmocean
-  - colorlog
   - contourpy
-  - gsw
+  - erddapy<3  # erddapy 3 breaks argopy's imports
   - matplotlib
   - netCDF4
+  - numba
+  - numpy
   - psutil
-  - owslib
   - scipy
+  - threadpoolctl
   - xarray
   - xoa
+  # Optional
+  - cmocean
+  - colorlog
+  - dask
+  - gsw
+  - owslib
+  - pooch
+  # Tests
+  - pytest

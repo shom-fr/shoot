@@ -6,15 +6,13 @@ requires-python = ">=3.10"
 dependencies = [
     "argopy>=1.2",
     "cartopy",
-    "cmocean",
-    "colorlog",
     "contourpy",
-    "gsw",
+    "erddapy<3",  # erddapy 3 breaks argopy's imports
     "matplotlib",
     "netCDF4",
     "numba",
+    "numpy",
     "psutil",
-    "owslib",
     "scipy",
     "threadpoolctl",
     "xarray",
@@ -31,6 +29,15 @@ dynamic = ["version"]
 readme = "README.rst"
 
 [project.optional-dependencies]
+# Diagnostics of the command line interface
+diags = ["cmocean", "dask", "gsw"]
+# Sample data of the examples
+samples = ["pooch"]
+# EMODnet bathymetry background of maps
+emodnet = ["owslib"]
+# Colored logs
+colors = ["colorlog"]
+all = ["shoot[diags,samples,emodnet,colors]"]
 dev = [
   "pytest",
   "pytest-mock",
@@ -39,6 +46,7 @@ dev = [
   "pre-commit",
 ]
 docs = [
+  "shoot[all]",
   "sphinx",
   "sphinx-argparse",
   "sphinx-book-theme",

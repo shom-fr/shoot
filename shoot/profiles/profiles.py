@@ -121,7 +121,7 @@ class Profiles:
                     self.float_ids.append(prf.float_id)
 
     @classmethod
-    def from_ds(cls, ds, root_path, max_depth=1000):
+    def from_ds(cls, ds, root_path, max_depth=1000, src="erddap", **kwargs):
         """Create Profiles from an xarray Dataset
 
         Parameters
@@ -130,14 +130,20 @@ class Profiles:
             Dataset with time coordinate.
         root_path : str
             Root directory path for data storage.
+        max_depth : float, default 1000
+            Maximum depth (m) of the downloaded profiles.
+        src : {"erddap", "gdac", "argovis"}, default "erddap"
+            Data source of argopy.
+        kwargs
+            Passed to :class:`Profile`.
 
         Returns
         -------
         Profiles
             New Profiles instance.
         """
-        brut_prf = load_from_ds(ds, root_path, max_depth=max_depth)
-        return cls(ds.time, root_path, brut_prf)
+        brut_prf = load_from_ds(ds, root_path, max_depth=max_depth, src=src)
+        return cls(ds.time, root_path, brut_prf, **kwargs)
 
     @functools.cached_property
     def ds(self):

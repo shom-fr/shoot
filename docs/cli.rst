@@ -7,7 +7,7 @@ Available commands:
 
 .. toctree::
     :maxdepth: 1
-    
+
     cli.shoot
     cli.shoot.eddies
     cli.shoot.eddies.detect
@@ -65,4 +65,3 @@ Available commands:
     :prog: shoot
     :path: eddies diags
     :nosubcommands:
-

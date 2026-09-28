@@ -33,12 +33,17 @@ Deprecations
 Bug fixes
 ---------
 - The ellipse fit no longer fails on contours reduced to a point.
-- ``numba`` and ``threadpoolctl`` are declared as dependencies.
+- Dependencies are declared consistently: ``numpy``, ``numba``, ``threadpoolctl`` and
+  ``erddapy<3`` (erddapy 3 breaks argopy) are required, and optional groups
+  ``diags``, ``samples``, ``emodnet``, ``colors`` and ``all`` are added.
+- Optional packages and argopy are imported only when needed.
+- The CI tests Python 3.10 and 3.12, lints with pre-commit and builds the docs.
 - Front detection: the Cayula-Cornillon histogram includes the maximum values,
   all the front lines of a window are kept, input fields are no longer modified,
   Canny ignores land, and hysteresis follows chains of weak edges.
 - Argo profiles: downloaded with argopy's standard mode (adjusted, quality-controlled
-  values), and interpolated to depths from valid and sorted levels only.
+  values) from a selectable data source (``src``, ERDDAP by default), and
+  interpolated to depths from valid and sorted levels only.
 
 Documentation
 -------------

@@ -6,9 +6,6 @@ Command-line interface
 import argparse
 import logging
 
-import cf_xarray  # noqa
-import cmocean  # noqa
-import gsw
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -615,6 +612,9 @@ def _sel_eddies(eddies, date):
 
 
 def main_eddies_diags(parser, args):
+    import cmocean  # noqa: F401, optional dependency registering the "cmo." colormaps
+    import gsw  # optional dependency
+
     logger = logging.getLogger(__name__)
     _load_meta(args, logger)
 

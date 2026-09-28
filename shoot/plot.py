@@ -5,14 +5,24 @@ Plotting utilities
 Cartographic and visualization functions for oceanographic data.
 """
 
-import cartopy.crs as ccrs
 import matplotlib.pyplot as plt
 import numpy as np
 
 from . import geo as sgeo
 
-pmerc = ccrs.Mercator()
-pcarr = ccrs.PlateCarree()
+
+def __getattr__(name):
+    """Lazy cartopy projections: :data:`pcarr` (PlateCarree) and :data:`pmerc` (Mercator)
+
+    Cartopy is an optional dependency, only imported when a projection is needed.
+    """
+    if name in ("pcarr", "pmerc"):
+        import cartopy.crs as ccrs
+
+        globals()["pcarr"] = ccrs.PlateCarree()
+        globals()["pmerc"] = ccrs.Mercator()
+        return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def plot_ellipse(lon, lat, a, b, angle, ax=None, npts=100, **kwargs):
@@ -70,7 +80,7 @@ def create_map(
     square=False,
     coastlines=True,
     emodnet=False,
-    projection=pmerc,
+    projection=None,
     title=None,
     **kwargs,
 ):
@@ -90,8 +100,8 @@ def create_map(
         Draw coastlines.
     emodnet : bool, default False
         Use EMODnet bathymetry background.
-    projection : cartopy.crs.Projection, default Mercator
-        Map projection.
+    projection : cartopy.crs.Projection, optional
+        Map projection. Defaults to :data:`pmerc` (Mercator).
     title : str, optional
         Map title.
     **kwargs
@@ -121,6 +131,8 @@ def create_map(
     ymin = y0 - 0.5 * dy - ymargin
     ymax = y0 + 0.5 * dy + ymargin
 
+    if projection is None:
+        projection = __getattr__("pmerc")
     fig, ax = plt.subplots(1, subplot_kw=dict(projection=projection), **kwargs)
     ax.set_extent([xmin, xmax, ymin, ymax])
     ax.gridlines(
