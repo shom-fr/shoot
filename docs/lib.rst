@@ -26,6 +26,7 @@ coordinates and dimensions from metadata with :mod:`xoa`.
     shoot.grid
     shoot.meta
     shoot.num
+    shoot.paral
     shoot.plot
     shoot.profiles
     shoot.profiles.download

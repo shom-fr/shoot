@@ -230,3 +230,17 @@ def filter_intersecting(polygons, speeds):
     offsets[1:] = np.cumsum([len(poly) for poly in polygons])
     points = np.ascontiguousarray(np.concatenate(polygons), dtype="d")
     return _filter_intersecting_(points, offsets, np.asarray(speeds, dtype="d"))
+
+
+def warmup():
+    """Compile the numba kernels used by :func:`find_eddy_contours`
+
+    Call it in a process before (or when) starting workers, so that
+    the compilation is not performed in each worker during the detection.
+    """
+    yy, xx = np.mgrid[:21, :21].astype("d")
+    ssh = np.exp(-((xx - 10) ** 2 + (yy - 10) ** 2) / 20.0)
+    ssh[0, 0] = np.nan  # land point
+    u = -np.gradient(ssh, axis=0)
+    v = np.gradient(ssh, axis=1)
+    find_eddy_contours(ssh, u, v, 5 + 0.1 * xx, 40 + 0.1 * yy, 10, 10, nlevels=5, max_ellipse_error=1.0)

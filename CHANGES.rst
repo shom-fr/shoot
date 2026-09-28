@@ -30,6 +30,22 @@ New features
     to avoid inferring coordinates for each sub-window.
 - Eddy tracking and association are about 25 times faster thanks to
   the numba cost matrix :func:`shoot.core.track.association_cost`.
+- Faster parallel eddy detection (see ``mds/tutorials-speedup.md``):
+
+  - :meth:`~shoot.eddies.eddies2d.EvolEddies2D.detect_eddies` processes the
+    time steps in parallel (about 4 times faster than sequentially with 8 cores);
+  - :meth:`~shoot.eddies.eddies2d.Eddies2D.detect_eddies` uses a single pool of
+    workers per detection instead of one per window iteration, or a shared one
+    given with the new ``pool`` argument;
+  - new generic :mod:`shoot.paral` module: :func:`~shoot.paral.create_pool` creates
+    workers limited to one BLAS and numba thread to avoid oversubscribing the cores,
+    after compiling numba kernels with one or several warmup functions
+    like :func:`shoot.core.eddies.warmup`;
+  - ``paral=None`` (new default) automatically switches parallelism on with the
+    "fork" start method: over time steps when there are at least
+    :data:`~shoot.eddies.eddies2d.PARAL_MIN_TIMES` of them, and over centers
+    when the sequential time estimated from a sample of candidates exceeds
+    :data:`~shoot.eddies.eddies2d.PARAL_MIN_SECONDS`.
 
 Breaking changes
 ----------------
@@ -50,6 +66,7 @@ Deprecations
 
 Bug fixes
 ---------
+- ``numba`` and ``threadpoolctl`` are declared as dependencies.
 - The ellipse fit no longer fails on degenerate contours reduced to a point:
   it returns NaN parameters with an infinite error so that they are rejected.
 

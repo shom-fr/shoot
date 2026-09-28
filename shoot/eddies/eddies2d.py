@@ -6,13 +6,14 @@ Functions and classes for detecting and analyzing mesoscale eddies from
 horizontal velocity fields using local angular momentum and contour methods.
 """
 
+import contextlib
 import functools
 import gc
 import json
 import logging
-import multiprocessing as mp
 import os
 from itertools import repeat
+from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,6 +26,7 @@ from .. import geo as sgeo
 from .. import grid as sgrid
 from .. import meta as smeta
 from .. import num as snum
+from .. import paral as sparal
 from .. import plot as splot
 from .. import streamline as strl
 from ..core import contours as ccontours
@@ -33,6 +35,23 @@ from ..core import eddies as ceddies
 logger = logging.getLogger(__name__)
 
 COLORS = {"anticyclone": "tab:red", "cyclone": "tab:blue", "undefined": "0.5"}
+
+#: Minimal estimated sequential time (s) of the processing of the center
+#: candidates of a single field to automatically process them in parallel
+PARAL_MIN_SECONDS = 2.0
+
+#: Number of center candidates processed sequentially to estimate
+#: the sequential time of all candidates
+PARAL_SAMPLE_SIZE = 10
+
+#: Minimal number of time steps to automatically process them in parallel
+PARAL_MIN_TIMES = 2
+
+
+def _detect_eddies_step(args):
+    """Sequential detection of eddies at a single time step, for pool workers"""
+    u, v, ssh, kwargs = args
+    return Eddies2D.detect_eddies(u, v, ssh=ssh, paral=False, verbose=False, **kwargs)
 
 
 def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
@@ -788,10 +807,11 @@ class Eddies2D:
         dx=None,
         dy=None,
         min_radius=None,
-        paral=False,
+        paral=None,
         nb_procs=None,
         ellipse_error=0.1,
         verbose=True,
+        pool=None,
         **kwargs,
     ):
         """Detect all eddies in a velocity field
@@ -814,12 +834,22 @@ class Eddies2D:
             Grid resolution along Y in meters.
         min_radius : float, optional
             Minimum eddy radius (km) to retain.
-        paral : bool, default False
-            Use parallel processing.
+        paral : bool, optional
+            Process the center candidates in parallel.
+            When None, the first :data:`PARAL_SAMPLE_SIZE` candidates are
+            processed sequentially to estimate the sequential time of all of them,
+            and the others are processed in parallel if this time is greater than
+            :data:`PARAL_MIN_SECONDS`, only with the "fork" multiprocessing start
+            method. Results do not depend on this choice.
         nb_procs : int, optional
-            Number of parallel processes.
+            Number of parallel processes. Defaults to the available cores.
         ellipse_error : float, default 0.01
             Maximum allowed ellipse fit error.
+        pool : multiprocessing.pool.Pool, optional
+            Pool of workers to use, typically from :func:`shoot.paral.create_pool`
+            with ``warmup=shoot.core.eddies.warmup``,
+            which switches on parallel processing.
+            By default, a pool is created for the detection when needed.
 
         Returns
         -------
@@ -914,47 +944,67 @@ class Eddies2D:
         eddies = []
         wx2c = wx2
         wy2c = wy2
-        if paral:
-            if verbose:
-                logger.info("%i cpus and %i cores available", mp.cpu_count(), len(os.sched_getaffinity(0)))
-            if nb_procs:
-                nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
-            else:
-                nb_procs = len(os.sched_getaffinity(0))
-            logger.info("Working with %i cpus", nb_procs)
-        elif verbose:
-            logger.info("Running in sequential mode")
 
-        while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
-            eddies_tmp = []
-            for ic in range(centers.lon.shape[0]):
-                eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
+        # Parallel or sequential processing of the centers
+        if pool is not None:
+            paral = True
+        elif paral is None and not (sparal.can_auto_paral() and sparal.get_nb_procs(nb_procs) > 1):
+            paral = False
+        if verbose and paral is not None:
+            mode = "in parallel" if paral else "sequentially"
+            logger.info("Processing %i center candidates %s", centers.lon.shape[0], mode)
 
-            if paral:
-                with mp.Pool(nb_procs, maxtasksperchild=5) as p:
-                    eddies_tmp = p.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
-            else:
-                eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
+        with contextlib.ExitStack() as stack:
+            while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
+                eddies_tmp = []
+                for ic in range(centers.lon.shape[0]):
+                    eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
-            ind_good = []
-            for i, eddy in enumerate(eddies_tmp):
-                if eddy is not None:
-                    if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
-                        eddies.append(eddy)
-                    else:
-                        if (
-                            len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line)
-                            and (eddy.vmax_contour.line == eddy.boundary_contour.line).all()
-                        ):
-                            ind_good.append(i)
-                        else:
+                # Automatic choice from the sequential processing of a sample
+                sample = []
+                if paral is None:
+                    ceddies.warmup()  # to exclude compilation from the estimate
+                    nsample = min(PARAL_SAMPLE_SIZE, len(eddies_tmp))
+                    t0 = perf_counter()
+                    sample = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp[:nsample]]
+                    estimate = (perf_counter() - t0) / max(nsample, 1) * len(eddies_tmp)
+                    paral = estimate > PARAL_MIN_SECONDS
+                    eddies_tmp = eddies_tmp[nsample:]
+                    if verbose:
+                        logger.info(
+                            "Processing %i center candidates %s (estimated sequential time: %.1f s)",
+                            nsample + len(eddies_tmp),
+                            "in parallel" if paral else "sequentially",
+                            estimate,
+                        )
+
+                if paral and eddies_tmp:
+                    if pool is None:
+                        pool = stack.enter_context(sparal.create_pool(nb_procs, warmup=ceddies.warmup))
+                    eddies_tmp = pool.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
+                else:
+                    eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
+                eddies_tmp = sample + eddies_tmp
+
+                ind_good = []
+                for i, eddy in enumerate(eddies_tmp):
+                    if eddy is not None:
+                        if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
                             eddies.append(eddy)
+                        else:
+                            if (
+                                len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line)
+                                and (eddy.vmax_contour.line == eddy.boundary_contour.line).all()
+                            ):
+                                ind_good.append(i)
+                            else:
+                                eddies.append(eddy)
 
-            centers = centers.isel(neddies=ind_good)
-            del eddies_tmp
-            gc.collect()
-            wx2c += int(wx2c / 2)
-            wy2c += int(wy2c / 2)
+                centers = centers.isel(neddies=ind_good)
+                del eddies_tmp
+                gc.collect()
+                wx2c += int(wx2c / 2)
+                wy2c += int(wy2c / 2)
 
         ## Checking inclusion step
         ## This step can be modified to account for eddy-eddy interaction
@@ -1158,7 +1208,7 @@ class EvolEddies2D:
         u=None,
         v=None,
         ssh=None,
-        paral=False,
+        paral=None,
         nb_procs=None,
         ellipse_error=0.1,
     ):
@@ -1180,8 +1230,15 @@ class EvolEddies2D:
             Name of meridional velocity variable. Auto-detected if None.
         ssh : str, optional
             Name of SSH variable. Auto-detected if None.
-        paral : bool, default False
-            Use parallel processing.
+        paral : bool, optional
+            Process the time steps in parallel, each of them being processed
+            sequentially. With a single time step, the centers are processed in
+            parallel as with :meth:`Eddies2D.detect_eddies`.
+            When None, it is switched on when there are at least
+            :data:`PARAL_MIN_TIMES` time steps, and only with the "fork"
+            multiprocessing start method.
+        nb_procs : int, optional
+            Number of parallel processes. Defaults to the available cores.
 
         Returns
         -------
@@ -1196,32 +1253,48 @@ class EvolEddies2D:
             v = smeta.get_v(ds).name
         if not ssh:
             ssh = smeta.get_ssh(ds).name
+        ntimes = len(time)
+        kwargs = dict(
+            window_center=window_center,
+            window_fit=window_fit,
+            min_radius=min_radius,
+            ellipse_error=ellipse_error,
+        )
 
-        # Time loop
-        eddies = []
-        verbose = True
-        for i in range(len(time)):
-            process = psutil.Process(os.getpid())
-            logger.debug("Used memory: %.2f MB", process.memory_info().rss / 1024**2)
+        def get_step(i):
+            """Loaded fields at time step i"""
             dss = ds.isel({time.name: i})
             # check if ssh field is not full of nan
             if not ssh or (dss[ssh].isnull().mean().item() > 0.9):
                 logger.info("SSH field unavailable or mostly NaN, proceeding without SSH")
                 ssh_ = None
             else:
-                ssh_ = dss[ssh]
+                ssh_ = dss[ssh].load()
+            return dss[u].load(), dss[v].load(), ssh_
 
+        # Parallel over time steps
+        paral_times = paral
+        if paral_times is None:
+            paral_times = (
+                sparal.can_auto_paral() and sparal.get_nb_procs(nb_procs) > 1 and ntimes >= PARAL_MIN_TIMES
+            )
+        if paral_times and ntimes > 1:
+            nprocs = min(sparal.get_nb_procs(nb_procs), ntimes)
+            logger.info("Processing %i time steps in parallel with %i processes", ntimes, nprocs)
+            tasks = ((*get_step(i), kwargs) for i in range(ntimes))
+            with sparal.create_pool(nprocs, warmup=ceddies.warmup) as pool:
+                eddies = list(pool.imap(_detect_eddies_step, tasks))
+            return cls(eddies)
+
+        # Sequential time loop
+        eddies = []
+        verbose = True
+        for i in range(ntimes):
+            process = psutil.Process(os.getpid())
+            logger.debug("Used memory: %.2f MB", process.memory_info().rss / 1024**2)
+            u_, v_, ssh_ = get_step(i)
             eddies_ = Eddies2D.detect_eddies(
-                dss[u],
-                dss[v],
-                window_center,
-                window_fit=window_fit,
-                ssh=ssh_,
-                min_radius=min_radius,
-                paral=paral,
-                nb_procs=nb_procs,
-                ellipse_error=ellipse_error,
-                verbose=verbose,
+                u_, v_, ssh=ssh_, paral=paral, nb_procs=nb_procs, verbose=verbose, **kwargs
             )
             eddies.append(eddies_)
             verbose = False

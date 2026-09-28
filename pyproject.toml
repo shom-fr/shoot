@@ -12,9 +12,11 @@ dependencies = [
     "gsw",
     "matplotlib",
     "netCDF4",
+    "numba",
     "psutil",
     "owslib",
     "scipy",
+    "threadpoolctl",
     "xarray",
     "xoa",
 ]
