@@ -370,10 +370,15 @@ class GriddedEddy2D:
 
     @functools.cached_property
     def ssh(self):
-        """Sea surface height field"""
+        """Sea surface height field
+
+        Without SSH, the streamfunction integrated from the eddy center
+        is converted to an equivalent SSH in meters with the Coriolis
+        parameter at the center.
+        """
         if self._ssh is not None:
             return self._ssh
-        return strl.psi(self.u, self.v)
+        return 1e3 * self.f_center * strl.psi(self.u, self.v, ci=self.i, cj=self.j) / sdyn.GRAVITY
 
     @functools.cached_property
     def _uvgeos(self):
@@ -448,10 +453,13 @@ class GriddedEddy2D:
         return self.ellipse.length
 
     @functools.cached_property
+    def f_center(self):
+        return 2 * sdyn.OMEGA * np.sin(np.deg2rad(self.glat))
+
+    @functools.cached_property
     def ro(self):
         """Rossby number of the eddy"""
-        f = 2 * sdyn.OMEGA * np.sin(np.deg2rad(self.glat))
-        return self.vmax_contour.mean_velocity / (f * self.vmax_contour.radius)
+        return self.vmax_contour.mean_velocity / (self.f_center * self.vmax_contour.radius)
 
     @functools.cached_property
     def elon(self):
