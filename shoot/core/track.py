@@ -3,7 +3,7 @@
 Eddy association numeric routines
 
 Cost matrices used to associate eddies between two sets, as in the
-Chelton et al. (2011) tracking algorithm.
+Ameda (Le Vu et al,2018) tracking algorithm.
 """
 
 import numba

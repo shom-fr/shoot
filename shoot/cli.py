@@ -172,6 +172,12 @@ def _add_tracking_args(parser):
         type=int,
     )
     parser.add_argument(
+        "--drift-speed",
+        help="characteristic eddy drift speed in km/day used for the tracking search distance",
+        default=6.5,
+        type=float,
+    )
+    parser.add_argument(
         "-b",
         "--begin-date",
         help="Start date for tracking",
@@ -375,7 +381,7 @@ def _eddies_track(parser, args, logger, ds):
 
     # track
     logger.debug("Starting tracking")
-    tracks = strack.track_eddies(eddies, args.nbackward)
+    tracks = strack.track_eddies(eddies, args.nbackward, C=args.drift_speed)
     logger.info("tracking finished")
 
     # Save
@@ -412,7 +418,7 @@ def _eddies_update(parser, args, logger, ds):
     logger.debug("Loading already tracked file")
     ds_track = xr.open_dataset(args.update[0])
     # update
-    tracks_refresh = strack.update_tracks(ds_track, new_eddies, args.nbackward)
+    tracks_refresh = strack.update_tracks(ds_track, new_eddies, args.nbackward, C=args.drift_speed)
     logger.debug("Update the track finished")
 
     # Save
@@ -540,7 +546,7 @@ def _eddies_track_detected(parser, args, logger, dss):
 
     # track
     logger.debug("Starting tracking")
-    tracks = strack.track_eddies(eddies, args.nbackward)
+    tracks = strack.track_eddies(eddies, args.nbackward, C=args.drift_speed)
     logger.info("tracking finished")
 
     # Save

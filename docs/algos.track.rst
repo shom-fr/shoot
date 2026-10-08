@@ -5,7 +5,7 @@ Tracking
 
 Eddies are tracked by :func:`~shoot.eddies.track.track_eddies` from detections at
 successive time steps (:class:`~shoot.eddies.eddies2d.EvolEddies2D`), following
-the approach of Chelton et al. (2011) and Le Vu et al. (2018).
+the AMEDA algorithm of Le Vu et al. (2018).
 
 Initialization
 --------------
@@ -29,7 +29,9 @@ At each following time step, the new eddies are associated with the eddies of th
 
         D_{ij} = C \frac{1 + \Delta t}{2} + \overline{R}_j + R_i
 
-     with :math:`C = 6.5` km/day a typical propagation speed, :math:`\overline{R}_j`
+     with :math:`\Delta t` in days, :math:`C` the characteristic eddy drift speed
+     (``C`` argument in km/day, 6.5 by default, ``--drift-speed`` option of the
+     command line), :math:`\overline{R}_j`
      the radius of maximal speed of the track of :math:`j` averaged over its last five
      eddies, and :math:`R_i` the radius of maximal speed of :math:`i`;
    - a dynamical similarity term :math:`\delta R^2 + \delta Ro^2`, with

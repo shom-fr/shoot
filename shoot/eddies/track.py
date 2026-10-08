@@ -59,7 +59,7 @@ def _association_cost(new_eddies, parent_eddies, dist_ref, radius_ref_avg, ro_re
 class Associate:
     """Associate eddies between time steps for tracking
 
-    Uses the Chelton et al. (2011) tracking algorithm with cost function
+    Uses the Ameda tracking algorithm with cost function
     based on distance, Rossby number, and radius similarity.
 
     Parameters
@@ -71,11 +71,11 @@ class Associate:
     new_eddies : list
         Eddies from the current time step to associate.
     Dt : float
-        Time step (days) between parent and new eddies.
+        Time step (s) between parent and new eddies.
     Tc : float
         Characteristic time scale for tracking.
-    C : float, default 6.5*1e3/86400
-        Characteristic velocity scale (m/s).
+    C : float, default 6.5
+        Characteristic eddy drift speed (km/day).
 
     Attributes
     ----------
@@ -90,7 +90,7 @@ class Associate:
         new_eddies,
         Dt,
         Tc,
-        C=6.5 * 1e3 / 86400,
+        C=6.5,
     ):
         """Initialize eddy tracking association
 
@@ -103,11 +103,11 @@ class Associate:
         new_eddies : list
             Eddies from the current time step to associate.
         Dt : float
-            Time step (days) between parent and new eddies.
+            Time step (s) between parent and new eddies.
         Tc : float
             Characteristic time scale for tracking.
-        C : float, default 6.5*1e3/86400
-            Characteristic velocity scale (m/s).
+        C : float, default 6.5
+            Characteristic eddy drift speed (km/day).
         """
         self.parent_eddies = parent_eddies  # reference eddies
         self.new_eddies = new_eddies  # next time eddies
@@ -120,6 +120,7 @@ class Associate:
         """Parent eddy part of the search distance for eddy association
 
         The full search distance is this plus the vmax radius of the new eddy.
+        `dt` is given in seconds and the result in meters.
         """
         istart = max(0, len(self.track_eddies[eddyj.track_id].eddies) - 5)
         n = 0
@@ -127,7 +128,7 @@ class Associate:
         for i in range(istart, len(self.track_eddies[eddyj.track_id].eddies)):
             Ravg += _vmax_radius(self.track_eddies[eddyj.track_id].eddies[i])
             n += 1
-        return self._C * (1 + dt) / 2 + Ravg / n
+        return self._C * 1e3 * (1 + dt / 86400) / 2 + Ravg / n  # km/day -> m
 
     def search_dist(self, eddyj, eddyi):
         """Compute search distance for eddy association"""
@@ -187,7 +188,7 @@ class AssociateMulti:
         new_eddies,
         Dt,  ##list of dt
         Tc,
-        C=6.5 * 1e3 / 86400,
+        C=6.5,
     ):
         self.parent_eddies = parent_eddies  # reference backward eddies
         self.new_eddies = new_eddies  # next time eddies
@@ -293,8 +294,8 @@ class Track:
         Time step between detections in seconds.
     Tc : float
         Characteristic time scale for tracking in seconds.
-    C : float, default 6.5*1e3/86400
-        Characteristic velocity scale (m/s).
+    C : float, default 6.5
+        Characteristic eddy drift speed (km/day).
     """
 
     def __init__(
@@ -304,7 +305,7 @@ class Track:
         number,
         dt,
         Tc,
-        C=6.5 * 1e3 / 86400,  # 6.5 km.day in m/s
+        C=6.5,
     ):
         self.eddies = [eddy] if not isinstance(eddy, list) else eddy
         self.number = number
@@ -315,8 +316,8 @@ class Track:
         self._C = C
 
     @classmethod
-    def reconstruct(cls, eddies, times, number, dt, Tc):
-        return cls(eddies, times, number, dt, Tc)
+    def reconstruct(cls, eddies, times, number, dt, Tc, C=6.5):
+        return cls(eddies, times, number, dt, Tc, C)
 
     def update(self, eddy, time):
         self.eddies.append(eddy)
@@ -331,11 +332,12 @@ class Track:
                 "life_time": (
                     ("eddies"),
                     [(self.times[-1] - self.times[0]) / np.timedelta64(1, "D")],
+                    {"long_name": "Track life time", "units": "day"},
                 ),
-                "x_start": (("eddies"), [self.eddies[0].lon]),
-                "y_start": (("eddies"), [self.eddies[0].lat]),
-                "x_end": (("eddies"), [self.eddies[-1].lon]),
-                "y_end": (("eddies"), [self.eddies[-1].lat]),
+                "x_start": (("eddies"), [self.eddies[0].lon], {"units": "degrees_east"}),
+                "y_start": (("eddies"), [self.eddies[0].lat], {"units": "degrees_north"}),
+                "x_end": (("eddies"), [self.eddies[-1].lon], {"units": "degrees_east"}),
+                "y_end": (("eddies"), [self.eddies[-1].lat], {"units": "degrees_north"}),
                 "track_type": (("eddies"), [self.eddies[0].eddy_type]),
             },
         )
@@ -353,15 +355,15 @@ class Tracks:
         Detected eddies at multiple time steps.
     nback : int
         Number of backward time steps for multi-step association.
-    C : float, default 6.5*1e3/86400
-        Characteristic velocity scale (m/s).
+    C : float, default 6.5
+        Characteristic eddy drift speed (km/day).
     """
 
     def __init__(
         self,
         eddies,
         nback,
-        C=6.5 * 1e3 / 86400,  # 6.5 km.day in m/s
+        C=6.5,
         **attrs,
     ):
         self.eddies = eddies  #  EvolEddies object
@@ -376,7 +378,7 @@ class Tracks:
         self.track_eddies = {}  # list of tracks
 
     @classmethod
-    def reconstruct(cls, ds, nback):
+    def reconstruct(cls, ds, nback, C=6.5):
         """Reconstruct tracks from a tracked xarray dataset"""
         ## Reconstruct eddies
         eddies = seddies.EvolEddies2D.reconstruct(ds)
@@ -395,8 +397,9 @@ class Tracks:
                 trace_number,
                 eddies.dt,
                 eddies.dt * nback,
+                C,
             )
-        my_tracks = cls(eddies, nback)
+        my_tracks = cls(eddies, nback, C)
         my_tracks.track_eddies = track_eddies
         my_tracks.nb_tracks = len(track_eddies)
         return my_tracks
@@ -420,7 +423,7 @@ class Tracks:
     def track_init(self):
         logger.info("Initializing tracks from first time step")
         for i, eddy in enumerate(self.eddies.eddies[0].eddies):  # initialized with the first detected eddies
-            self.track_eddies[i] = Track(eddy, self.times[0], i, self._dt, self._Tc)
+            self.track_eddies[i] = Track(eddy, self.times[0], i, self._dt, self._Tc, self._C)
             eddy.track_id = i  # update eddy track number
             self.nb_tracks += 1
 
@@ -437,7 +440,9 @@ class Tracks:
             )
             for eddy in new_eddies:
                 if eddy.track_id is None:  # Create a new track
-                    self.track_eddies[self.nb_tracks] = Track(eddy, t, self.nb_tracks, self._dt, self._Tc)
+                    self.track_eddies[self.nb_tracks] = Track(
+                        eddy, t, self.nb_tracks, self._dt, self._Tc, self._C
+                    )
                     eddy.track_id = self.nb_tracks  # update eddy track number
                     self.nb_tracks += 1
 
@@ -460,7 +465,9 @@ class Tracks:
         )
         for eddy in new_eddies:
             if eddy.track_id is None:  # Create a new track
-                self.track_eddies[self.nb_tracks] = Track(eddy, t, self.nb_tracks, self._dt, self._Tc)
+                self.track_eddies[self.nb_tracks] = Track(
+                    eddy, t, self.nb_tracks, self._dt, self._Tc, self._C
+                )
                 eddy.track_id = self.nb_tracks  # update eddy track number
                 self.nb_tracks += 1
 
@@ -475,11 +482,11 @@ class Tracks:
 
     def update(self, parent_eddies, new_eddies, Dt):
         """Update based on last detected eddies"""
-        Associate(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc).order()
+        Associate(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc, self._C).order()
 
     def update_multi(self, parent_eddies, new_eddies, Dt):
         """Update based on several preceding time eddies"""
-        AssociateMulti(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc).order()
+        AssociateMulti(self.track_eddies, parent_eddies, new_eddies, Dt, self._Tc, self._C).order()
 
     def refresh(self, new_eddies):
         """refresh a track with a new Eddies object (next time)"""
@@ -488,7 +495,7 @@ class Tracks:
         self.track_step()
 
 
-def track_eddies(eddies, nback):
+def track_eddies(eddies, nback, C=6.5):
     """Track eddies across time steps
 
     Parameters
@@ -500,6 +507,8 @@ def track_eddies(eddies, nback):
         Number of backward time steps for eddy tracking.
         Typically around 10 days for satellite altimetry
         and 1 or 2 days for numerical simulations.
+    C : float, default 6.5
+        Characteristic eddy drift speed (km/day).
 
     Returns
     -------
@@ -512,12 +521,12 @@ def track_eddies(eddies, nback):
     >>> tracks = track_eddies(evol_eddies, nback=10)  # doctest: +SKIP
     >>> tracks.to_netcdf("tracked.nc")  # doctest: +SKIP
     """
-    tracks = Tracks(eddies, nback)
+    tracks = Tracks(eddies, nback, C=C)
     tracks.tracking()
     return tracks
 
 
-def update_tracks(ds, new_eddies, nback):
+def update_tracks(ds, new_eddies, nback, C=6.5):
     """Update tracking based on new eddies detection
 
     Parameters
@@ -530,12 +539,14 @@ def update_tracks(ds, new_eddies, nback):
         Number of backward time steps for eddy tracking.
         Typically around 10 days for satellite altimetry
         and 1 or 2 days for numerical simulations.
+    C : float, default 6.5
+        Characteristic eddy drift speed (km/day).
 
     Returns
     -------
     Tracks
         Updated tracks object.
     """
-    tracks = Tracks.reconstruct(ds, nback)
+    tracks = Tracks.reconstruct(ds, nback, C=C)
     tracks.refresh(new_eddies)
     return tracks

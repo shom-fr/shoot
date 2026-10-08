@@ -67,10 +67,7 @@ def find_closed_contours(z, ic, jc, nlevels=50, robust=0.03):
 
     cont_gen = cpy.contour_generator(z=z)
     vmin, vmax = np.nanquantile(z, [robust, 1 - robust])
-    if len(np.arange(vmin, vmax + 0.005, 0.005)) < nlevels:
-        levels = np.arange(vmin, vmax + 0.005, 0.005)
-    else:
-        levels = np.linspace(vmin, vmax, nlevels)
+    levels = np.linspace(vmin, vmax, nlevels)
     contours = []
     for level in levels:
         for line in cont_gen.lines(level):

@@ -3,7 +3,7 @@
 Eddy Tracking
 =============
 
-This guide explains how to track eddies through time using shoot's tracking framework, based on the Chelton et al. (2011) algorithm.
+This guide explains how to track eddies through time using shoot's tracking framework, based on the AMEDA algorithm (Le Vu et al., 2018).
 
 Tracking Overview
 -----------------
@@ -114,8 +114,8 @@ Implement tracking with Track objects:
         new_eddies = eddies_list[t].eddies
         prev_eddies = eddies_list[t-1].eddies
 
-        # Time difference (days)
-        dt = (ds.time[t] - ds.time[t-1]).values / np.timedelta64(1, 'D')
+        # Time difference (s)
+        dt = (ds.time[t] - ds.time[t-1]).values / np.timedelta64(1, 's')
 
         # Associate eddies
         associator = Associate(
@@ -123,8 +123,8 @@ Implement tracking with Track objects:
             prev_eddies,
             new_eddies,
             Dt=dt,
-            Tc=10,                    # Characteristic time (days)
-            C=6.5e3 / 86400          # Characteristic velocity (m/s)
+            Tc=10 * 86400,            # Characteristic time (s)
+            C=6.5,                    # Characteristic drift speed (km/day)
         )
 
         # Get cost matrix and find matches
@@ -180,25 +180,26 @@ Time Scales
 
     Associate(
         tracks, prev_eddies, new_eddies,
-        Dt=7,      # Actual interval (days)
-        Tc=10      # Characteristic time (days)
+        Dt=7 * 86400,   # Actual interval (s)
+        Tc=10 * 86400   # Characteristic time (s)
     )
 
 Velocity Scale
 ~~~~~~~~~~~~~~
 
-**C** (characteristic velocity) for search distance:
+**C** (characteristic eddy drift speed, km/day) for search distance:
 
-- Default: 6.5 km/day = 0.075 m/s
+- Default: 6.5 km/day
 - Adjust for energetic regions
+- Command line option: ``--drift-speed``
 
 .. code-block:: python
 
     # Standard mesoscale
-    C = 6.5e3 / 86400  # m/s
+    tracks = track_eddies(eddies, nback=10, C=6.5)  # km/day
 
     # Energetic western boundary
-    C = 10e3 / 86400   # m/s
+    tracks = track_eddies(eddies, nback=10, C=10)  # km/day
 
 Working with Tracks
 -------------------
