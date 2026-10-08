@@ -13,6 +13,7 @@ from shapely.geometry import Polygon
 
 from .. import geo as sgeo
 from .. import num as snum
+from ..core import track as ctrack
 
 
 class Associate:
@@ -26,29 +27,22 @@ class Associate:
     @functools.cached_property
     def cost(self):
         """Cost function between each eddy pair"""
-        M = np.zeros((len(self.eddies), len(self.ref_eddies)))
-        for i in range(len(self.eddies)):
-            for j in range(len(self.ref_eddies)):
-                dlat = self.ref_eddies[j].lat - self.eddies[i].lat
-                dlon = self.ref_eddies[j].lon - self.eddies[i].lon
-                x = sgeo.deg2m(dlon, self.ref_eddies[j].lat)
-                y = sgeo.deg2m(dlat)
-
-                # Distance term
-                dxy = np.sqrt(x**2 + y**2)
-                M[i, j] = (dxy**2) / (self.dmax**2) if dxy < self.dmax else 1e6
-
-                # dynamical similarity
-                DR = (self.ref_eddies[j].radius - self.eddies[i].radius) / (
-                    self.ref_eddies[j].radius + self.eddies[i].radius
-                )
-                DR0 = (self.ref_eddies[j].ro - self.eddies[i].ro) / (
-                    self.ref_eddies[j].ro + self.eddies[i].ro
-                )
-
-                # Warning: avoid coupling cyclone with anticyclone
-                M[i, j] += DR**2 + DR0**2 if self.ref_eddies[j].eddy_type == self.eddies[i].eddy_type else 1e6
-        return np.sqrt(M)
+        if not len(self.eddies) or not len(self.ref_eddies):
+            return np.zeros((len(self.eddies), len(self.ref_eddies)))
+        codes = {}
+        return ctrack.association_cost(
+            [eddy.lon for eddy in self.eddies],
+            [eddy.lat for eddy in self.eddies],
+            [eddy.radius for eddy in self.eddies],
+            [eddy.ro for eddy in self.eddies],
+            [codes.setdefault(eddy.eddy_type, len(codes)) for eddy in self.eddies],
+            [eddy.lon for eddy in self.ref_eddies],
+            [eddy.lat for eddy in self.ref_eddies],
+            [eddy.radius for eddy in self.ref_eddies],
+            [eddy.ro for eddy in self.ref_eddies],
+            [codes.setdefault(eddy.eddy_type, len(codes)) for eddy in self.ref_eddies],
+            np.full(len(self.ref_eddies), self.dmax),
+        )
 
     def order(self):
         """Assign eddy IDs using linear sum assignment"""

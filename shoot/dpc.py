@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Fri Apr 17 15:25:20 2026
 
@@ -7,13 +6,14 @@ Created on Fri Apr 17 15:25:20 2026
 """
 
 import functools
+
 import numpy as np
 
 from .hydrology import Field2D
 
 
 class DPCEddy:
-    """DPC based acoustic analysis for an eddy 
+    """DPC based acoustic analysis for an eddy
 
     Computes acoustic parameters both inside and outside an eddy,
     and calculates the acoustic impact (difference between inside/outside).
@@ -51,11 +51,10 @@ class DPCEddy:
         """
         self.field2d = field2d
 
-
     @functools.cached_property
     def ecs_insides(self):
-        return self.field2d.ds_inside.z_sld 
-    
+        return self.field2d.ds_inside.z_sld
+
     @functools.cached_property
     def iminc_insides(self):
         return self.field2d.ds_inside.z_iminc
@@ -71,7 +70,7 @@ class DPCEddy:
     @functools.cached_property
     def ecs_outsides(self):
         return self.field2d.ds_outside.z_sld
-    
+
     @functools.cached_property
     def iminc_outsides(self):
         return self.field2d.ds_outside.z_iminc
@@ -84,38 +83,69 @@ class DPCEddy:
     def mcp_outsides(self):
         return self.field2d.ds_outside.z_maxdeep
 
-
     @functools.cached_property
     def ecs_inside(self):
-        return self.ecs_insides.mean() if np.sum(np.isnan(self.ecs_insides))<0.5*len(self.ecs_insides) else np.nan 
-    
+        return (
+            self.ecs_insides.mean()
+            if np.sum(np.isnan(self.ecs_insides)) < 0.5 * len(self.ecs_insides)
+            else np.nan
+        )
+
     @functools.cached_property
     def iminc_inside(self):
-        return self.iminc_insides.mean() if np.sum(np.isnan(self.iminc_insides))<0.5*len(self.iminc_insides) else np.nan 
+        return (
+            self.iminc_insides.mean()
+            if np.sum(np.isnan(self.iminc_insides)) < 0.5 * len(self.iminc_insides)
+            else np.nan
+        )
 
     @functools.cached_property
     def iminops_inside(self):
-        return self.iminops_insides.mean() if np.sum(np.isnan(self.iminops_insides))<0.5*len(self.iminops_insides) else np.nan 
+        return (
+            self.iminops_insides.mean()
+            if np.sum(np.isnan(self.iminops_insides)) < 0.5 * len(self.iminops_insides)
+            else np.nan
+        )
 
     @functools.cached_property
     def mcp_inside(self):
-        return self.mcp_insides.mean() if np.sum(np.isnan(self.mcp_insides))<0.5*len(self.mcp_insides) else np.nan 
+        return (
+            self.mcp_insides.mean()
+            if np.sum(np.isnan(self.mcp_insides)) < 0.5 * len(self.mcp_insides)
+            else np.nan
+        )
 
     @functools.cached_property
     def ecs_outside(self):
-        return self.ecs_outsides.mean() if np.sum(np.isnan(self.ecs_outsides))<0.5*len(self.ecs_outsides) else np.nan 
-    
+        return (
+            self.ecs_outsides.mean()
+            if np.sum(np.isnan(self.ecs_outsides)) < 0.5 * len(self.ecs_outsides)
+            else np.nan
+        )
+
     @functools.cached_property
     def iminc_outside(self):
-        return self.iminc_outsides.mean() if np.sum(np.isnan(self.iminc_outsides))<0.5*len(self.iminc_outsides) else np.nan 
+        return (
+            self.iminc_outsides.mean()
+            if np.sum(np.isnan(self.iminc_outsides)) < 0.5 * len(self.iminc_outsides)
+            else np.nan
+        )
 
     @functools.cached_property
     def iminops_outside(self):
-        return self.iminops_outsides.mean() if np.sum(np.isnan(self.iminops_outsides))<0.5*len(self.iminops_outsides) else np.nan 
+        return (
+            self.iminops_outsides.mean()
+            if np.sum(np.isnan(self.iminops_outsides)) < 0.5 * len(self.iminops_outsides)
+            else np.nan
+        )
 
     @functools.cached_property
     def mcp_outside(self):
-        return self.mcp_outsides.mean() if np.sum(np.isnan(self.mcp_outsides))<0.5*len(self.mcp_outsides) else np.nan 
+        return (
+            self.mcp_outsides.mean()
+            if np.sum(np.isnan(self.mcp_outsides)) < 0.5 * len(self.mcp_outsides)
+            else np.nan
+        )
 
     @staticmethod
     def _distance(e1, e2):
@@ -126,7 +156,7 @@ class DPCEddy:
         elif e1 == 0 and e2 == 0:
             return 0
         else:
-            return np.abs(e1 - e2) / np.abs((0.5 * (e1 + e2)))
+            return np.abs(e1 - e2) / np.abs(0.5 * (e1 + e2))
 
     @functools.cached_property
     def acoustic_impact(self):
@@ -138,10 +168,10 @@ class DPCEddy:
         d_iminops = DPCEddy._distance(iminops_in, iminops_out)
         d_ecs = DPCEddy._distance(ecs_in, ecs_out)
 
-        return  d_iminops + d_ecs
+        return d_iminops + d_ecs
 
 
-def acoustic_points_dpc(eddies, dpc, r_factor = 1.2):
+def acoustic_points_dpc(eddies, dpc, r_factor=1.2):
     """Compute acoustic impact for all eddies
 
     Adds acoustic parameters (ecs, iminc, mcp) inside and outside
@@ -158,7 +188,7 @@ def acoustic_points_dpc(eddies, dpc, r_factor = 1.2):
     """
 
     for eddy in eddies.eddies:
-        acous = DPCEddy(Field2D(eddy, eddies, dpc, r_factor = r_factor))
+        acous = DPCEddy(Field2D(eddy, eddies, dpc, r_factor=r_factor))
         eddy.ecs_insides = acous.ecs_insides
         eddy.ecs_outsides = acous.ecs_outsides
         eddy.iminc_insides = acous.iminc_insides
@@ -166,5 +196,3 @@ def acoustic_points_dpc(eddies, dpc, r_factor = 1.2):
         eddy.mcp_insides = acous.mcp_insides
         eddy.mcp_outsides = acous.mcp_outsides
         eddy.acoustic_impact = acous.acoustic_impact
-
-

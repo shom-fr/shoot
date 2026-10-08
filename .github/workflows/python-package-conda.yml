@@ -1,33 +1,61 @@
 name: CI
 
-on: [push]
+on:
+  push:
+  pull_request:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 5
-
+  lint:
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v6
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.10"
-    - name: Add conda to system path
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        echo $CONDA/bin >> $GITHUB_PATH
-    - name: Install dependencies
-      run: |
-        conda env update --file env/environment.yml --name base
-    - name: Lint with ruff
-      run: |
-        pip install ruff
-        ruff check .
-        ruff format --check .
-    - name: Test with pytest
-      run: |
-        pip install .
-        pip install pytest
-        pytest
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"  # as in .pre-commit-config.yaml
+      - uses: pre-commit/action@v3.0.1
+
+  test:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # version from git tags
+      - uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          environment-file: env/environment.yml
+          activate-environment: shoot
+          python-version: ${{ matrix.python-version }}
+      - name: Install shoot
+        run: pip install --no-deps .
+      - name: Test with pytest
+        run: pytest
+
+  docs:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+          environment-file: env/environment.yml
+          activate-environment: shoot
+          python-version: "3.12"
+      - name: Install shoot and sphinx
+        run: |
+          pip install --no-deps .
+          pip install sphinx sphinx-argparse sphinx-book-theme sphinx-gallery sphinxcontrib-programoutput
+      - name: Build the docs without running the examples
+        run: sphinx-build -b html -D sphinx_gallery_conf.plot_gallery=0 docs docs/_build/html

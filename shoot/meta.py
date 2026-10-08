@@ -74,6 +74,31 @@ def get_lat(obj, errors="raise"):
     return xcoords.get_lat(obj, errors=errors)
 
 
+def get_lon_lat_names(obj, errors="ignore"):
+    """Get the names of the longitude and latitude coordinates
+
+    Parameters
+    ----------
+    obj : xarray.Dataset or xarray.DataArray
+    errors : {"raise", "warn", "ignore"}, default "ignore"
+
+    Returns
+    -------
+    lon_name : str or None
+        Name of the longitude coordinate.
+    lat_name : str or None
+        Name of the latitude coordinate.
+
+    See also
+    --------
+    get_lon
+    get_lat
+    """
+    lon = get_lon(obj, errors=errors)
+    lat = get_lat(obj, errors=errors)
+    return (None if lon is None else lon.name), (None if lat is None else lat.name)
+
+
 def get_depth(obj, errors="ignore"):
     """Get depth coordinate from dataset or data array
 

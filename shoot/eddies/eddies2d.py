@@ -6,33 +6,52 @@ Functions and classes for detecting and analyzing mesoscale eddies from
 horizontal velocity fields using local angular momentum and contour methods.
 """
 
+import contextlib
 import functools
 import gc
 import json
 import logging
-import multiprocessing as mp
 import os
 from itertools import repeat
+from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
 import psutil
 import xarray as xr
-from scipy.interpolate import make_interp_spline
 
-from .. import contours as scontours
 from .. import dyn as sdyn
 from .. import fit as sfit
 from .. import geo as sgeo
 from .. import grid as sgrid
 from .. import meta as smeta
 from .. import num as snum
+from .. import paral as sparal
 from .. import plot as splot
 from .. import streamline as strl
+from ..core import contours as ccontours
+from ..core import eddies as ceddies
 
 logger = logging.getLogger(__name__)
 
 COLORS = {"anticyclone": "tab:red", "cyclone": "tab:blue", "undefined": "0.5"}
+
+#: Minimal estimated sequential time (s) of the processing of the center
+#: candidates of a single field to automatically process them in parallel
+PARAL_MIN_SECONDS = 2.0
+
+#: Number of center candidates processed sequentially to estimate
+#: the sequential time of all candidates
+PARAL_SAMPLE_SIZE = 10
+
+#: Minimal number of time steps to automatically process them in parallel
+PARAL_MIN_TIMES = 2
+
+
+def _detect_eddies_step(args):
+    """Sequential detection of eddies at a single time step, for pool workers"""
+    u, v, ssh, kwargs = args
+    return Eddies2D.detect_eddies(u, v, ssh=ssh, paral=False, verbose=False, **kwargs)
 
 
 def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
@@ -66,19 +85,9 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
     dxm = np.nanmean(dx)
     dym = np.nanmean(dy)
 
-    # Local angular momentum
-    lnam = sdyn.get_lnam(u, v, window, dx=dxm, dy=dym)
-
-    # Mask with positive OW
-    ow = sdyn.get_okuboweiss(u, v, dx=dxm, dy=dym)
-    lnam = lnam.where(ow < 0)
-
-    # Find local peaks
-    wx, wy = sgrid.get_wx_wy(window, dxm, dym)  ## WARNING IT HAS BEEN MODIFIED
-    minima, maxima = snum.find_signed_peaks_2d(lnam.values, wx, wy, paral=paral)
-    extrema = np.vstack((minima, maxima))
-    ii = extrema[:, 0]
-    jj = extrema[:, 1]
+    # LNAM peaks where OW < 0
+    centers = ceddies.find_centers(u.values, v.values, dxm, dym, window, paral=paral)
+    ii, jj, wx, wy = centers.i, centers.j, centers.wx, centers.wy
 
     # Sort cyclones and anti-cyclones
     lat2d, lon2d = xr.broadcast(smeta.get_lat(u), smeta.get_lon(u))
@@ -86,8 +95,8 @@ def find_eddy_centers(u, v, window, dx=None, dy=None, paral=False):
     ecorio = sdyn.get_coriolis(yy[jj, ii])
     elons = xx[jj, ii]
     elats = yy[jj, ii]
-    elnam = lnam.values[jj, ii]
-    eow = ow.values[jj, ii]
+    elnam = centers.lnam
+    eow = centers.ow
 
     return xr.Dataset(
         {
@@ -237,6 +246,36 @@ class Ellipse:
         )
 
 
+def _eddy_contour_to_dataset(contour, lon_center, lat_center):
+    """Convert a :class:`shoot.core.eddies.EddyContour` to a dataset"""
+    ellipse = Ellipse(*contour.ellipse.values(), 0, contour.fit_error)
+    ellipse.sign = np.sign(contour.mean_angular_momentum)
+    return xr.Dataset(
+        {
+            "line": (("npts", "ncoords"), contour.line),
+            "u": ("npts", contour.u, {"long_name": "Velocity along X"}),
+            "v": ("npts", contour.v, {"long_name": "Velocity along Y"}),
+            "am": ("npts", contour.am, {"long_name": "Angular momentum", "units": "m2.s-2"}),
+            "dx": ("npts", contour.dx, {"units": "m"}),
+            "dy": ("npts", contour.dy, {"units": "m"}),
+        },
+        coords={
+            "lon": ("npts", contour.lon, {"long_name": "Longitude"}),
+            "lat": ("npts", contour.lat, {"long_name": "Latitude"}),
+        },
+        attrs={
+            "ssh": contour.level,
+            "lon_center": lon_center,
+            "lat_center": lat_center,
+            "ellipse": ellipse,
+            "mean_velocity": contour.mean_velocity,
+            "mean_angular_momentum": contour.mean_angular_momentum,
+            "radius": contour.radius,
+            "length": contour.length,
+        },
+    )
+
+
 class GriddedEddy2D:
     """An eddy detected on a grid with contour and ellipse properties
 
@@ -264,6 +303,10 @@ class GriddedEddy2D:
         Maximum allowed ellipse fit error.
     min_radius : float, optional
         Minimum eddy radius in km.
+    lon2d : ndarray, optional
+        2D longitudes of the local fields. Inferred from `u` if not provided.
+    lat2d : ndarray, optional
+        2D latitudes of the local fields. Inferred from `u` if not provided.
     """
 
     def __init__(
@@ -279,15 +322,16 @@ class GriddedEddy2D:
         max_ellipse_error=0.01,  # 0.1,  # 0.03,  # 0.01,
         nlevels=100,
         robust=0.03,
+        lon2d=None,
+        lat2d=None,
         **attrs,
     ):
         self.i, self.j = i, j
-        lat = smeta.get_lat(u)
-        lon = smeta.get_lon(u)
-        if lon.ndim == 1:
-            self.glon, self.glat = float(lon[i]), float(lat[j])
-        else:
-            self.glon, self.glat = float(lon[j, i]), float(lat[j, i])
+        if lon2d is None or lat2d is None:
+            lat2d, lon2d = xr.broadcast(smeta.get_lat(u), smeta.get_lon(u))
+            lon2d, lat2d = lon2d.values, lat2d.values
+        self._lon2d, self._lat2d = lon2d, lat2d
+        self.glon, self.glat = float(lon2d[j, i]), float(lat2d[j, i])
         self.u, self.v = u, v
         self._ssh = ssh
         self._dx, self._dy = sgrid.get_dx_dy(u, dx=dx, dy=dy)
@@ -322,31 +366,20 @@ class GriddedEddy2D:
 
     @functools.cached_property
     def contours(self):
-        # Closed contours
-        dss = scontours.get_closed_contours(
-            self.glon,
-            self.glat,
-            self.ssh,
+        """Closed contours around the center that are well fitted by an ellipse"""
+        contours = ceddies.find_eddy_contours(
+            self.ssh.values,
+            self.u.values,
+            self.v.values,
+            self._lon2d,
+            self._lat2d,
+            self.i,
+            self.j,
             nlevels=self.nlevels,
             robust=self.robust,
+            max_ellipse_error=self.max_ellipse_error,
         )
-        # Fit ellipses, add currents and filter
-        valid_contours = []
-        for ds in dss:
-            ellipse = Ellipse.from_coords(ds.lon, ds.lat)
-            # check if ellipse center fall inside the eddy contour
-            if not snum.points_in_polygon(
-                np.array([ellipse.lon, ellipse.lat]),
-                np.array([ds.lon, ds.lat]).T,
-            ):
-                continue
-            if ellipse.fit_error < self.max_ellipse_error:
-                ds.attrs["ellipse"] = ellipse
-                scontours.add_contour_uv(ds, self.u.values, self.v.values)
-                scontours.add_contour_dx_dy(ds)
-                valid_contours.append(ds)
-                ellipse.sign = np.sign(ds.mean_angular_momentum)
-        return valid_contours
+        return [_eddy_contour_to_dataset(contour, self.glon, self.glat) for contour in contours]
 
     @functools.cached_property
     def ncontours(self):
@@ -365,28 +398,8 @@ class GriddedEddy2D:
     def boundary_contour(self):
         if not self.ncontours:
             return
-        dsb = self.contours[0]
-        for ds in self.contours:
-            if ds.length > dsb.length:
-                dsb = ds
-        ok = np.where(np.abs(np.diff(dsb.lon)) + np.abs(np.diff(dsb.lat)) > 1e-10)[0]
-        ok = np.concatenate([ok, [len(dsb.lon) - 1]])
-
-        lon = dsb.lon.values[ok]
-        lat = dsb.lat.values[ok]
-        
-        # paramètre (équivalent de u)
-        t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
-        t_new = np.linspace(0, 1, 50)
-        lon_int = spl_lon(t_new)
-        lat_int = spl_lat(t_new)
-        
-        xy_int = [lon_int, lat_int]
-        
-        dsb["lon_int"] = xy_int[0]
-        dsb["lat_int"] = xy_int[1]
+        dsb = self.contours[ceddies.argmax_first([ds.length for ds in self.contours])]
+        dsb["lon_int"], dsb["lat_int"] = ccontours.smooth_contour(dsb.lon.values, dsb.lat.values, tol=1e-10)
         return dsb
 
     @property
@@ -441,25 +454,8 @@ class GriddedEddy2D:
     def vmax_contour(self):
         if not self.ncontours:
             return
-        dsv = self.contours[0]
-        for ds in self.contours:
-            if ds.mean_velocity > dsv.mean_velocity:
-                dsv = ds
-        ok = np.where(np.abs(np.diff(dsv.lon)) + np.abs(np.diff(dsv.lat)) > 0)[0]
-        ok = np.concatenate([ok, [len(dsv.lon) - 1]])
-
-        lon = dsv.lon.values[ok]
-        lat = dsv.lat.values[ok]
-        t = np.linspace(0, 1, len(lon))
-        spl_lon = make_interp_spline(t, lon, k=3, bc_type = "periodic")
-        spl_lat = make_interp_spline(t, lat, k=3, bc_type = "periodic")
-        t_new = np.linspace(0, 1, 50)
-        lon_int = spl_lon(t_new)
-        lat_int = spl_lat(t_new)
-        xy_int = [lon_int, lat_int]
-
-        dsv["lon_int"] = xy_int[0]
-        dsv["lat_int"] = xy_int[1]
+        dsv = self.contours[ceddies.argmax_first([ds.mean_velocity for ds in self.contours])]
+        dsv["lon_int"], dsv["lat_int"] = ccontours.smooth_contour(dsv.lon.values, dsv.lat.values)
         return dsv
 
     @property
@@ -491,15 +487,17 @@ class GriddedEddy2D:
             np.array([self.boundary_contour.lon, self.boundary_contour.lat]).T,
         )
 
+    @functools.cached_property
+    def _vmax_polygon(self):
+        """Numpy (n, 2) array of the :attr:`vmax_contour` coordinates"""
+        return np.ascontiguousarray(np.array([self.vmax_contour.lon.values, self.vmax_contour.lat.values]).T)
+
     def contains_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
-        valid = snum.points_in_polygon(points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T)
+        valid = snum.points_in_polygon(eddy._vmax_polygon, self._vmax_polygon)
         return valid.all()
 
     def intersects_eddy(self, eddy):
-        points = np.array([eddy.vmax_contour.lon.values, eddy.vmax_contour.lat.values]).T
-        valid = snum.points_in_polygon(points, np.array([self.vmax_contour.lon, self.vmax_contour.lat]).T)
-        return valid.any()
+        return snum.any_points_in_polygon(eddy._vmax_polygon, self._vmax_polygon)
 
     def plot(self, ax=None, lw=1, color=None, vmax=False, boundary=False, **kwargs):
         """Quickly plot the eddy"""
@@ -529,9 +527,9 @@ class GriddedEddy2D:
         return out
 
     def lignes(self, nb_eddy, date):
-        if hasattr(self, 'acoustic_impact') : 
-            tendance = 2 if self.acoustic_impact <1  else 3
-        else : 
+        if hasattr(self, 'acoustic_impact'):
+            tendance = 2 if self.acoustic_impact < 1 else 3
+        else:
             tendance = '-'
         "provide the expected lignes for plan vecteur format"
         lignes_tmp = [
@@ -554,7 +552,7 @@ class GriddedEddy2D:
             f"{'Surface(km2)':<38}{np.pi * self.ellipse.a * self.ellipse.b:<3.0f}\n",
             f"{'Longueur(km)':<38}{2 * self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
             f"{'Largeur(km)':<38}{2 * self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
-            #f"{'Tendance':<38}{'-':<3}\n",
+            # f"{'Tendance':<38}{'-':<3}\n",
             f"{'Tendance':<38}{tendance:<3}\n",
             f"{'Module_de_vitesse(m/s)':<38}{self.vmax_contour.mean_velocity:<3.3f}\n",
             f"{'Orientation/E(deg)':<38}{self.ellipse.angle:<3.1f}\n",
@@ -715,9 +713,9 @@ class Eddy:
         return out
 
     def lignes(self, nb_eddy, date):
-        if hasattr(self, 'acoustic_impact') : 
-            tendance = 2 if self.acoustic_impact <1  else 3
-        else : 
+        if hasattr(self, 'acoustic_impact'):
+            tendance = 2 if self.acoustic_impact < 1 else 3
+        else:
             tendance = '-'
         "provide the expected lignes for plan vecteur format"
         lignes_tmp = [
@@ -732,15 +730,13 @@ class Eddy:
             f"{'Suivi':<38}{f'/A{nb_eddy:.0f}/-':<3}\n",
             "Liste_Points(lon/lat)\n",
         ]
-        list_points = [
-            f"{lon:.4f}/{lat:.4f}\n" for lon, lat in zip(self.x_vmax, self.y_vmax)
-        ]
+        list_points = [f"{lon:.4f}/{lat:.4f}\n" for lon, lat in zip(self.x_vmax, self.y_vmax)]
         lignes_tmp += list_points
         lignes_tmp += [
             f"{'Surface(km2)':<38}{np.pi * self.ellipse.a * self.ellipse.b:<3.0f}\n",
             f"{'Longueur(km)':<38}{2 * self.ellipse.a:<3.1f}\n",  # ellipse demi grand axe
             f"{'Largeur(km)':<38}{2 * self.ellipse.b:<3.1f}\n",  # ellipse demi petit axe
-            #f"{'Tendance':<38}{'-':<3}\n",
+            # f"{'Tendance':<38}{'-':<3}\n",
             f"{'Tendance':<38}{tendance:<3}\n",
             f"{'Module_de_vitesse(m/s)':<38}{self.vmax:<3.3f}\n",
             f"{'Orientation/E(deg)':<38}{self.ellipse.angle:<3.1f}\n",
@@ -811,10 +807,11 @@ class Eddies2D:
         dx=None,
         dy=None,
         min_radius=None,
-        paral=False,
+        paral=None,
         nb_procs=None,
         ellipse_error=0.1,
         verbose=True,
+        pool=None,
         **kwargs,
     ):
         """Detect all eddies in a velocity field
@@ -837,12 +834,22 @@ class Eddies2D:
             Grid resolution along Y in meters.
         min_radius : float, optional
             Minimum eddy radius (km) to retain.
-        paral : bool, default False
-            Use parallel processing.
+        paral : bool, optional
+            Process the center candidates in parallel.
+            When None, the first :data:`PARAL_SAMPLE_SIZE` candidates are
+            processed sequentially to estimate the sequential time of all of them,
+            and the others are processed in parallel if this time is greater than
+            :data:`PARAL_MIN_SECONDS`, only with the "fork" multiprocessing start
+            method. Results do not depend on this choice.
         nb_procs : int, optional
-            Number of parallel processes.
+            Number of parallel processes. Defaults to the available cores.
         ellipse_error : float, default 0.01
             Maximum allowed ellipse fit error.
+        pool : multiprocessing.pool.Pool, optional
+            Pool of workers to use, typically from :func:`shoot.paral.create_pool`
+            with ``warmup=shoot.core.eddies.warmup``,
+            which switches on parallel processing.
+            By default, a pool is created for the detection when needed.
 
         Returns
         -------
@@ -891,6 +898,8 @@ class Eddies2D:
 
         nx = u.sizes[xdim]
         ny = u.sizes[ydim]
+        lon2d = lon2d.transpose(ydim, xdim).values
+        lat2d = lat2d.transpose(ydim, xdim).values
 
         def def_eddy(ic, wx2c, wy2c):
             # Local selection
@@ -920,6 +929,8 @@ class Eddies2D:
                 dx=dxl,
                 dy=dyl,
                 max_ellipse_error=ellipse_error,
+                lon2d=lon2d[jmin:jmax, imin:imax],
+                lat2d=lat2d[jmin:jmax, imin:imax],
                 **kwargs,
             )
             eddy.attrs.update(
@@ -933,63 +944,74 @@ class Eddies2D:
         eddies = []
         wx2c = wx2
         wy2c = wy2
-        if paral:
-            if verbose:
-                logger.info("%i cpus and %i cores available", mp.cpu_count(), len(os.sched_getaffinity(0)))
-            if nb_procs:
-                nb_procs = min(nb_procs, len(os.sched_getaffinity(0)))
-            else:
-                nb_procs = len(os.sched_getaffinity(0))
-            logger.info("Working with %i cpus", nb_procs)
-        elif verbose:
-            logger.info("Running in sequential mode")
 
-        while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
-            eddies_tmp = []
-            for ic in range(centers.lon.shape[0]):
-                eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
+        # Parallel or sequential processing of the centers
+        if pool is not None:
+            paral = True
+        elif paral is None and not (sparal.can_auto_paral() and sparal.get_nb_procs(nb_procs) > 1):
+            paral = False
+        if verbose and paral is not None:
+            mode = "in parallel" if paral else "sequentially"
+            logger.info("Processing %i center candidates %s", centers.lon.shape[0], mode)
 
-            if paral:
-                with mp.Pool(nb_procs, maxtasksperchild=5) as p:
-                    eddies_tmp = p.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
-            else:
-                eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
+        with contextlib.ExitStack() as stack:
+            while (centers.lon.shape[0] > 0) and (wx2c < 2 * wx2):
+                eddies_tmp = []
+                for ic in range(centers.lon.shape[0]):
+                    eddies_tmp.append(def_eddy(ic, wx2c, wy2c))
 
-            ind_good = []
-            for i, eddy in enumerate(eddies_tmp):
-                if eddy is not None:
-                    if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
-                        eddies.append(eddy)
-                    else:
-                        if (
-                            len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line)
-                            and (eddy.vmax_contour.line == eddy.boundary_contour.line).all()
-                        ):
-                            ind_good.append(i)
-                        else:
+                # Automatic choice from the sequential processing of a sample
+                sample = []
+                if paral is None:
+                    ceddies.warmup()  # to exclude compilation from the estimate
+                    nsample = min(PARAL_SAMPLE_SIZE, len(eddies_tmp))
+                    t0 = perf_counter()
+                    sample = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp[:nsample]]
+                    estimate = (perf_counter() - t0) / max(nsample, 1) * len(eddies_tmp)
+                    paral = estimate > PARAL_MIN_SECONDS
+                    eddies_tmp = eddies_tmp[nsample:]
+                    if verbose:
+                        logger.info(
+                            "Processing %i center candidates %s (estimated sequential time: %.1f s)",
+                            nsample + len(eddies_tmp),
+                            "in parallel" if paral else "sequentially",
+                            estimate,
+                        )
+
+                if paral and eddies_tmp:
+                    if pool is None:
+                        pool = stack.enter_context(sparal.create_pool(nb_procs, warmup=ceddies.warmup))
+                    eddies_tmp = pool.starmap(Eddies2D.test_eddy, zip(eddies_tmp, repeat(min_radius)))
+                else:
+                    eddies_tmp = [Eddies2D.test_eddy(eddy, min_radius) for eddy in eddies_tmp]
+                eddies_tmp = sample + eddies_tmp
+
+                ind_good = []
+                for i, eddy in enumerate(eddies_tmp):
+                    if eddy is not None:
+                        if wx2c + int(wx2c / 2) >= 2 * wx2:  # no more chance to be conserved
                             eddies.append(eddy)
+                        else:
+                            if (
+                                len(eddy.vmax_contour.line) == len(eddy.boundary_contour.line)
+                                and (eddy.vmax_contour.line == eddy.boundary_contour.line).all()
+                            ):
+                                ind_good.append(i)
+                            else:
+                                eddies.append(eddy)
 
-            centers = centers.isel(neddies=ind_good)
-            del eddies_tmp
-            gc.collect()
-            wx2c += int(wx2c / 2)
-            wy2c += int(wy2c / 2)
+                centers = centers.isel(neddies=ind_good)
+                del eddies_tmp
+                gc.collect()
+                wx2c += int(wx2c / 2)
+                wy2c += int(wy2c / 2)
 
         ## Checking inclusion step
         ## This step can be modified to account for eddy-eddy interaction
-        contain = np.ones(len(eddies)) * True
-        for i in range(len(eddies)):
-            for j in range(len(eddies)):
-                if i == j:
-                    continue
-                # if eddies[i].contains_eddy(eddies[j]): #avoid full inclusion
-                if eddies[i].intersects_eddy(eddies[j]):  # avoid intersection
-                    if eddies[i].vmax_contour.mean_velocity > eddies[j].vmax_contour.mean_velocity:
-                        contain[j] = False
-                    else:
-                        contain[i] = False
-
-        eddies = [eddies[i] for i in range(len(eddies)) if contain[i]]
+        keep = ceddies.filter_intersecting(
+            [eddy._vmax_polygon for eddy in eddies], [eddy.vmax_contour.mean_velocity for eddy in eddies]
+        )
+        eddies = [eddy for eddy, kept in zip(eddies, keep) if kept]
         time = smeta.get_time(u, errors="ignore")
         return cls(
             time.values if time is not None else None,
@@ -1186,7 +1208,7 @@ class EvolEddies2D:
         u=None,
         v=None,
         ssh=None,
-        paral=False,
+        paral=None,
         nb_procs=None,
         ellipse_error=0.1,
     ):
@@ -1208,8 +1230,15 @@ class EvolEddies2D:
             Name of meridional velocity variable. Auto-detected if None.
         ssh : str, optional
             Name of SSH variable. Auto-detected if None.
-        paral : bool, default False
-            Use parallel processing.
+        paral : bool, optional
+            Process the time steps in parallel, each of them being processed
+            sequentially. With a single time step, the centers are processed in
+            parallel as with :meth:`Eddies2D.detect_eddies`.
+            When None, it is switched on when there are at least
+            :data:`PARAL_MIN_TIMES` time steps, and only with the "fork"
+            multiprocessing start method.
+        nb_procs : int, optional
+            Number of parallel processes. Defaults to the available cores.
 
         Returns
         -------
@@ -1224,32 +1253,48 @@ class EvolEddies2D:
             v = smeta.get_v(ds).name
         if not ssh:
             ssh = smeta.get_ssh(ds).name
+        ntimes = len(time)
+        kwargs = dict(
+            window_center=window_center,
+            window_fit=window_fit,
+            min_radius=min_radius,
+            ellipse_error=ellipse_error,
+        )
 
-        # Time loop
-        eddies = []
-        verbose = True
-        for i in range(len(time)):
-            process = psutil.Process(os.getpid())
-            logger.debug("Used memory: %.2f MB", process.memory_info().rss / 1024**2)
+        def get_step(i):
+            """Loaded fields at time step i"""
             dss = ds.isel({time.name: i})
             # check if ssh field is not full of nan
             if not ssh or (dss[ssh].isnull().mean().item() > 0.9):
                 logger.info("SSH field unavailable or mostly NaN, proceeding without SSH")
                 ssh_ = None
             else:
-                ssh_ = dss[ssh]
+                ssh_ = dss[ssh].load()
+            return dss[u].load(), dss[v].load(), ssh_
 
+        # Parallel over time steps
+        paral_times = paral
+        if paral_times is None:
+            paral_times = (
+                sparal.can_auto_paral() and sparal.get_nb_procs(nb_procs) > 1 and ntimes >= PARAL_MIN_TIMES
+            )
+        if paral_times and ntimes > 1:
+            nprocs = min(sparal.get_nb_procs(nb_procs), ntimes)
+            logger.info("Processing %i time steps in parallel with %i processes", ntimes, nprocs)
+            tasks = ((*get_step(i), kwargs) for i in range(ntimes))
+            with sparal.create_pool(nprocs, warmup=ceddies.warmup) as pool:
+                eddies = list(pool.imap(_detect_eddies_step, tasks))
+            return cls(eddies)
+
+        # Sequential time loop
+        eddies = []
+        verbose = True
+        for i in range(ntimes):
+            process = psutil.Process(os.getpid())
+            logger.debug("Used memory: %.2f MB", process.memory_info().rss / 1024**2)
+            u_, v_, ssh_ = get_step(i)
             eddies_ = Eddies2D.detect_eddies(
-                dss[u],
-                dss[v],
-                window_center,
-                window_fit=window_fit,
-                ssh=ssh_,
-                min_radius=min_radius,
-                paral=paral,
-                nb_procs=nb_procs,
-                ellipse_error=ellipse_error,
-                verbose=verbose,
+                u_, v_, ssh=ssh_, paral=paral, nb_procs=nb_procs, verbose=verbose, **kwargs
             )
             eddies.append(eddies_)
             verbose = False

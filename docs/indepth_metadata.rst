@@ -428,7 +428,7 @@ If variable search fails:
 4. Access variable directly by name
 
 CROCO Grid Issues
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 For CROCO:
 
