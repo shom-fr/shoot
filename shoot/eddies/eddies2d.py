@@ -36,6 +36,31 @@ logger = logging.getLogger(__name__)
 
 COLORS = {"anticyclone": "tab:red", "cyclone": "tab:blue", "undefined": "0.5"}
 
+#: Attributes of the eddy variables written to netcdf
+EDDY_VAR_ATTRS = {
+    "i_cen": {"long_name": "Grid index of the eddy center along x"},
+    "j_cen": {"long_name": "Grid index of the eddy center along y"},
+    "x_cen": {"long_name": "Longitude of the eddy center", "units": "degrees_east"},
+    "y_cen": {"long_name": "Latitude of the eddy center", "units": "degrees_north"},
+    "ro": {"long_name": "Rossby number", "units": "1"},
+    "radius": {"long_name": "Radius of the fitted ellipse", "units": "km"},
+    "length": {"long_name": "Perimeter of the fitted ellipse", "units": "km"},
+    "x_ell": {"long_name": "Longitude of the fitted ellipse center", "units": "degrees_east"},
+    "y_ell": {"long_name": "Latitude of the fitted ellipse center", "units": "degrees_north"},
+    "a_ell": {"long_name": "Semi-major axis of the fitted ellipse", "units": "km"},
+    "b_ell": {"long_name": "Semi-minor axis of the fitted ellipse", "units": "km"},
+    "angle_ell": {"long_name": "Orientation angle of the fitted ellipse", "units": "degrees"},
+    "eff_radius": {"long_name": "Mean radius of the boundary contour", "units": "m"},
+    "eff_length": {"long_name": "Length of the boundary contour", "units": "m"},
+    "vmax_radius": {"long_name": "Mean radius of the maximal speed contour", "units": "m"},
+    "vmax_length": {"long_name": "Length of the maximal speed contour", "units": "m"},
+    "vmax": {"long_name": "Mean speed along the maximal speed contour", "units": "m s-1"},
+    "x_eff_contour": {"long_name": "Longitudes of the boundary contour", "units": "degrees_east"},
+    "y_eff_contour": {"long_name": "Latitudes of the boundary contour", "units": "degrees_north"},
+    "x_vmax_contour": {"long_name": "Longitudes of the maximal speed contour", "units": "degrees_east"},
+    "y_vmax_contour": {"long_name": "Latitudes of the maximal speed contour", "units": "degrees_north"},
+}
+
 #: Minimal estimated sequential time (s) of the processing of the center
 #: candidates of a single field to automatically process them in parallel
 PARAL_MIN_SECONDS = 2.0
@@ -425,7 +450,7 @@ class GriddedEddy2D:
     @functools.cached_property
     def ro(self):
         """Rossby number of the eddy"""
-        f = 2 * sdyn.OMEGA * np.sin(self.glat)
+        f = 2 * sdyn.OMEGA * np.sin(np.deg2rad(self.glat))
         return self.vmax_contour.mean_velocity / (f * self.vmax_contour.radius)
 
     @functools.cached_property
@@ -1100,6 +1125,8 @@ class Eddies2D:
                 "contact": "jean.baptiste.roustan@shom.fr",
             },
         )
+        for name, attrs in EDDY_VAR_ATTRS.items():
+            ds[name].attrs.update(attrs)
 
         if hasattr(self.eddies[0], "track_id"):  # tracking case
             ds = ds.assign(p_id=(("obs",), [e.track_id for e in self.eddies]))
